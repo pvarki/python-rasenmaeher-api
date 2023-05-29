@@ -1,0 +1,90 @@
+[tool.poetry]
+name = "rasenmaeher_api"
+version = "0.1.0"
+description = "python-rasenmaeher-api"
+authors = ["Aciid <703382+Aciid@users.noreply.github.com>"]
+# FIXME: Doublecheck these values
+#homepage = "https://gitlab.com/advian-oss/python-rasenmaeher-api/"
+#repository = "https://gitlab.com/advian-oss/python-rasenmaeher-api/"
+#license = "FIXME"
+readme = "README.rst"
+
+[tool.poetry.scripts]
+rasenmaeher_api = "rasenmaeher_api.console:rasenmaeher_api_cli"
+
+
+[tool.black]
+line-length = 120
+target-version = ['py38']
+exclude = '''
+(
+  /(
+      \.eggs         # exclude a few common directories in the
+    | \.git          # root of the project
+    | \.hg
+    | \.mypy_cache
+    | \.tox
+    | \.venv
+    | _build
+    | buck-out
+    | build
+    | dist
+  )/
+  |  __pycache__
+)
+'''
+
+[tool.mypy]
+strict=true
+
+[tool.pytest.ini_options]
+junit_family="xunit2"
+addopts="--cov=rasenmaeher_api --cov-fail-under=65 --cov-branch"
+asyncio_mode="strict"
+
+[tool.pylint.MASTER]
+extension-pkg-allow-list = "pydantic"
+
+[tool.pylint.format]
+max-line-length = 120
+
+[tool.pylint.design]
+max-parents = 10
+
+[tool.pylint.messages_control]
+disable=["fixme", "W1202", "C0209"]
+
+[tool.pylint.similarities]
+min-similarity-lines = 8
+ignore-imports = true
+
+[tool.coverage.run]
+omit = ["tests/*"]
+branch = true
+
+[tool.poetry.dependencies]
+python = "^3.8"
+libadvian = "^1.0"
+click = "^8.0"
+fastapi = "0.89.1"
+uvicorn = "0.20.0"
+requests = "^2.31.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.1"
+coverage = "^6.3"
+pytest-cov = "^3.0"
+pylint = "^2.13"
+black = "^22.3"
+bandit = "^1.7"
+mypy = "^0.942"
+pre-commit = "^2.17"
+pytest-asyncio = "^0.18"
+bump2version = "^1.0"
+detect-secrets = "^1.2"
+
+
+[build-system]
+requires = ["poetry-core>=1.2.0"]
+build-backend = "poetry.core.masonry.api"
