@@ -10,14 +10,18 @@ Configuration
 
 This application can be configured with environment variables.
 
-| Environment variable     | Default value | Info                          |
-| ------------------------ | ------------- | ----------------------------- |
-| RM_PORT          | 8000          | Docker API listen port                |
-| RM_WORKERS_COUNT | 2             | Number of uvicorn workers             |
-| RM_RELOAD        | False         | Reload service on code change         |
-| RM_ENVIRONMENT   | dev           | dev / prod environment                |
-
-
+| Environment variable       | Default value    | Info                                                        |
+| -------------------------- | -------------    | ----------------------------------------------------------- |
+| RM_PORT                    | 8000             | Docker API listen port                                      |
+| RM_WORKERS_COUNT           | 2                | Number of uvicorn workers                                   |
+| RM_RELOAD                  | False            | Reload service on code change                               |
+| RM_ENVIRONMENT             | dev              | dev / prod environment                                      |
+| RM_CFSSL_HOST              | http://127.0.0.1 | CFSSL host url                                              |
+| RM_CFSSL_PORT              | 8888             | CFSSL service port                                          |
+| RM_KEYCLOACK_SERVER_URL    | None             | Keycloack server url (http://1234:8080/auth)                |
+| RM_KEYCLOACK_CLIENT_ID     | None             | Keycloack client id                                         |
+| RM_KEYCLOACK_REALM_NAME    | None             | Keycloack realm name                                        |
+| RM_KEYCLOACK_CLIENT_SECRET | None             | Keycloack secret                                            |
 
 You can create `.env` file in the root directory and place all
 environment variables here.
