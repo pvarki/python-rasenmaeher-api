@@ -1,0 +1,123 @@
+version: '3.4'
+
+services:
+  cfssl:
+    image: ealen/echo-server # FIXME: Change to image and add build config
+    networks:
+      - canet
+    volumes:
+      - cfssl_data:/opt/cfssl/persistent
+
+  postgres:
+    image: postgis/postgis:15-3.3
+    networks:
+      - dbnet
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./pg_init:/docker-entrypoint-initdb.d
+    depends_on:
+      cfssl:
+        condition: service_healthy
+
+  openldap:
+    image: ealen/echo-server # FIXME: Change to image and add build config
+    networks:
+      - kcnet
+      - dbnet
+    ports:
+      - '1636:1636'  # LDAPs
+    environment:
+      - LDAP_ENABLE_TLS=1
+      # FIXME: Use letsencrypt cert ?
+      - LDAP_TLS_CERT_FILE=/opt/bitnami/openldap/certs/openldap.crt
+      - LDAP_TLS_KEY_FILE=/opt/bitnami/openldap/certs/openldap.key
+      - LDAP_TLS_CA_FILE=/opt/bitnami/openldap/certs/openldapCA.crt
+      #- LDAP_ROOT=dc=example,dc=org
+      #- LDAP_ADMIN_USERNAME=admin
+      #- LDAP_ADMIN_PASSWORD=adminpassword
+      #- LDAP_SKIP_DEFAULT_TREE=yes
+      #- LDAP_ALLOW_ANON_BINDING=no
+      #- LDAP_LOGLEVEL=-1
+    volumes:
+      - openldap_data:/bitnami/openldap
+    depends_on:
+      cfssl:
+        condition: service_healthy
+
+  keycloak:
+    image: ealen/echo-server # FIXME: Change to image and add build config
+    networks:
+      - kcnet
+      - dbnet
+    depends_on:
+      openldap:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  # init container that sets up profile with realm on keycloak instance
+  keycloak-init:
+    image: adorsys/keycloak-config-cli:latest-21.0.1
+    networks:
+      - kcnet
+    volumes:
+      # FIXME: paths etc
+      - ./keycloak-config:/config
+    environment:
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_USER=admin
+      - KEYCLOAK_PASSWORD=admin
+      - KEYCLOAK_SSL-VERIFY=false
+      - KEYCLOAK_AVAILABILITYCHECK_ENABLED=true
+      - KEYCLOAK_AVAILABILITYCHECK_TIMEOUT=30s
+      - IMPORT_VAR_SUBSTITUTION_ENABLED=true
+      - LDAP_CONNECTION_URL=ldap://openldap:1389
+      - LDAP_ADMIN_PASSWORD=adminpassword
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  rmapi:
+    image: ealen/echo-server # FIXME: Change to image and add build config
+    networks:
+      - apinet
+      - kcnet
+      - canet
+    depends_on:
+      cfssl:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      keycloak-init:
+        condition: service_completed_successfully
+
+  nginx:
+    image: nginx
+    volumes:
+     - ./nginx/templates:/etc/nginx/templates
+     - ./nginx/includes:/etc/nginx/includes
+    environment:
+     - NGINX_HOST="${HOSTNAME}"
+    networks:
+      - apinet
+      - kcnet
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      rmapi:
+        condition: service_healthy
+
+networks:
+  apinet:
+  kcnet:
+  canet:
+  dbnet:
+
+volumes:
+  pg_data:
+  cfssl_data:
+  openldap_data:
+  rmapi_data:
