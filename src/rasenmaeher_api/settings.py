@@ -48,7 +48,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
         """Configuration of settings."""
 
         env_file = ".env"
-        env_prefix = "RASENMAEHER_"
+        env_prefix = "RM_"
         env_file_encoding = "utf-8"
 
 
