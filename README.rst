@@ -5,6 +5,41 @@ python-rasenmaeher-api
 python-rasenmaeher-api
 
 
+Configuration
+-------------
+
+This application can be configured with environment variables.
+
+| Environment variable     | Default value | Info                          |
+| ------------------------ | ------------- | ----------------------------- |
+| RM_PORT          | 8000          | Docker API listen port                |
+| RM_WORKERS_COUNT | 2             | Number of uvicorn workers             |
+| RM_RELOAD        | False         | Reload service on code change         |
+| RM_ENVIRONMENT   | dev           | dev / prod environment                |
+
+
+
+You can create `.env` file in the root directory and place all
+environment variables here.
+
+
+All environment variables should start with `RM_` prefix.
+
+For example if you see in your "rasenmaeher_api/settings.py" a variable named like
+`random_parameter`, you should provide the "RM_RANDOM_PARAMETER"
+variable to configure the value. This behaviour can be changed by overriding `env_prefix` property
+in `rasenmaeher_api.settings.Settings.Config`.
+
+An example of .env file:
+```bash
+RM_RELOAD="True"
+RM_PORT="8000"
+RM_ENVIRONMENT="dev"
+```
+
+You can read more about BaseSettings class here: https://pydantic-docs.helpmanual.io/usage/settings/
+
+
 Docker
 ------
 
