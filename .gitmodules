@@ -1,0 +1,9 @@
+[submodule "rasenmaeher-api"]
+	path = rasenmaeher-api
+	url = git@github.com:pvarki/python-rasenmaeher-api.git
+[submodule "keycloak"]
+	path = keycloak
+	url = git@github.com:pvarki/docker-openldap.git
+[submodule "cfssl"]
+	path = cfssl
+	url = git@github.com:pvarki/docker-tilauspalvelu-cfssl.git
