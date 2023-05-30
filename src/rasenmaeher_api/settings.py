@@ -54,6 +54,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     keycloack_realm_name: Optional[str] = None
     keycloack_client_secret: Optional[str] = None
 
+    # LDAP configuration
+    ldap_conn_string: Optional[str] = None
+    ldap_username: Optional[str] = None
+    ldap_client_secret: Optional[str] = None
+
     class Config:  # pylint: disable=too-few-public-methods
         """Configuration of settings."""
 

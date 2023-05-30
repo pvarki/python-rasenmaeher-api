@@ -22,6 +22,10 @@ This application can be configured with environment variables.
 | RM_KEYCLOACK_CLIENT_ID     | None             | Keycloack client id                                         |
 | RM_KEYCLOACK_REALM_NAME    | None             | Keycloack realm name                                        |
 | RM_KEYCLOACK_CLIENT_SECRET | None             | Keycloack secret                                            |
+| RM_LDAP_CONN_STRING        | None             | LDAP conn string                                            |
+| RM_LDAP_USERNAME           | None             | LDAP username                                               |
+| RM_LDAP_CLIENT_SECRET      | None             | LDAP secret                                                 |
+
 
 You can create `.env` file in the root directory and place all
 environment variables here.
