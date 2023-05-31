@@ -21,6 +21,18 @@ When checking updating or checking out branches use::
 The submodules are repos in their own right, if you plan to make changes into them change
 to the directory and create new branch, commit and push changes as usual under that directory.
 
+Running in local development mode
+_________________________________
+
+TLDR::
+
+    docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml build
+    docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml up
+
+Launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
+you make under /api will soon be reflected in the running instance.
+
+
 Directories that are submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
