@@ -7,6 +7,7 @@ from typing import cast, Dict, Any
 import OpenSSL.crypto
 import requests
 from fastapi import APIRouter, Response
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -95,3 +96,21 @@ async def return_enduser_certs(callsign: str) -> Response:
     await save_key(_key, callsign)
     await save_pfx(_pfx, callsign)
     return Response(content=_pfx, media_type="application/x-pkcs12")
+
+
+@router.get("/{callsign}")
+async def check_enduser_bundle_available(callsign: str) -> Response:
+    """
+    Method to check if bundle is available
+    :param callsign: OTTER1
+    :returns pfx or 404 error
+    """
+    # FIXME Unnecessary "else" after "return", pylint: disable=R1705
+    if os.path.exists(f"/data/persistent/{callsign}/{callsign}.pfx"):  # pylint: disable=R1705
+        with open(f"/data/persistent/{callsign}/{callsign}.pfx", "rb") as file:
+            _pfx = file.read()
+        return Response(content=_pfx, media_type="application/x-pkcs12")
+    else:
+        return JSONResponse(
+            content={"result": "Error bundle not found"}, media_type="application/json", status_code=404
+        )
