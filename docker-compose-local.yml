@@ -7,6 +7,11 @@ x-kc_dbconfig_env: &kcdbconfig_env
   # FIXME: take from env (which should be set to random)
   KEYCLOAK_DATABASE_PASSWORD: &kcdbpass keycloakpwd # pragma: allowlist secret
 
+x-postgres_env: &postgres_env
+  KEYCLOAK_PASSWORD: *kcdbpass # pragma: allowlist secret
+  POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
+
+
 x-ldap_admin_env: &ldap_admin_env
   # FIXME: take from env (which should be set to random)
   LDAP_ADMIN_PASSWORD: &ldapadminpass ldapadminpwd # pragma: allowlist secret
@@ -56,11 +61,10 @@ services:
       - pg_data:/var/lib/postgresql/data
       - ca_public:/ca_public
     environment:
-      KEYCLOAK_PASSWORD: *kcdbpass # pragma: allowlist secret
-      POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
-#    depends_on:
-#      cfssl:
-#        condition: service_healthy
+      <<: *postgres_env
+    depends_on:
+      cfssl:
+        condition: service_healthy
     healthcheck:
       test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
       interval: 5s
@@ -167,6 +171,12 @@ services:
         condition: service_healthy
       keycloak-init:
         condition: service_completed_successfully
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
   nginx:
     image: nginx

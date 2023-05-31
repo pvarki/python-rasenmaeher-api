@@ -2,12 +2,12 @@
 #   `docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml up`
 version: '3.7'
 services:
-  api:
-    image: pvarki/rmapi:latest
+  rmapi:
+    image: pvarki/rmapi:devel_shell
     build:
       context: ./api
       dockerfile: Dockerfile
       target: devel_shell
-    command: ["-c", "source /root/.profile && poetry install && uvicorn --host 0.0.0.0 --port 8000 --log-level debug rasenmaeher_api.web.application:get_app --reload"]
+    command: ["-c", "source /root/.profile && poetry install&& uvicorn --host 0.0.0.0 --port 8000 --log-level debug rasenmaeher_api.web.application:get_app --reload"]
     volumes:
       - "./api:/app"
