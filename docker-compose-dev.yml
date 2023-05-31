@@ -1,0 +1,13 @@
+# This extends the _local file, run with:
+#   `docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml up`
+version: '3.7'
+services:
+  api:
+    image: pvarki/rmapi:latest
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: devel_shell
+    command: ["-c", "source /root/.profile && poetry install && uvicorn --host 0.0.0.0 --port 8000 --log-level debug rasenmaeher_api.web.application:get_app --reload"]
+    volumes:
+      - "./api:/app"
