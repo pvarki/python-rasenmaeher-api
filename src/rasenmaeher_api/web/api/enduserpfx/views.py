@@ -58,9 +58,8 @@ async def sign_csr(csr: str) -> str:
     return cast(str, data)
 
 
-async def save_key(pem_key: str) -> None:
+async def save_key(pem_key: str, callsign: str) -> None:
     """Save key to file."""
-    callsign = "OTTER1"
     try:
         if not os.path.exists(f"/data/persistent/{callsign}"):
             os.makedirs(f"/data/persistent/{callsign}")
@@ -70,9 +69,8 @@ async def save_key(pem_key: str) -> None:
         LOGGER.info("Error: %s : %s", _e.filename, _e.strerror)
 
 
-async def save_pfx(pfx: bytes) -> None:
+async def save_pfx(pfx: bytes, callsign: str) -> None:
     """Save PFX to file."""
-    callsign = "OTTER1"
     try:
         if not os.path.exists(f"/data/persistent/{callsign}"):
             os.makedirs(f"/data/persistent/{callsign}")
@@ -82,17 +80,18 @@ async def save_pfx(pfx: bytes) -> None:
         LOGGER.info("Error: %s : %s", _e.filename, _e.strerror)
 
 
-@router.post("/")
-async def return_enduser_certs() -> Response:
+@router.post("/{callsign}")
+async def return_enduser_certs(callsign: str) -> Response:
     """
     Method to create key, sign CSR and return PFX
+    :param callsign: OTTER1
     :returns pfx
     """
-    _newkeybundle = await new_key("OTTER1")
+    _newkeybundle = await new_key(callsign)
     _key = cast(str, _newkeybundle.get("private_key"))
     _csr = cast(str, _newkeybundle.get("certificate_request"))
     _cert = await sign_csr(_csr)
     _pfx = await pem_to_pfx(_key, _cert)
-    await save_key(_key)
-    await save_pfx(_pfx)
+    await save_key(_key, callsign)
+    await save_pfx(_pfx, callsign)
     return Response(content=_pfx, media_type="application/x-pkcs12")
