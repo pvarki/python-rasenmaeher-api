@@ -30,6 +30,13 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
     download_url: str
 
 
+class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment init out response schema"""
+
+    enroll_str: str
+    permit_str: str
+
+
 class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 

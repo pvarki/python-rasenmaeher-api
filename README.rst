@@ -116,7 +116,7 @@ Api endpoints and usage
      - Deliver download link for enrollment zip
    * - Dummy
      - POST
-     - /api/enroll/accept/{id_string}
+     - /api/enroll/accept
      - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
      - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
      - Accept the enrollment request

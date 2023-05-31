@@ -5,6 +5,7 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentInitIn,
     EnrollmentInitOut,
     EnrollmentDeliverOut,
+    EnrollmentAcceptIn,
     EnrollmentAcceptOut,
 )
 
@@ -44,13 +45,14 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
     return EnrollmentDeliverOut(work_id="TODO_SOME_WORK_ID", enroll_str=enroll_str, download_url="https://kuvaton.com")
 
 
-@router.post("/accept/{enroll_str}/{permit_str}", response_model=EnrollmentAcceptOut)
+@router.post("/accept", response_model=EnrollmentAcceptOut)
 async def post_enrollment_accept(
-    enroll_str: str,
-    permit_str: str,
+    request_in: EnrollmentAcceptIn,
 ) -> EnrollmentAcceptOut:
     """
     TODO accept something in sqlite
     """
 
-    return EnrollmentAcceptOut(work_id="TODO_SOME_WORK_ID", enroll_str=enroll_str, permit_str=permit_str)
+    return EnrollmentAcceptOut(
+        work_id="TODO_SOME_WORK_ID", enroll_str=request_in.enroll_str, permit_str=request_in.permit_str
+    )
