@@ -86,6 +86,8 @@ pre-commit = "^2.17"
 pytest-asyncio = "^0.18"
 bump2version = "^1.0"
 detect-secrets = "^1.2"
+types-requests = "^2.31"
+types-pyopenssl = "^23.1"
 
 
 [build-system]
