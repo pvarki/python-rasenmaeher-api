@@ -67,10 +67,10 @@ python = "^3.8"
 libadvian = "^1.0"
 click = "^8.0"
 fastapi = "0.89.1"
-uvicorn = "0.20.0"
 requests = "^2.31.0"
 multikeyjwt = "1.0.0"
-
+uvicorn = {version = "^0.20", extras = ["standard"]}
+gunicorn = "^20.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.1"
