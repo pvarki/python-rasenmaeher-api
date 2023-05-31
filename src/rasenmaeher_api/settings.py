@@ -38,7 +38,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Current environment
     environment: str = "dev"
 
-    log_level: LogLevel = LogLevel.INFO
+    log_level: LogLevel = LogLevel.DEBUG
 
     # Sentry's configuration.
     sentry_dsn: Optional[str] = None
@@ -48,11 +48,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     cfssl_host: str = "http://127.0.0.1"
     cfssl_port: str = "8888"
 
-    # Keycloack configuration.
-    keycloack_server_url: Optional[str] = None
-    keycloack_client_id: Optional[str] = None
-    keycloack_realm_name: Optional[str] = None
-    keycloack_client_secret: Optional[str] = None
+    # Keycloak configuration.
+    keycloak_server_url: Optional[str] = None
+    keycloak_client_id: Optional[str] = None
+    keycloak_realm_name: Optional[str] = None
+    keycloak_client_secret: Optional[str] = None
 
     # LDAP configuration
     ldap_conn_string: Optional[str] = None

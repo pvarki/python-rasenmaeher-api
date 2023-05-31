@@ -10,21 +10,52 @@ Configuration
 
 This application can be configured with environment variables.
 
-| Environment variable       | Default value    | Info                                                        |
-| -------------------------- | -------------    | ----------------------------------------------------------- |
-| RM_PORT                    | 8000             | Docker API listen port                                      |
-| RM_WORKERS_COUNT           | 2                | Number of uvicorn workers                                   |
-| RM_RELOAD                  | False            | Reload service on code change                               |
-| RM_ENVIRONMENT             | dev              | dev / prod environment                                      |
-| RM_CFSSL_HOST              | http://127.0.0.1 | CFSSL host url                                              |
-| RM_CFSSL_PORT              | 8888             | CFSSL service port                                          |
-| RM_KEYCLOACK_SERVER_URL    | None             | Keycloack server url (http://1234:8080/auth)                |
-| RM_KEYCLOACK_CLIENT_ID     | None             | Keycloack client id                                         |
-| RM_KEYCLOACK_REALM_NAME    | None             | Keycloack realm name                                        |
-| RM_KEYCLOACK_CLIENT_SECRET | None             | Keycloack secret                                            |
-| RM_LDAP_CONN_STRING        | None             | LDAP conn string                                            |
-| RM_LDAP_USERNAME           | None             | LDAP username                                               |
-| RM_LDAP_CLIENT_SECRET      | None             | LDAP secret                                                 |
+.. list-table:: Container Variables
+   :widths: 30 30 50
+   :header-rows: 1
+
+   * - ENV VAR
+     - Default value
+     - Info / Usage
+   * - RM_PORT
+     - 8000
+     - Docker API listen port
+   * - RM_WORKERS_COUNT
+     - 2
+     - Number of uvicorn workers
+   * - RM_RELOAD
+     - False
+     - Reload service on code change
+   * - RM_ENVIRONMENT
+     - dev
+     - Run dev / prod environment
+   * - RM_CFSSL_HOST
+     - None
+     - CFSSL host url
+   * - RM_CFSSL_PORT
+     - None
+     - CFSSL service port
+   * - RM_KEYCLOAK_SERVER_URL
+     - None
+     - Keycloak server url  (http://1234:8080/auth)
+   * - RM_KEYCLOAK_CLIENT_ID
+     - None
+     - Keycloak client id
+   * - RM_KEYCLOAK_REALM_NAME
+     - None
+     - Keycloak realm name
+   * - RM_KEYCLOAK_CLIENT_SECRET
+     - None
+     - Keycloak secert
+   * - RM_LDAP_CONN_STRING
+     - None
+     - LDAP conn string
+   * - RM_LDAP_USERNAME
+     - None
+     - LDAP username
+   * - RM_LDAP_CLIENT_SECRET
+     - None
+     - LDAP connection secret
 
 
 You can create `.env` file in the root directory and place all
@@ -46,6 +77,20 @@ RM_ENVIRONMENT="dev"
 ```
 
 You can read more about BaseSettings class here: https://pydantic-docs.helpmanual.io/usage/settings/
+
+
+Example usage
+-------------
+
+# REQUEST A NEW CERTIFICATE USING CSR (requires cfssl backend for the api container)
+curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/takreg | jq
+
+# TODO
+# REQUEST A NEW CERTIFICATE WITHOUT CSR (requires cfssl backend for the api container)
+curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq
+
+# LIST CFSSL CRL LIST
+curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq
 
 
 Docker
