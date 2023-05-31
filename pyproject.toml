@@ -71,6 +71,8 @@ requests = "^2.31.0"
 multikeyjwt = "1.0.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
+pyopenssl = "^23.1.1"
+
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.1"
