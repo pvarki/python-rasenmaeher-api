@@ -31,7 +31,10 @@ x-keycloakinit_users_env: &keycloakinit_users_env
 
 services:
   cfssl:
-    image: ealen/echo-server # FIXME: Change to image and add build config
+    image: pvarki/cfssl:latest
+    build:
+      context: ./cfssl
+      dockerfile: Dockerfile
     networks:
       - canet
     volumes:
@@ -132,7 +135,11 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: ealen/echo-server # FIXME: Change to image and add build config
+    image: pvarki/rmapi:latest
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: production
     networks:
       - apinet
       - kcnet

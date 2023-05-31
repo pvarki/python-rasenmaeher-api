@@ -10,3 +10,6 @@
 [submodule "keycloak2"]
 	path = keycloak
 	url = git@github.com:pvarki/docker-keycloak.git
+[submodule "api"]
+	path = api
+	url = git@github.com:pvarki/python-rasenmaeher-api.git
