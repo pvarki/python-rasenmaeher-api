@@ -1,11 +1,16 @@
 version: '3.4'
 
 x-kc_dbconfig_env: &kcdbconfig_env
-  DB_HOST: postgres
-  DB_USER: &kcdbuser keycloak
-  DB_DATABASE: &kcdbname keycloak
-  DB_PASSWORD: &kcdbpass keycloakpwd # pragma: allowlist secret
-  DB_PORT: &dbport 57432
+  KEYCLOAK_DATABASE_NAME: &kcdbname keycloak
+  KEYCLOAK_DATABASE_HOST: postgres
+  KEYCLOAK_DATABASE_USER: &kcdbuser keycloak
+  # FIXME: take from env (which should be set to random)
+  KEYCLOAK_DATABASE_PASSWORD: &kcdbpass keycloakpwd # pragma: allowlist secret
+
+x-ldap_admin_env: &ldap_admin_env
+  # FIXME: take from env (which should be set to random)
+  LDAP_ADMIN_PASSWORD: &ldapadminpass ldapadminpwd # pragma: allowlist secret
+  LDAP_ADMIN_USERNAME: &ldapadminuser admin
 
 services:
   cfssl:
@@ -43,17 +48,17 @@ services:
     ports:
       - '1636:1636'  # LDAPs
     environment:
-      - LDAP_ENABLE_TLS=1
+      <<: *ldap_admin_env
+      LDAP_SKIP_DEFAULT_TREE: yes
+      LDAP_ALLOW_ANON_BINDING: no
+      LDAP_ENABLE_TLS: 1
+      # FIXME: get from env ??
+      LDAP_ROOT: "dc=example,dc=org"
+#      LDAP_LOGLEVEL: -1
       # FIXME: Use letsencrypt cert ?
-      - LDAP_TLS_CERT_FILE=/opt/bitnami/openldap/certs/openldap.crt
-      - LDAP_TLS_KEY_FILE=/opt/bitnami/openldap/certs/openldap.key
-      - LDAP_TLS_CA_FILE=/opt/bitnami/openldap/certs/openldapCA.crt
-      #- LDAP_ROOT=dc=example,dc=org
-      #- LDAP_ADMIN_USERNAME=admin
-      #- LDAP_ADMIN_PASSWORD=adminpassword
-      #- LDAP_SKIP_DEFAULT_TREE=yes
-      #- LDAP_ALLOW_ANON_BINDING=no
-      #- LDAP_LOGLEVEL=-1
+      LDAP_TLS_CERT_FILE: /opt/bitnami/openldap/certs/openldap.crt
+      LDAP_TLS_KEY_FILE: /opt/bitnami/openldap/certs/openldap.key
+      LDAP_TLS_CA_FILE: /opt/bitnami/openldap/certs/openldapCA.crt
     volumes:
       - openldap_data:/bitnami/openldap
     depends_on:
@@ -62,6 +67,8 @@ services:
 
   keycloak:
     image: ealen/echo-server # FIXME: Change to image and add build config
+    environment:
+      <<: *kcdbconfig_env
     networks:
       - kcnet
       - dbnet
@@ -80,15 +87,13 @@ services:
       # FIXME: paths etc
       - ./keycloak-config:/config
     environment:
-      - KEYCLOAK_URL=http://keycloak:8080
-      - KEYCLOAK_USER=admin
-      - KEYCLOAK_PASSWORD=admin
-      - KEYCLOAK_SSL-VERIFY=false
-      - KEYCLOAK_AVAILABILITYCHECK_ENABLED=true
-      - KEYCLOAK_AVAILABILITYCHECK_TIMEOUT=30s
-      - IMPORT_VAR_SUBSTITUTION_ENABLED=true
-      - LDAP_CONNECTION_URL=ldap://openldap:1389
-      - LDAP_ADMIN_PASSWORD=adminpassword
+      <<: *ldap_admin_env
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_SSL-VERIFY: false  # Fixme set to true, the container should trust our CA
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: true
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 30s
+      IMPORT_VAR_SUBSTITUTION_ENABLED: true
+      LDAP_CONNECTION_URL: ldap://openldap:1389
     depends_on:
       keycloak:
         condition: service_healthy
