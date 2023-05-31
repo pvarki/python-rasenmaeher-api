@@ -186,7 +186,7 @@ services:
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
-      - NGINX_HOST="${HOSTNAME}"
+      - NGINX_HOST="${HOSTNAME:-localhost}"
     networks:
       - apinet
       - kcnet
