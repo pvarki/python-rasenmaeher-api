@@ -64,8 +64,8 @@ async def save_key(pem_key: str) -> None:
     try:
         if not os.path.exists(f"/data/persistent/{callsign}"):
             os.makedirs(f"/data/persistent/{callsign}")
-        with open(f"/data/persistent/{callsign}/{callsign}.pem", "wb") as file:
-            file.write(bytes(pem_key, "UTF-8"))
+        with open(f"/data/persistent/{callsign}/{callsign}.pem", "w", encoding="UTF-8") as file:
+            file.write(pem_key)
     except OSError as _e:
         LOGGER.info("Error: %s : %s", _e.filename, _e.strerror)
 
