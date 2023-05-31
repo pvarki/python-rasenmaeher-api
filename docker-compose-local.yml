@@ -151,6 +151,8 @@ services:
       context: ./api
       dockerfile: Dockerfile
       target: production
+    ports:
+      - "8000:8000"
     networks:
       - apinet
       - kcnet
@@ -177,8 +179,8 @@ services:
       - apinet
       - kcnet
     ports:
-      - "80:80"
-      - "443:443"
+      - "8080:80"
+      - "8443:443"
     depends_on:
       keycloak:
         condition: service_healthy
