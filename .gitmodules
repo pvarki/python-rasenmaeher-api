@@ -7,3 +7,6 @@
 [submodule "cfssl"]
 	path = cfssl
 	url = git@github.com:pvarki/docker-tilauspalvelu-cfssl.git
+[submodule "keycloak2"]
+	path = keycloak
+	url = git@github.com:pvarki/docker-keycloak.git
