@@ -171,10 +171,12 @@ services:
   nginx:
     image: nginx
     volumes:
-     - ./nginx/templates:/etc/nginx/templates
-     - ./nginx/includes:/etc/nginx/includes
+      - ./nginx/templates:/etc/nginx/templates
+      - ./nginx/includes:/etc/nginx/includes
+      - ca_public:/ca_public
+      - le_certs:/le_certs
     environment:
-     - NGINX_HOST="${HOSTNAME}"
+      - NGINX_HOST="${HOSTNAME}"
     networks:
       - apinet
       - kcnet
