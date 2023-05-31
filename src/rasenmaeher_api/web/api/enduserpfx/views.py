@@ -1,4 +1,6 @@
 """Enduser API views."""
+import logging
+import os
 import json
 from typing import cast, Dict, Any
 
@@ -7,6 +9,8 @@ import requests
 from fastapi import APIRouter, Response
 
 router = APIRouter()
+
+LOGGER = logging.getLogger(__name__)
 
 
 async def pem_to_pfx(pem_key: str, pem_cert: str) -> bytes:
@@ -32,7 +36,7 @@ async def new_key(callsign: str) -> Dict[Any, Any]:
     )
     headers = {"Content-Type": "application/json"}
 
-    response = requests.request("POST", url, headers=headers, data=payload, timeout=5)
+    response = requests.request("POST", url, headers=headers, data=payload, timeout=10)
     data = response.json().get("result")
     return cast(Dict[Any, Any], data)
 
@@ -54,6 +58,30 @@ async def sign_csr(csr: str) -> str:
     return cast(str, data)
 
 
+async def save_key(pem_key: str) -> None:
+    """Save key to file."""
+    callsign = "OTTER1"
+    try:
+        if not os.path.exists(f"/data/persistent/{callsign}"):
+            os.makedirs(f"/data/persistent/{callsign}")
+        with open(f"/data/persistent/{callsign}/{callsign}.pem", "wb") as file:
+            file.write(bytes(pem_key, "UTF-8"))
+    except OSError as _e:
+        LOGGER.info("Error: %s : %s", _e.filename, _e.strerror)
+
+
+async def save_pfx(pfx: bytes) -> None:
+    """Save PFX to file."""
+    callsign = "OTTER1"
+    try:
+        if not os.path.exists(f"/data/persistent/{callsign}"):
+            os.makedirs(f"/data/persistent/{callsign}")
+        with open(f"/data/persistent/{callsign}/{callsign}.pfx", "wb") as file:
+            file.write(pfx)
+    except OSError as _e:
+        LOGGER.info("Error: %s : %s", _e.filename, _e.strerror)
+
+
 @router.post("/")
 async def return_enduser_certs() -> Response:
     """
@@ -65,4 +93,6 @@ async def return_enduser_certs() -> Response:
     _csr = cast(str, _newkeybundle.get("certificate_request"))
     _cert = await sign_csr(_csr)
     _pfx = await pem_to_pfx(_key, _cert)
+    await save_key(_key)
+    await save_pfx(_pfx)
     return Response(content=_pfx, media_type="application/x-pkcs12")
