@@ -1,4 +1,5 @@
 """Schema for enrollment."""
+from typing import Optional
 from pydantic import BaseModel
 
 
@@ -7,6 +8,8 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
 
     status: str
     work_id: str
+    success: bool
+    reason: Optional[str]
 
 
 class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
@@ -20,6 +23,8 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
 
     work_id: str
     enroll_str: str
+    success: bool
+    reason: Optional[str]
 
 
 class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
@@ -28,6 +33,9 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
     work_id: str
     enroll_str: str
     download_url: str
+    success: bool
+    status: Optional[str]
+    reason: Optional[str]
 
 
 class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
@@ -43,3 +51,5 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
     work_id: str
     enroll_str: str
     permit_str: str
+    success: bool
+    reason: Optional[str]

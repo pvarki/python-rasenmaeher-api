@@ -3,7 +3,7 @@ import enum
 import os
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Optional, Any
+from typing import Optional, Any, Tuple
 import sqlite3
 from pydantic import BaseSettings
 
@@ -47,25 +47,24 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
         if self.db_ok is False:
             self.create_sqlitedatabase()
 
-    def run_command(self, conn: Any, sql_cmd: str = "NA") -> list[Any]:
+    def run_command(self, sql_cmd: str = "NA") -> Tuple[bool, list[Any]]:
         """create a table from the create_table_sql statement
-        :param conn: Connection object
         :param sql_cmd: sql command statement
         """
         try:
-            _c = conn.cursor()
+            _c = self.sqlite_conn.cursor()
             _c.execute(sql_cmd)
-            _c.commit()
+            self.sqlite_conn.commit()
 
             _rows = []
             _rows = _c.fetchall()
             _c.close()
             if len(_rows) > 0:
-                return _rows
-            return [True]
+                return True, _rows
+            return True, []
         except Exception as _e:  # pylint: disable=broad-exception-caught
             print(_e)
-            return [False]
+            return False, []
 
     def check_sqlitedatabase(self) -> bool:
         """Check if the sqlite database has been initialized"""
@@ -89,11 +88,16 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
 
         self.sqlite_conn = sqlite3.connect(self.sqlite_filepath)
 
-        # create tables
+        # create tables and add management hash
         if self.sqlite_conn is not None:
-            self.run_command(self.sqlite_conn, self.settings.sqlite_enrollement_table_schema)
+            self.run_command(self.settings.sqlite_enrollement_table_schema)
 
-            self.run_command(self.sqlite_conn, self.settings.sqlite_management_table_schema)
+            self.run_command(self.settings.sqlite_management_table_schema)
+            _q = self.settings.sqlite_insert_into_management.format(
+                management_hash=self.settings.sqlite_init_management_hash, special_rules="main"
+            )
+            self.run_command(_q)
+
         else:
             print("Error! cannot create the database connection.")
 
@@ -140,21 +144,49 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Sqlite configurations
     sqlite_filepath_prod: str = "/data/persistent/sqlite/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
     sqlite_filepath_dev: str = "/tmp/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
-    sqlite_enrollement_table_name: str = "enrollment"
+    sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
 
     sqlite_enrollement_table_schema = """ CREATE TABLE IF NOT EXISTS enrollment (
-                                        id integer PRIMARY KEY,
+                                        id integer PRIMARY KEY AUTOINCREMENT,
                                         work_id text NOT NULL,
                                         work_id_hash text NOT NULL,
-                                        state text NOT NULL
+                                        state text NOT NULL,
+                                        accepted text NOT NULL,
+                                        dl_link text NOT NULL
                                     ); """
 
-    sqlite_management_table_name: str = "management"
     sqlite_management_table_schema = """ CREATE TABLE IF NOT EXISTS management (
-                                        id integer PRIMARY KEY,
+                                        id integer PRIMARY KEY AUTOINCREMENT,
                                         management_hash text NOT NULL,
                                         special_rules text NOT NULL
                                     ); """
+
+    sqlite_insert_into_enrollment = """ INSERT INTO enrollment
+                                        (work_id, work_id_hash, state, accepted, dl_link)
+                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{dl_link}')
+                                    ;"""
+    sqlite_insert_into_management = """ INSERT INTO management
+                                        (management_hash, special_rules)
+                                        VALUES('{management_hash}','{special_rules}')
+                                    ;"""
+    sqlite_sel_from_enrollment = """SELECT work_id, work_id_hash, state, accepted, dl_link
+                                        FROM enrollment
+                                        WHERE work_id='{work_id}'
+                                    ;"""
+
+    sqlite_sel_from_enrollment_where_hash = """SELECT work_id, work_id_hash, state, accepted, dl_link
+                                        FROM enrollment
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+
+    sqlite_sel_from_management = """SELECT management_hash, special_rules FROM management
+                                        WHERE management_hash='{management_hash}'
+                                    ;"""
+
+    sqlite_update_accept_enrollment = """UPDATE enrollment
+                                        SET accepted='{enroll_str}'
+                                        WHERE work_id_hash={work_id_hash}
+                                    ;"""
 
     class Config:  # pylint: disable=too-few-public-methods
         """Configuration of settings."""

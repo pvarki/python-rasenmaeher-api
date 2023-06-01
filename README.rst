@@ -90,7 +90,7 @@ Api endpoints and usage
    :widths: 12 8 30 50 50 80
    :header-rows: 1
 
-   * - Implemented
+   * - State
      - Method
      - URI
      - Request JSON
@@ -120,9 +120,23 @@ Api endpoints and usage
      - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
      - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
      - Accept the enrollment request
+   * - Testing
+     - POST
+     - /api/takreg
+     - { 'TO':'DO'}
+     - { 'TO':'DO'}
+     - Accept the enrollment request
+   * - Testing
+     - POST
+     - /api/enroll/accept
+     - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
+     - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
+     - Accept the enrollment request
 
 Example usage
 -------------
+
+
 
 # REQUEST A NEW CERTIFICATE USING CSR (requires cfssl backend for the api container)
 ```curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/takreg | jq```
@@ -132,6 +146,8 @@ Example usage
 
 # LIST CFSSL CRL LIST
 ```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
+
+The cfssl used behind API listents this kind of stuff https://github.com/cloudflare/cfssl/blob/master/doc/api/endpoint_newcert.txt
 
 
 Docker
