@@ -1,0 +1,12 @@
+on:
+    pull_request:
+    push:
+
+jobs:
+    python-rasenmaeher-api:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v3
+      - run: docker build --ssh default --target devel_shell -t rasenmaeher_api:devel_shell .
+      - run: docker run --rm -v ${{ github.workspace }}:/app rasenmaeher_api:devel_shell -c "source /.venv/bin/activate && pre-commit install"
+      - run: docker run --rm -v ${{ github.workspace }}:/app rasenmaeher_api:devel_shell -c "source /.venv/bin/activate && pre-commit run --all-files"
