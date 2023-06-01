@@ -67,9 +67,7 @@ async def post_config_set_state(
             reason="Error. Undefined backend error q_ssues1",
         )
 
-    return EnrollmentConfigSetStateOut(
-        success=True,
-    )
+    return EnrollmentConfigSetStateOut(success=True, reason="")
 
 
 @router.post("/config/set-dl-link", response_model=EnrollmentConfigSetDLOut)
@@ -112,9 +110,7 @@ async def post_config_set_dl_link(
             reason="Error. Undefined backend error q_ssuedl1",
         )
 
-    return EnrollmentConfigSetDLOut(
-        success=True,
-    )
+    return EnrollmentConfigSetDLOut(success=True, reason="")
 
 
 @router.post("/config/add-manager", response_model=EnrollmentConfigAddManagerOut)
@@ -157,7 +153,7 @@ async def post_config_add_manager(
             reason="Error. Undefined backend error q_ssiim1",
         )
 
-    return EnrollmentConfigAddManagerOut(success=_success)
+    return EnrollmentConfigAddManagerOut(success=_success, reason="")
 
 
 @router.get("/status/{work_id}", response_model=EnrollmentStatusOut)
@@ -178,7 +174,7 @@ async def request_enrolment_status(work_id: str) -> EnrollmentStatusOut:
             work_id=work_id, status=_status, success=_success, reason="Error. Undefined backend error sssfe2"
         )
 
-    return EnrollmentStatusOut(work_id=work_id, status=_status, success=_success)
+    return EnrollmentStatusOut(work_id=work_id, status=_status, success=_success, reason="")
 
 
 @router.post("/init", response_model=EnrollmentInitOut)
@@ -221,7 +217,7 @@ async def request_enrollment_init(
         return EnrollmentInitOut(
             work_id=request.work_id, enroll_str="", success=_success, reason="Error. Undefined backend error ssiie1"
         )
-    return EnrollmentInitOut(work_id=request.work_id, enroll_str=_work_id_hash, success=_success)
+    return EnrollmentInitOut(work_id=request.work_id, enroll_str=_work_id_hash, success=_success, reason="")
 
 
 @router.get("/deliver/{enroll_str}", response_model=EnrollmentDeliverOut)
@@ -239,6 +235,7 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
             enroll_str=enroll_str,
             download_url="",
             success=False,
+            state="",
             reason="Error. Undefined backend error q_sssfewh1",
         )
 
@@ -248,6 +245,7 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
             enroll_str=enroll_str,
             download_url="",
             success=False,
+            state="",
             reason="Error. 'enroll_str' not found from database.",
         )
 
@@ -261,7 +259,14 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
             reason="Enrollment is still in progress or it hasn't been accepted.",
         )
 
-    return EnrollmentDeliverOut(work_id=_result[0][0], enroll_str=enroll_str, success=True, download_url=_result[0][4])
+    return EnrollmentDeliverOut(
+        work_id=_result[0][0],
+        enroll_str=enroll_str,
+        success=True,
+        download_url=_result[0][4],
+        reason="",
+        state=_result[0][2],
+    )
 
 
 @router.post("/accept", response_model=EnrollmentAcceptOut)
@@ -329,5 +334,5 @@ async def post_enrollment_accept(
         )
 
     return EnrollmentAcceptOut(
-        work_id="", enroll_str=request_in.enroll_str, permit_str=request_in.permit_str, success=_success
+        work_id="", enroll_str=request_in.enroll_str, permit_str=request_in.permit_str, success=_success, reason=""
     )

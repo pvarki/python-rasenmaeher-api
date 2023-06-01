@@ -15,7 +15,13 @@ async def request_utils_ldap_conn_string() -> LdapConnString:
     """
 
     if None in (settings.ldap_conn_string, settings.ldap_username, settings.ldap_client_secret):
-        return LdapConnString(success=False, reason="One or more ldap connection variables are undefined.")
+        return LdapConnString(
+            success=False,
+            reason="One or more ldap connection variables are undefined.",
+            ldap_conn_string=settings.ldap_conn_string,
+            ldap_user=settings.ldap_username,
+            ldap_client_secret=settings.ldap_client_secret,
+        )
 
     return LdapConnString(
         success=True,
@@ -37,7 +43,14 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
         settings.keycloak_realm_name,
         settings.keycloak_client_secret,
     ):
-        return KeyCloakConnString(success=False, reason="One or more Keycloak connection variables are undefined.")
+        return KeyCloakConnString(
+            success=False,
+            reason="One or more Keycloak connection variables are undefined.",
+            keycloak_server_url="",
+            keycloak_client_id="",
+            keycloak_realm_name="",
+            keycloak_client_s_sting="",
+        )
 
     return KeyCloakConnString(
         success=True,

@@ -81,8 +81,8 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
     enroll_str: str
     download_url: str
     success: bool
-    status: Optional[str]
     reason: Optional[str]
+    state: Optional[str]
 
 
 class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
