@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "0.1.0"
+version = "0.2.0"
 description = "python-rasenmaeher-api"
 authors = ["Aciid <703382+Aciid@users.noreply.github.com>"]
 # FIXME: Doublecheck these values
@@ -67,9 +67,11 @@ python = "^3.8"
 libadvian = "^1.0"
 click = "^8.0"
 fastapi = "0.89.1"
-uvicorn = "0.20.0"
 requests = "^2.31.0"
 multikeyjwt = "1.0.0"
+uvicorn = {version = "^0.20", extras = ["standard"]}
+gunicorn = "^20.1"
+pyopenssl = "^23.1.1"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -84,6 +86,8 @@ pre-commit = "^2.17"
 pytest-asyncio = "^0.18"
 bump2version = "^1.0"
 detect-secrets = "^1.2"
+types-requests = "^2.31"
+types-pyopenssl = "^23.1"
 
 
 [build-system]
