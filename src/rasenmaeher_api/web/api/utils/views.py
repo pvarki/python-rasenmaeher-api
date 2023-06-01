@@ -28,6 +28,7 @@ async def request_utils_ldap_conn_string() -> LdapConnString:
         ldap_conn_string=settings.ldap_conn_string,
         ldap_user=settings.ldap_username,
         ldap_client_secret=settings.ldap_client_secret,
+        reason="",
     )
 
 
@@ -58,4 +59,5 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
         keycloak_client_id=settings.keycloak_client_id,
         keycloak_realm_name=settings.keycloak_realm_name,
         keycloak_client_s_sting=settings.keycloak_client_secret,
+        reason="",
     )
