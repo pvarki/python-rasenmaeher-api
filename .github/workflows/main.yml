@@ -1,0 +1,13 @@
+on:
+    pull_request:
+    push:
+
+jobs:
+    python-rasenmaeher-api:
+      runs-on: ubuntu-latest
+      steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - run: eval "$(ssh-agent -s)" && export DOCKER_BUILDKIT=1 && docker build --ssh default --target devel_shell -t rasenmaeher_api:devel_shell .
+      - run: pip install mypy pylint detect-secrets fastapi pytest uvicorn libadvian pyOpenSSL types-requests types-pyOpenSSL multikeyjwt==1.1.0
+      - uses: pre-commit/action@v3.0.0
