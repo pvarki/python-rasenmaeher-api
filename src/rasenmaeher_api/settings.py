@@ -185,7 +185,16 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     sqlite_update_accept_enrollment = """UPDATE enrollment
                                         SET accepted='{enroll_str}'
-                                        WHERE work_id_hash={work_id_hash}
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+    sqlite_update_enrollment_dl_link = """UPDATE enrollment
+                                        SET dl_link='{download_link}'
+                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+
+    sqlite_update_enrollment_state = """UPDATE enrollment
+                                        SET state='{state}'
+                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
                                     ;"""
 
     class Config:  # pylint: disable=too-few-public-methods

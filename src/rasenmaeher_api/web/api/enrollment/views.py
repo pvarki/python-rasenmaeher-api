@@ -9,6 +9,12 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentDeliverOut,
     EnrollmentAcceptIn,
     EnrollmentAcceptOut,
+    EnrollmentConfigAddManagerOut,
+    EnrollmentConfigAddManagerIn,
+    EnrollmentConfigSetDLOut,
+    EnrollmentConfigSetDLIn,
+    EnrollmentConfigSetStateOut,
+    EnrollmentConfigSetStateIn,
 )
 
 from ....settings import settings, sqlite
@@ -16,10 +22,142 @@ from ....settings import settings, sqlite
 
 router = APIRouter()
 
-# TODO create route for - add new management hash with X rights
-# TODO create route for - change state + add option to set download location
+
 # TODO ERROR LOGGAUS if _success is False, varmaankin riittaa etta se
 #      on ihan ok tuolla sqlite.run_command() funkkarissa
+
+
+@router.post("/config/set-state", response_model=EnrollmentConfigSetStateOut)
+async def post_config_set_state(
+    request_in: EnrollmentConfigSetStateIn,
+) -> EnrollmentConfigSetStateOut:
+    """
+    TODO set state link
+    """
+
+    if request_in.work_id is None and request_in.enroll_str is None:
+        return EnrollmentConfigSetStateOut(
+            success=False,
+            reason="Error. Both work_id and enroll_str are undefined. At least one is required",
+        )
+
+    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        return EnrollmentConfigSetStateOut(
+            success=False,
+            reason="Error. Undefined backend error q_ssfm4",
+        )
+
+    if len(_result) == 0:
+        return EnrollmentConfigSetStateOut(
+            success=False,
+            reason="Error. 'permit_str' doesn't have rights to set 'state'",
+        )
+
+    _q = settings.sqlite_update_enrollment_state.format(
+        work_id=request_in.work_id, work_id_hash=request_in.enroll_str, state=request_in.state
+    )
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        return EnrollmentConfigSetStateOut(
+            success=False,
+            reason="Error. Undefined backend error q_ssues1",
+        )
+
+    return EnrollmentConfigSetStateOut(
+        success=True,
+    )
+
+
+@router.post("/config/set-dl-link", response_model=EnrollmentConfigSetDLOut)
+async def post_config_set_dl_link(
+    request_in: EnrollmentConfigSetDLIn,
+) -> EnrollmentConfigSetDLOut:
+    """
+    TODO set download link
+    """
+
+    if request_in.work_id is None and request_in.enroll_str is None:
+        return EnrollmentConfigSetDLOut(
+            success=False,
+            reason="Error. Both work_id and enroll_str are undefined. At least one is required",
+        )
+
+    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        return EnrollmentConfigSetDLOut(
+            success=False,
+            reason="Error. Undefined backend error q_ssfm3",
+        )
+
+    if len(_result) == 0:
+        return EnrollmentConfigSetDLOut(
+            success=False,
+            reason="Error. 'permit_str' doesn't have rights to set 'download_link'",
+        )
+
+    _q = settings.sqlite_update_enrollment_dl_link.format(
+        work_id=request_in.work_id, work_id_hash=request_in.enroll_str, download_link=request_in.download_link
+    )
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        return EnrollmentConfigSetDLOut(
+            success=False,
+            reason="Error. Undefined backend error q_ssuedl1",
+        )
+
+    return EnrollmentConfigSetDLOut(
+        success=True,
+    )
+
+
+@router.post("/config/add-manager", response_model=EnrollmentConfigAddManagerOut)
+async def post_config_add_manager(
+    request_in: EnrollmentConfigAddManagerIn,
+) -> EnrollmentConfigAddManagerOut:
+    """
+    TODO add manager hash
+    """
+
+    if len(request_in.new_permit_hash) < 64:
+        return EnrollmentConfigAddManagerOut(
+            success=False,
+            reason="Error. new_permit_hash too short. Needs to be 64 or more.",
+        )
+
+    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        return EnrollmentConfigAddManagerOut(
+            success=False,
+            reason="Error. Undefined backend error q_ssfm2",
+        )
+
+    if len(_result) == 0:
+        return EnrollmentConfigAddManagerOut(
+            success=False,
+            reason="Error. 'permit_str' doesn't have rights add 'new_permit_hash'",
+        )
+
+    _q = settings.sqlite_insert_into_management.format(
+        management_hash=request_in.new_permit_hash, special_rules=request_in.permissions_str
+    )
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        return EnrollmentConfigAddManagerOut(
+            success=False,
+            reason="Error. Undefined backend error q_ssiim1",
+        )
+
+    return EnrollmentConfigAddManagerOut(success=_success)
 
 
 @router.get("/status/{work_id}", response_model=EnrollmentStatusOut)

@@ -3,6 +3,53 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema in"""
+
+    permit_str: str
+    state: str
+    work_id: Optional[str]
+    enroll_str: Optional[str]
+
+
+class EnrollmentConfigSetStateOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema out"""
+
+    success: bool
+    reason: Optional[str]
+
+
+class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema in"""
+
+    permit_str: str
+    download_link: str
+    work_id: Optional[str]
+    enroll_str: Optional[str]
+
+
+class EnrollmentConfigSetDLOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema out"""
+
+    success: bool
+    reason: Optional[str]
+
+
+class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema in"""
+
+    permit_str: str
+    new_permit_hash: str
+    permissions_str: str
+
+
+class EnrollmentConfigAddManagerOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema out"""
+
+    success: bool
+    reason: Optional[str]
+
+
 class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment status check schema"""
 
