@@ -1,7 +1,17 @@
 """ router.py: API router. """
 from fastapi.routing import APIRouter
 
-from rasenmaeher_api.web.api import healthcheck, takreg, crlproxy, checkauth, enduserpfx, enrollment, tokens, roles, users
+from rasenmaeher_api.web.api import (
+    healthcheck,
+    takreg,
+    crlproxy,
+    checkauth,
+    enduserpfx,
+    enrollment,
+    tokens,
+    roles,
+    users,
+)
 
 
 api_router = APIRouter()
