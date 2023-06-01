@@ -235,12 +235,20 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
 
     if _success is False:
         return EnrollmentDeliverOut(
-            work_id="", enroll_str=enroll_str, success=False, reason="Error. Undefined backend error q_sssfewh1"
+            work_id="",
+            enroll_str=enroll_str,
+            download_url="",
+            success=False,
+            reason="Error. Undefined backend error q_sssfewh1",
         )
 
     if len(_result) == 0:
         return EnrollmentDeliverOut(
-            work_id="", enroll_str=enroll_str, success=False, reason="Error. 'enroll_str' not found from database."
+            work_id="",
+            enroll_str=enroll_str,
+            download_url="",
+            success=False,
+            reason="Error. 'enroll_str' not found from database.",
         )
 
     if _result[0][2] != "ReadyForDelivery":
@@ -248,11 +256,12 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
             work_id="",
             enroll_str=enroll_str,
             state=_result[0][2],
+            download_url="",
             success=False,
             reason="Enrollment is still in progress or it hasn't been accepted.",
         )
 
-    return EnrollmentDeliverOut(work_id=_result[0][0], enroll_str=enroll_str, download_url=_result[0][4])
+    return EnrollmentDeliverOut(work_id=_result[0][0], enroll_str=enroll_str, success=True, download_url=_result[0][4])
 
 
 @router.post("/accept", response_model=EnrollmentAcceptOut)

@@ -1,20 +1,25 @@
 """Schema for utils."""
+from typing import Optional
 from pydantic import BaseModel
 
 
 class LdapConnString(BaseModel):  # pylint: disable=too-few-public-methods
     """Utils / LDAP conn string schema"""
 
-    ldap_host: str
-    ldap_user: str
-    ldap_s_string: str
+    ldap_conn_string: Optional[str]
+    ldap_user: Optional[str]
+    ldap_client_secret: Optional[str]
+    success: bool
+    reason: Optional[str]
 
 
-class KeyCloackConnString(BaseModel):  # pylint: disable=too-few-public-methods
-    """Utils / Keycloack conn string schema"""
+class KeyCloakConnString(BaseModel):  # pylint: disable=too-few-public-methods
+    """Utils / Keycloak conn string schema"""
 
     # Keycloack configuration.
-    keycloack_server_url: str
-    keycloack_client_id: str
-    keycloack_realm_name: str
-    keycloack_client_s_sting: str
+    keycloak_server_url: Optional[str]
+    keycloak_client_id: Optional[str]
+    keycloak_realm_name: Optional[str]
+    keycloak_client_s_sting: Optional[str]
+    success: bool
+    reason: Optional[str]

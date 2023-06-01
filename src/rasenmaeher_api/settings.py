@@ -98,6 +98,27 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
             )
             self.run_command(_q)
 
+            # Create development dummy roles
+            if self.settings.environment.lower() == "dev":
+                # Create kissa dummy role
+                _q = self.settings.sqlite_insert_into_enrollment.format(
+                    work_id="kissa",
+                    work_id_hash="kissa123",
+                    state="ReadyForDelivery",
+                    accepted="somehashwhoaccepted_this",
+                    dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
+                )
+                self.run_command(_q)
+                # Create koira dummy role
+                _q = self.settings.sqlite_insert_into_enrollment.format(
+                    work_id="koira", work_id_hash="koira123", state="init", accepted="", dl_link=""
+                )
+                self.run_command(_q)
+                _q = self.settings.sqlite_insert_into_enrollment.format(
+                    work_id="porakoira", work_id_hash="porakoira123", state="init", accepted="", dl_link=""
+                )
+                self.run_command(_q)
+
         else:
             print("Error! cannot create the database connection.")
 

@@ -139,16 +139,41 @@ Example usage
 
 
 # REQUEST A NEW CERTIFICATE USING CSR (requires cfssl backend for the api container)
-```curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/takreg | jq```
+
+  ```curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/takreg | jq```
 
 # REQUEST A NEW CERTIFICATE WITHOUT CSR (requires cfssl backend for the api container)
-```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
+
+  ```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
 
 # LIST CFSSL CRL LIST
-```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
+
+  ```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
 
 The cfssl used behind API listents this kind of stuff https://github.com/cloudflare/cfssl/blob/master/doc/api/endpoint_newcert.txt
 
+# Enrollment - Enroll a new work_id
+
+  ```curl -H "Content-Type: application/json" -d '{"work_id":"kissa"}' http://127.0.0.1:8000/api/enrollment/init```
+
+# Enrollment - Check the status and availability of work_id
+
+  ```curl http://127.0.0.1:8000/api/enrollment/status/koira```
+
+# Enrollment - Request the download link using the provided work_id_hash
+  ```curl http://127.0.0.1:8000/api/enrollment/deliver/zxzxzxzxzxzxzxxzzx```
+
+# Enrollment - Accept enrollment using permit_str
+  ```curl -H "Content-Type: application/json" -d '{"enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/accept```
+
+# Enrollment - Set download link for enrollment
+  ```curl -H "Content-Type: application/json" -d '{"download_link":"https://kuvaton.com","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/config/set-dl-link```
+
+# Enrollment - Set state for enrollment
+  ```curl -H "Content-Type: application/json" -d '{"state":"ReadyForDelivery","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/config/set-state```
+
+# Enrollment - Add new permit_str
+  ```curl -H "Content-Type: application/json" -d '{"permissions_str":"all", "new_permit_hash":"too_short","permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/config/add-manager```
 
 Docker
 ------
