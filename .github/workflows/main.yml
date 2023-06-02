@@ -1,9 +1,11 @@
 on:
     pull_request:
     push:
+      branches-ignore:
+        - main
 
 jobs:
-    python-rasenmaeher-api:
+    tox:
       runs-on: ubuntu-latest
       steps:
       - uses: actions/checkout@v3
