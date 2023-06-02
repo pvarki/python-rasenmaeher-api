@@ -14,7 +14,10 @@ RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && apt-get update && apt-get install -y \
         git \
     && rm -rf /var/lib/apt/lists/* \
-    && true
+    && true \
+    # Fix git runtime fatal:
+    # unsafe repository ('/app' is owned by someone else)
+    && git config --global --add safe.directory /app
 
 ######################
 # Base builder image #
