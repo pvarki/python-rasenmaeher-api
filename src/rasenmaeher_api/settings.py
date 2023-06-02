@@ -3,7 +3,7 @@ import enum
 import os
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, List
 import sqlite3
 from pydantic import BaseSettings
 
@@ -47,7 +47,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
         if self.db_ok is False:
             self.create_sqlitedatabase()
 
-    def run_command(self, sql_cmd: str = "NA") -> Tuple[bool, list[Any]]:
+    def run_command(self, sql_cmd: str = "NA") -> Tuple[bool, List[Any]]:
         """create a table from the create_table_sql statement
         :param sql_cmd: sql command statement
         """
