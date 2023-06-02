@@ -1,8 +1,7 @@
 on:
     pull_request:
     push:
-      branches:
-        - 'test*'
+      branches: [test*]
 
 jobs:
     python-rasenmaeher-api:
