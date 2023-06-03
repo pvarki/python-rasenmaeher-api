@@ -98,37 +98,37 @@ Api endpoints and usage
      - Api description                                                                              .
    * - Dummy
      - GET
-     - /api/enroll/status/{work_id}
+     - /api/v1/enroll/status/{work_id}
      - NA
      - {'status':'None/Processing/Denied/WaitingForAcceptance/ReadyForDelivery/Delivered'}
      - Check the situation of enrollment process, None = no enrollment started, this work_id is free to use.
    * - Dummy
      - POST
-     - /api/enroll/init
+     - /api/v1/enroll/init
      - {'work_id':'{work_id}'}
      - {'work_id':'{work_id}', 'id_hash':{id_string} }
      - Start service access enrollment for given {work_id}
    * - Dummy
      - GET
-     - /api/enroll/deliver/{id_string}
+     - /api/v1/enroll/deliver/{id_string}
      - NA
      - {'dl_link':"{http://here.be/zip}"}
      - Deliver download link for enrollment zip
    * - Dummy
      - POST
-     - /api/enroll/accept
+     - /api/v1/enroll/accept
      - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
      - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
      - Accept the enrollment request
    * - Testing
      - POST
-     - /api/takreg
+     - /api/v1/takreg
      - { 'TO':'DO'}
      - { 'TO':'DO'}
      - Accept the enrollment request
    * - Testing
      - POST
-     - /api/enroll/accept
+     - /api/v1/enroll/accept
      - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
      - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
      - Accept the enrollment request
@@ -140,7 +140,7 @@ Example usage
 
 # REQUEST A NEW CERTIFICATE USING CSR (requires cfssl backend for the api container)
 
-  ```curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/takreg | jq```
+  ```curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/v1/takreg | jq```
 
 # REQUEST A NEW CERTIFICATE WITHOUT CSR (requires cfssl backend for the api container)
 
@@ -154,26 +154,26 @@ The cfssl used behind API listents this kind of stuff https://github.com/cloudfl
 
 # Enrollment - Enroll a new work_id
 
-  ```curl -H "Content-Type: application/json" -d '{"work_id":"kissa"}' http://127.0.0.1:8000/api/enrollment/init```
+  ```curl -H "Content-Type: application/json" -d '{"work_id":"porakoira666"}' http://127.0.0.1:8000/api/v1/enrollment/init```
 
 # Enrollment - Check the status and availability of work_id
 
-  ```curl http://127.0.0.1:8000/api/enrollment/status/koira```
+  ```curl http://127.0.0.1:8000/api/v1/enrollment/status/koira```
 
 # Enrollment - Request the download link using the provided work_id_hash
-  ```curl http://127.0.0.1:8000/api/enrollment/deliver/zxzxzxzxzxzxzxxzzx```
+  ```curl http://127.0.0.1:8000/api/v1/enrollment/deliver/zxzxzxzxzxzxzxxzzx```
 
 # Enrollment - Accept enrollment using permit_str
-  ```curl -H "Content-Type: application/json" -d '{"enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/accept```
+  ```curl -H "Content-Type: application/json" -d '{"enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/accept```
 
 # Enrollment - Set download link for enrollment
-  ```curl -H "Content-Type: application/json" -d '{"download_link":"https://kuvaton.com","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/config/set-dl-link```
+  ```curl -H "Content-Type: application/json" -d '{"download_link":"https://kuvaton.com","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/config/set-dl-link```
 
 # Enrollment - Set state for enrollment
-  ```curl -H "Content-Type: application/json" -d '{"state":"ReadyForDelivery","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/config/set-state```
+  ```curl -H "Content-Type: application/json" -d '{"state":"ReadyForDelivery","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/config/set-state```
 
 # Enrollment - Add new permit_str
-  ```curl -H "Content-Type: application/json" -d '{"permissions_str":"all", "new_permit_hash":"too_short","permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/enrollment/config/add-manager```
+  ```curl -H "Content-Type: application/json" -d '{"permissions_str":"all", "new_permit_hash":"too_short","permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/config/add-manager```
 
 Docker
 ------

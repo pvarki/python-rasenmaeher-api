@@ -143,6 +143,10 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     log_level: LogLevel = LogLevel.DEBUG
 
+    # Api access management
+    api_client_cert_header: str = "X-ClientCert-DN"
+    test_api_client_cert_header_value: str = "TODO_CREATE_PKI_THAT_CAN_BE_PARSED_WITH__from_rfc4514_string"
+
     # Sentry's configuration.
     sentry_dsn: Optional[str] = None
     sentry_sample_rate: float = 1.0
