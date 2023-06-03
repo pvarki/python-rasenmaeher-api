@@ -40,3 +40,4 @@ Directories that are submodules
   - cfssl https://github.com/pvarki/docker-rasenmaeher-cfssl
   - keycloak https://github.com/pvarki/docker-keycloak
   - openldap https://github.com/pvarki/docker-openldap
+  - mkcert https://github.com/pvarki/docker-mkcert
