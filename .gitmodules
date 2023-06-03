@@ -10,3 +10,6 @@
 [submodule "api"]
 	path = api
 	url = git@github.com:pvarki/python-rasenmaeher-api.git
+[submodule "mkcert"]
+	path = mkcert
+	url = git@github.com:pvarki/docker-mkcert.git

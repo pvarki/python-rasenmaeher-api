@@ -8,8 +8,8 @@ server {
     server_name ${NGINX_HOST};
 
     # HTTP configuration
-    listen 80;
-    listen [::]:80;
+    listen ${NGINX_HTTP_PORT};
+    listen [::]:${NGINX_HTTP_PORT};
 
     # HTTP to HTTPS
     if ($scheme != "https") {
@@ -17,7 +17,7 @@ server {
     }
 
     # HTTPS configuration
-    listen 443 ssl;
+    listen ${NGINX_HTTPS_PORT} ssl;
 
     location / {
         proxy_pass  http://rmapi:8000;
@@ -35,8 +35,8 @@ server {
     server_name mtls.${NGINX_HOST};
 
     # HTTP configuration
-    listen 80;
-    listen [::]:80;
+    listen ${NGINX_HTTP_PORT};
+    listen [::]:${NGINX_HTTP_PORT};
 
     # HTTP to HTTPS
     if ($scheme != "https") {
@@ -44,9 +44,9 @@ server {
     }
 
     # HTTPS configuration
-    listen 443 ssl;
+    listen ${NGINX_HTTPS_PORT} ssl;
 
-    ssl_client_certificate /ca_public/fullchain.pem;
+    ssl_client_certificate /ca_public/ca_chain.pem;
     ssl_verify_client      on;
 
     location / {
