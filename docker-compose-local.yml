@@ -43,6 +43,7 @@ services:
     networks:
       - canet
     environment:
+      # This does not seem to work correctly, I had to manually mount the volume and copy a chain there
       INT_SHARED_CERT_FOLDER: /ca_public
     volumes:
       - cfssl_data:/opt/cfssl/persistent
