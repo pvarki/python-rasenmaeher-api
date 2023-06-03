@@ -2,8 +2,8 @@
 # from typing import Any, Generator, AsyncGenerator, List, cast
 from typing import Dict, Any, AsyncGenerator
 import logging
-from async_asgi_testclient import TestClient
-import pytest_asyncio
+from async_asgi_testclient import TestClient  # pylint: disable=import-error
+import pytest_asyncio  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest
 from libadvian.logging import init_logging
 from rasenmaeher_api.web.application import get_app
