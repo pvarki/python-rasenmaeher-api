@@ -77,6 +77,7 @@ gunicorn = "^20.1"
 pyopenssl = "^23.1.1"
 libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.1.0"}
 async-asgi-testclient = "^1.4.11"
+pytest-asyncio = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.1"
@@ -87,7 +88,6 @@ black = "^22.3"
 bandit = "^1.7"
 mypy = "^0.942"
 pre-commit = "^2.17"
-pytest-asyncio = "^0.18"
 bump2version = "^1.0"
 detect-secrets = "^1.2"
 types-requests = "^2.31"
