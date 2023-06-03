@@ -12,7 +12,12 @@ from rasenmaeher_api.settings import settings
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 
-
+# Issues in tests in ubuntu-latest
+# error: Untyped decorator makes function "app_client" untyped  [misc] # no-untyped-def
+# pyproject.toml
+# [[tool.mypy.overrides]]
+# disallow_untyped_decorators=false
+# adding '# type: ignore' ends up giving 'error: Unused "type: ignore" comment'
 @pytest_asyncio.fixture(scope="function")
 async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
     """Create default client"""
