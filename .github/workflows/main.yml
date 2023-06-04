@@ -8,7 +8,7 @@ jobs:
     tox:
       runs-on: ubuntu-latest
       steps:
-      - uses: pvarki/ci@test/docker-build-cmds
+      - uses: pvarki/ci@main
         with:
           dockerfile-target: tox
           image-tag: rasenmaeher_api:tox
@@ -16,7 +16,7 @@ jobs:
     devel_shell:
       runs-on: ubuntu-latest
       steps:
-      - uses: pvarki/ci@test/docker-build-cmds
+      - uses: pvarki/ci@main
         with:
           dockerfile-target: devel_shell
           image-tag: rasenmaeher_api:devel_shell
