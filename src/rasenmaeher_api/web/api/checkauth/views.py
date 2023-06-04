@@ -13,3 +13,12 @@ async def return_info() -> str:
     """
 
     return cast(str, "Hello World")
+
+
+@router.get("/ldap/connection-string", dependencies=[Depends(JWTBearer())])
+async def return_ldap_connectionstring() -> str:
+    """
+    Method for generating and returning ldap connection string
+    """
+
+    return cast(str, "Hello World")

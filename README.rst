@@ -10,13 +10,58 @@ Configuration
 
 This application can be configured with environment variables.
 
-| Environment variable     | Default value | Info                          |
-| ------------------------ | ------------- | ----------------------------- |
-| RM_PORT          | 8000          | Docker API listen port                |
-| RM_WORKERS_COUNT | 2             | Number of uvicorn workers             |
-| RM_RELOAD        | False         | Reload service on code change         |
-| RM_ENVIRONMENT   | dev           | dev / prod environment                |
+.. list-table:: Container Variables
+   :widths: 30 30 50
+   :header-rows: 1
 
+   * - ENV VAR
+     - Default value
+     - Info / Usage
+   * - RM_PORT
+     - 8000
+     - Docker API listen port
+   * - RM_WORKERS_COUNT
+     - 2
+     - Number of uvicorn workers
+   * - RM_RELOAD
+     - False
+     - Reload service on code change
+   * - RM_ENVIRONMENT
+     - dev
+     - Run dev / prod environment
+   * - RM_CFSSL_HOST
+     - None
+     - CFSSL host url
+   * - RM_CFSSL_PORT
+     - None
+     - CFSSL service port
+   * - RM_KEYCLOAK_SERVER_URL
+     - None
+     - Keycloak server url  (http://1234:8080/auth)
+   * - RM_KEYCLOAK_CLIENT_ID
+     - None
+     - Keycloak client id
+   * - RM_KEYCLOAK_REALM_NAME
+     - None
+     - Keycloak realm name
+   * - RM_KEYCLOAK_CLIENT_SECRET
+     - None
+     - Keycloak secert
+   * - RM_LDAP_CONN_STRING
+     - None
+     - LDAP conn string
+   * - RM_LDAP_USERNAME
+     - None
+     - LDAP username
+   * - RM_LDAP_CLIENT_SECRET
+     - None
+     - LDAP connection secret
+   * - RM_SQLITE_FILEPATH_PROD
+     - /opt/rasenmaher/persistent/sqlite/rm_db.sql
+     - location for sqlite database file in "prod"
+   * - RM_SQLITE_FILEPATH_DEV
+     - /tmp/rm_db.sql
+     - location for sqlite database file in "dev", local development
 
 
 You can create `.env` file in the root directory and place all
@@ -39,6 +84,96 @@ RM_ENVIRONMENT="dev"
 
 You can read more about BaseSettings class here: https://pydantic-docs.helpmanual.io/usage/settings/
 
+Api endpoints and usage
+-----------------------
+.. list-table:: API vimpain
+   :widths: 12 8 30 50 50 80
+   :header-rows: 1
+
+   * - State
+     - Method
+     - URI
+     - Request JSON
+     - Response JSON
+     - Api description                                                                              .
+   * - Dummy
+     - GET
+     - /api/v1/enroll/status/{work_id}
+     - NA
+     - {'status':'None/Processing/Denied/WaitingForAcceptance/ReadyForDelivery/Delivered'}
+     - Check the situation of enrollment process, None = no enrollment started, this work_id is free to use.
+   * - Dummy
+     - POST
+     - /api/v1/enroll/init
+     - {'work_id':'{work_id}'}
+     - {'work_id':'{work_id}', 'id_hash':{id_string} }
+     - Start service access enrollment for given {work_id}
+   * - Dummy
+     - GET
+     - /api/v1/enroll/deliver/{id_string}
+     - NA
+     - {'dl_link':"{http://here.be/zip}"}
+     - Deliver download link for enrollment zip
+   * - Dummy
+     - POST
+     - /api/v1/enroll/accept
+     - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
+     - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
+     - Accept the enrollment request
+   * - Testing
+     - POST
+     - /api/v1/takreg
+     - { 'TO':'DO'}
+     - { 'TO':'DO'}
+     - Accept the enrollment request
+   * - Testing
+     - POST
+     - /api/v1/enroll/accept
+     - { 'permit_string':'{permit_string}, 'id_hash':'{id_hash}' '}
+     - { 'access':'granted/denied/None', 'work_id':'{work_id}' }
+     - Accept the enrollment request
+
+Example usage
+-------------
+
+
+
+# REQUEST A NEW CERTIFICATE USING CSR (requires cfssl backend for the api container)
+
+  ```curl -L -H "Content-Type: application/json" -d '{"csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIBUjCB+QIBADBqMQswCQYDVQQGEwJVUzEUMBIGA1UEChMLZXhhbXBsZS5jb20x\nFjAUBgNVBAcTDVNhbiBGcmFuY2lzY28xEzARBgNVBAgTCkNhbGlmb3JuaWExGDAW\nBgNVBAMTD3d3dy5leGFtcGxlLmNvbTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IA\nBK/CtZaQ4VliKE+DLIVGLwtSxJgtUKRzGvN1EwI3HRgKDQ3l3urBIzHtUcdMq6HZ\nb8jX0O9fXYUOf4XWggrLk1agLTArBgkqhkiG9w0BCQ4xHjAcMBoGA1UdEQQTMBGC\nD3d3dy5leGFtcGxlLmNvbTAKBggqhkjOPQQDAgNIADBFAiAcvfhXnsLtzep2sKSa\n36W7G9PRbHh8zVGlw3Hph8jR1QIhAKfrgplKwXcUctU5grjQ8KXkJV8RxQUo5KKs\ngFnXYtkb\n-----END CERTIFICATE REQUEST-----\n"}' 127.0.0.1:8000/api/v1/takreg | jq```
+
+# REQUEST A NEW CERTIFICATE WITHOUT CSR (requires cfssl backend for the api container)
+
+  ```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
+
+# LIST CFSSL CRL LIST
+
+  ```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
+
+The cfssl used behind API listents this kind of stuff https://github.com/cloudflare/cfssl/blob/master/doc/api/endpoint_newcert.txt
+
+# Enrollment - Enroll a new work_id
+
+  ```curl -H "Content-Type: application/json" -d '{"work_id":"porakoira666"}' http://127.0.0.1:8000/api/v1/enrollment/init```
+
+# Enrollment - Check the status and availability of work_id
+
+  ```curl http://127.0.0.1:8000/api/v1/enrollment/status/koira```
+
+# Enrollment - Request the download link using the provided work_id_hash
+  ```curl http://127.0.0.1:8000/api/v1/enrollment/deliver/zxzxzxzxzxzxzxxzzx```
+
+# Enrollment - Accept enrollment using permit_str
+  ```curl -H "Content-Type: application/json" -d '{"enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/accept```
+
+# Enrollment - Set download link for enrollment
+  ```curl -H "Content-Type: application/json" -d '{"download_link":"https://kuvaton.com","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/config/set-dl-link```
+
+# Enrollment - Set state for enrollment
+  ```curl -H "Content-Type: application/json" -d '{"state":"ReadyForDelivery","enroll_str":"zxzxzxzxzxzxzxxzzx", "permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/config/set-state```
+
+# Enrollment - Add new permit_str
+  ```curl -H "Content-Type: application/json" -d '{"permissions_str":"all", "new_permit_hash":"too_short","permit_str":"PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"}' http://127.0.0.1:8000/api/v1/enrollment/config/add-manager```
 
 Docker
 ------
