@@ -42,7 +42,7 @@ disallow_untyped_decorators=false
 
 [tool.pytest.ini_options]
 junit_family="xunit2"
-addopts="--cov=rasenmaeher_api --cov-fail-under=5 --cov-branch"
+addopts="--cov=rasenmaeher_api --cov-fail-under=65 --cov-branch"
 asyncio_mode="strict"
 
 [tool.pylint.MASTER]
