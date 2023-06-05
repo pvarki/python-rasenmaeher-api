@@ -8,6 +8,7 @@ import OpenSSL.crypto
 import requests
 from fastapi import APIRouter, Response
 from fastapi.responses import JSONResponse
+from ....settings import settings
 
 router = APIRouter()
 
@@ -25,7 +26,7 @@ async def pem_to_pfx(pem_key: str, pem_cert: str) -> bytes:
 
 async def new_key(callsign: str) -> Dict[Any, Any]:
     """pfx"""
-    url = "http://127.0.0.1:8888/api/v1/cfssl/newkey"
+    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/newkey"
 
     payload = json.dumps(
         {
@@ -48,7 +49,7 @@ async def sign_csr(csr: str) -> str:
     params: csr
     returns: certificate
     """
-    url = "http://127.0.0.1:8888/api/v1/cfssl/sign"
+    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/sign"
 
     payload = json.dumps({"certificate_request": csr})
     headers = {"Content-Type": "application/json"}
