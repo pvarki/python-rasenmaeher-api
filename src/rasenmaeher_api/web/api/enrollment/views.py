@@ -1,7 +1,8 @@
 """Enrollment API views."""
 import string
 import random
-from fastapi import APIRouter
+import logging
+from fastapi import APIRouter, Request
 from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentStatusOut,
     EnrollmentInitIn,
@@ -21,7 +22,7 @@ from ....settings import settings, sqlite
 
 
 router = APIRouter()
-
+LOGGER = logging.getLogger(__name__)
 
 # TODO ERROR LOGGAUS if _success is False, varmaankin riittaa etta se
 #      on ihan ok tuolla sqlite.run_command() funkkarissa
@@ -29,6 +30,7 @@ router = APIRouter()
 
 @router.post("/config/set-state", response_model=EnrollmentConfigSetStateOut)
 async def post_config_set_state(
+    request: Request,
     request_in: EnrollmentConfigSetStateIn,
 ) -> EnrollmentConfigSetStateOut:
     """
@@ -36,24 +38,30 @@ async def post_config_set_state(
     """
 
     if request_in.work_id is None and request_in.enroll_str is None:
+        _reason = "Error. Both work_id and enroll_str are undefined. At least one is required"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetStateOut(
             success=False,
-            reason="Error. Both work_id and enroll_str are undefined. At least one is required",
+            reason=_reason,
         )
 
     _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssfm4"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetStateOut(
             success=False,
-            reason="Error. Undefined backend error q_ssfm4",
+            reason=_reason,
         )
 
     if len(_result) == 0:
+        _reason = "Error. 'permit_str' doesn't have rights to set 'state'"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetStateOut(
             success=False,
-            reason="Error. 'permit_str' doesn't have rights to set 'state'",
+            reason=_reason,
         )
 
     _q = settings.sqlite_update_enrollment_state.format(
@@ -62,16 +70,18 @@ async def post_config_set_state(
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssues1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetStateOut(
             success=False,
-            reason="Error. Undefined backend error q_ssues1",
+            reason=_reason,
         )
-
     return EnrollmentConfigSetStateOut(success=True, reason="")
 
 
 @router.post("/config/set-dl-link", response_model=EnrollmentConfigSetDLOut)
 async def post_config_set_dl_link(
+    request: Request,
     request_in: EnrollmentConfigSetDLIn,
 ) -> EnrollmentConfigSetDLOut:
     """
@@ -79,24 +89,30 @@ async def post_config_set_dl_link(
     """
 
     if request_in.work_id is None and request_in.enroll_str is None:
+        _reason = "Error. Both work_id and enroll_str are undefined. At least one is required"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,
-            reason="Error. Both work_id and enroll_str are undefined. At least one is required",
+            reason=_reason,
         )
 
     _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssfm3"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,
-            reason="Error. Undefined backend error q_ssfm3",
+            reason=_reason,
         )
 
     if len(_result) == 0:
+        _reason = "Error. 'permit_str' doesn't have rights to set 'download_link'"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,
-            reason="Error. 'permit_str' doesn't have rights to set 'download_link'",
+            reason=_reason,
         )
 
     _q = settings.sqlite_update_enrollment_dl_link.format(
@@ -105,9 +121,11 @@ async def post_config_set_dl_link(
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssuedl1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,
-            reason="Error. Undefined backend error q_ssuedl1",
+            reason=_reason,
         )
 
     return EnrollmentConfigSetDLOut(success=True, reason="")
@@ -115,6 +133,7 @@ async def post_config_set_dl_link(
 
 @router.post("/config/add-manager", response_model=EnrollmentConfigAddManagerOut)
 async def post_config_add_manager(
+    request: Request,
     request_in: EnrollmentConfigAddManagerIn,
 ) -> EnrollmentConfigAddManagerOut:
     """
@@ -122,24 +141,30 @@ async def post_config_add_manager(
     """
 
     if len(request_in.new_permit_hash) < 64:
+        _reason = "Error. new_permit_hash too short. Needs to be 64 or more."
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigAddManagerOut(
             success=False,
-            reason="Error. new_permit_hash too short. Needs to be 64 or more.",
+            reason=_reason,
         )
 
     _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssfm2"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigAddManagerOut(
             success=False,
-            reason="Error. Undefined backend error q_ssfm2",
+            reason=_reason,
         )
 
     if len(_result) == 0:
+        _reason = "Error. 'permit_str' doesn't have rights add 'new_permit_hash'"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigAddManagerOut(
             success=False,
-            reason="Error. 'permit_str' doesn't have rights add 'new_permit_hash'",
+            reason=_reason,
         )
 
     _q = settings.sqlite_insert_into_management.format(
@@ -148,16 +173,18 @@ async def post_config_add_manager(
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssiim1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigAddManagerOut(
             success=False,
-            reason="Error. Undefined backend error q_ssiim1",
+            reason=_reason,
         )
 
     return EnrollmentConfigAddManagerOut(success=_success, reason="")
 
 
 @router.get("/status/{work_id}", response_model=EnrollmentStatusOut)
-async def request_enrolment_status(work_id: str) -> EnrollmentStatusOut:
+async def request_enrolment_status(work_id: str, request: Request) -> EnrollmentStatusOut:
     """
     TODO Check sqlite for status
     """
@@ -170,34 +197,35 @@ async def request_enrolment_status(work_id: str) -> EnrollmentStatusOut:
         _status = "none"
 
     if _success is False:
-        return EnrollmentStatusOut(
-            work_id=work_id, status=_status, success=_success, reason="Error. Undefined backend error sssfe2"
-        )
+        _reason = "Error. Undefined backend error sssfe2"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentStatusOut(work_id=work_id, status=_status, success=_success, reason=_reason)
 
     return EnrollmentStatusOut(work_id=work_id, status=_status, success=_success, reason="")
 
 
 @router.post("/init", response_model=EnrollmentInitOut)
 async def request_enrollment_init(
-    request: EnrollmentInitIn,
+    request: Request,
+    request_in: EnrollmentInitIn,
 ) -> EnrollmentInitOut:
     """
     TODO init enrollment in background?
     """
 
     # First check if there is already enrollment for requested workid
-    _q = settings.sqlite_sel_from_enrollment.format(work_id=request.work_id)
+    _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
-        return EnrollmentInitOut(
-            work_id=request.work_id, enroll_str="", success=_success, reason="Error. Undefined backend error sssfe1"
-        )
+        _reason = "Error. Undefined backend error sssfe1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentInitOut(work_id=request_in.work_id, enroll_str="", success=_success, reason=_reason)
     # Skip enrollment if work_id already used
     if len(_result) > 0:
-        return EnrollmentInitOut(
-            work_id=request.work_id, enroll_str="", success=False, reason="Error. work_id has already active enrollment"
-        )
+        _reason = "Error. work_id has already active enrollment"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentInitOut(work_id=request_in.work_id, enroll_str="", success=False, reason=_reason)
 
     _work_id_hash = "".join(
         # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
@@ -208,20 +236,20 @@ async def request_enrollment_init(
     )
 
     _q = settings.sqlite_insert_into_enrollment.format(
-        work_id=request.work_id, work_id_hash=_work_id_hash, state="init", accepted="no", dl_link="na"
+        work_id=request_in.work_id, work_id_hash=_work_id_hash, state="init", accepted="no", dl_link="na"
     )
 
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
-        return EnrollmentInitOut(
-            work_id=request.work_id, enroll_str="", success=_success, reason="Error. Undefined backend error ssiie1"
-        )
-    return EnrollmentInitOut(work_id=request.work_id, enroll_str=_work_id_hash, success=_success, reason="")
+        _reason = "Error. Undefined backend error ssiie1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentInitOut(work_id=request_in.work_id, enroll_str="", success=_success, reason=_reason)
+    return EnrollmentInitOut(work_id=request_in.work_id, enroll_str=_work_id_hash, success=_success, reason="")
 
 
 @router.get("/deliver/{enroll_str}", response_model=EnrollmentDeliverOut)
-async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
+async def request_enrollment_status(request: Request, enroll_str: str) -> EnrollmentDeliverOut:
     """
     TODO deliver enrollment download url if enrollment status is complete???
     """
@@ -230,33 +258,39 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_sssfewh1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentDeliverOut(
             work_id="",
             enroll_str=enroll_str,
             download_url="",
             success=False,
             state="",
-            reason="Error. Undefined backend error q_sssfewh1",
+            reason=_reason,
         )
 
     if len(_result) == 0:
+        _reason = "Error. 'enroll_str' not found from database."
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentDeliverOut(
             work_id="",
             enroll_str=enroll_str,
             download_url="",
             success=False,
             state="",
-            reason="Error. 'enroll_str' not found from database.",
+            reason=_reason,
         )
 
     if _result[0][2] != "ReadyForDelivery":
+        _reason = "Enrollment is still in progress or it hasn't been accepted."
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentDeliverOut(
             work_id="",
             enroll_str=enroll_str,
             state=_result[0][2],
             download_url="",
             success=False,
-            reason="Enrollment is still in progress or it hasn't been accepted.",
+            reason=_reason,
         )
 
     return EnrollmentDeliverOut(
@@ -271,6 +305,7 @@ async def request_enrollment_status(enroll_str: str) -> EnrollmentDeliverOut:
 
 @router.post("/accept", response_model=EnrollmentAcceptOut)
 async def post_enrollment_accept(
+    request: Request,
     request_in: EnrollmentAcceptIn,
 ) -> EnrollmentAcceptOut:
     """
@@ -281,42 +316,50 @@ async def post_enrollment_accept(
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssfm1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentAcceptOut(
             work_id="",
             enroll_str=request_in.enroll_str,
             permit_str=request_in.permit_str,
             success=False,
-            reason="Error. Undefined backend error q_ssfm1",
+            reason=_reason,
         )
 
     if len(_result) == 0:
+        _reason = "Error. 'permit_str' doesn't have rights to accept given 'enroll_str'"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentAcceptOut(
             work_id="",
             enroll_str=request_in.enroll_str,
             permit_str=request_in.permit_str,
             success=False,
-            reason="Error. 'permit_str' doesn't have rights to accept given 'enroll_str'",
+            reason=_reason,
         )
 
     _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.enroll_str)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssfewh1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentAcceptOut(
             work_id="",
             enroll_str=request_in.enroll_str,
             permit_str=request_in.permit_str,
             success=False,
-            reason="Error. Undefined backend error q_ssfewh1",
+            reason=_reason,
         )
 
     if len(_result) == 0:
+        _reason = "Error. 'enroll_str' not found from database."
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentAcceptOut(
             work_id="",
             enroll_str=request_in.enroll_str,
             permit_str=request_in.permit_str,
             success=False,
-            reason="Error. 'enroll_str' not found from database.",
+            reason=_reason,
         )
 
     _q = settings.sqlite_update_accept_enrollment.format(
@@ -325,12 +368,14 @@ async def post_enrollment_accept(
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
+        _reason = "Error. Undefined backend error q_ssuae1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentAcceptOut(
             work_id="",
             enroll_str=request_in.enroll_str,
             permit_str=request_in.permit_str,
             success=False,
-            reason="Error. Undefined backend error q_ssuae1",
+            reason=_reason,
         )
 
     return EnrollmentAcceptOut(

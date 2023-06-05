@@ -1,6 +1,7 @@
 """ Application settings. """
 import enum
 import os
+import logging
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Optional, Any, Tuple, List
@@ -9,6 +10,7 @@ from pydantic import BaseSettings
 
 
 TEMP_DIR = Path(gettempdir())
+LOGGER = logging.getLogger(__name__)
 
 
 class LogLevel(str, enum.Enum):  # noqa: WPS600
@@ -63,7 +65,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                 return True, _rows
             return True, []
         except Exception as _e:  # pylint: disable=broad-exception-caught
-            print(_e)
+            LOGGER.error("SQLITE run command error : {}".format(_e))
             return False, []
 
     def check_sqlitedatabase(self) -> bool:
@@ -76,7 +78,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
         except Exception as _e:  # pylint: disable=broad-exception-caught
             # TODO Figure out should we actually do something about this or not.
             # Now it will most likely end up being wiped.
-            print(_e)
+            LOGGER.error("SQLITE check sqlite database connection error : {}".format(_e))
             return False
 
     def create_sqlitedatabase(self) -> None:
@@ -120,7 +122,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                 self.run_command(_q)
 
         else:
-            print("Error! cannot create the database connection.")
+            LOGGER.critical("Error! cannot create the database connection.")
 
 
 class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
@@ -141,7 +143,18 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Current environment
     environment: str = "dev"
 
+    # Set log_level (str) and log_level_int (int) for later use
+    # if log_level is not set, then log level will be DEBUG
     log_level: LogLevel = LogLevel.DEBUG
+    log_level_int: int = logging.DEBUG
+    if log_level == "INFO":
+        log_level_int = logging.INFO
+    elif log_level == "WARNING":
+        log_level_int = logging.WARNING
+    elif log_level == "ERROR":
+        log_level_int = logging.ERROR
+    elif log_level == "FATAL":
+        log_level_int = logging.FATAL
 
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
