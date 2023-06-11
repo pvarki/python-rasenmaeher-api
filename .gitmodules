@@ -1,0 +1,15 @@
+[submodule "openldap"]
+	path = openldap
+	url = git@github.com:pvarki/docker-openldap.git
+[submodule "cfssl"]
+	path = cfssl
+	url = git@github.com:pvarki/docker-rasenmaeher-cfssl.git
+[submodule "keycloak2"]
+	path = keycloak
+	url = git@github.com:pvarki/docker-keycloak.git
+[submodule "api"]
+	path = api
+	url = git@github.com:pvarki/python-rasenmaeher-api.git
+[submodule "mkcert"]
+	path = mkcert
+	url = git@github.com:pvarki/docker-mkcert.git

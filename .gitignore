@@ -2,3 +2,9 @@
 .DS_Store
 ._DS_Store
 .idea
+
+# Avoid accidentally adding certs
+*.p12
+*.pem
+*.crt
+*.key
