@@ -31,16 +31,16 @@ class MTLSorJWT(JWTBearer, MTLSHeader):  # pylint: disable=too-few-public-method
         jwtdep = JWTBearer(auto_error=False)
         mtlsdep = MTLSHeader(auto_error=False)
         if mtlsrep := await mtlsdep(request=request):
-            request.state.jwtormtls = MTLSorJWTPayload(
+            request.state.mtls_or_jwt = MTLSorJWTPayload(
                 type=MTLSorJWTPayloadType.MTLS, userid=mtlsrep.get("CN"), payload=mtlsrep
             )
-            return request.state.jwtormtls
+            return request.state.mtls_or_jwt
         if jwtrep := await jwtdep(request=request):
-            request.state.jwtormtls = MTLSorJWTPayload(
+            request.state.mtls_or_jwt = MTLSorJWTPayload(
                 type=MTLSorJWTPayloadType.JWT, userid=jwtrep.get("sub"), payload=jwtrep
             )
-            return request.state.jwtormtls
+            return request.state.mtls_or_jwt
         if self.auto_error:
             raise HTTPException(status_code=403, detail="Not authenticated")
-        request.state.jwtormtls = None
-        return request.state.jwtormtls
+        request.state.mtls_or_jwt = None
+        return request.state.mtls_or_jwt
