@@ -18,7 +18,7 @@ async def test_jwt_jwt(tilauspalvelu_jwt_client: TestClient) -> None:
     LOGGER.debug("payload={}".format(payload))
     assert resp.status_code == 200
     assert "sub" in payload
-    assert payload["sub"] == "adminsession"
+    assert payload["sub"] == "tpadminsession"
 
 
 @pytest.mark.asyncio
@@ -55,10 +55,10 @@ async def test_jwt_mtls(tilauspalvelu_jwt_client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_jwt_both(tilauspalvelu_jwt_client: TestClient) -> None:
+async def test_jwt_both_permissive(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test JWT-or-mTLS -check endpoint with JWT authenticated client"""
     client = tilauspalvelu_jwt_client
-    resp = await client.get("/api/v1/check-auth/mtls_or_jwt")
+    resp = await client.get("/api/v1/check-auth/mtls_or_jwt/permissive")
     LOGGER.debug("resp={}".format(resp))
     payload = resp.json()
     LOGGER.debug("payload={}".format(payload))
@@ -69,6 +69,17 @@ async def test_jwt_both(tilauspalvelu_jwt_client: TestClient) -> None:
     assert "payload" in payload
     subload = payload["payload"]
     assert payload["userid"] == subload["sub"]
+
+
+@pytest.mark.asyncio
+async def test_jwt_both_notp(tilauspalvelu_jwt_client: TestClient) -> None:
+    """Test JWT-or-mTLS -check endpoint with JWT authenticated client"""
+    client = tilauspalvelu_jwt_client
+    resp = await client.get("/api/v1/check-auth/mtls_or_jwt")
+    LOGGER.debug("resp={}".format(resp))
+    payload = resp.json()
+    LOGGER.debug("payload={}".format(payload))
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio

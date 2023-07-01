@@ -29,6 +29,12 @@ async def return_mtlsjwt_payload(request: Request) -> MTLSorJWTPayload:
     return request.state.mtls_or_jwt
 
 
+@router.get("/mtls_or_jwt/permissive", dependencies=[Depends(MTLSorJWT(auto_error=True, disallow_jwt_sub=[]))])
+async def return_mtlsjwt_payload_permissive(request: Request) -> MTLSorJWTPayload:
+    """Method for testing mTLS and JWT auth, do not disallow any subjects"""
+    return request.state.mtls_or_jwt
+
+
 @router.get("/ldap/connection-string", dependencies=[Depends(JWTBearer())])
 async def return_ldap_connectionstring() -> str:
     """

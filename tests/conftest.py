@@ -51,7 +51,7 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
     async with TestClient(get_app()) as instance:
         token = issuer_cl.issue(
             {
-                "sub": "adminsession",
+                "sub": "tpadminsession",
                 "nonce": str(uuid.uuid4()),
             }
         )
