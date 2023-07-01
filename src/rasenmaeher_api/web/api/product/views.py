@@ -1,9 +1,9 @@
-"""Takreg API views."""
+"""Product registeration API views."""
 import json
 from typing import cast
 from fastapi import APIRouter
 import requests
-from rasenmaeher_api.web.api.takreg.schema import Certificates
+from rasenmaeher_api.web.api.product.schema import Certificates
 from ....settings import settings
 
 
@@ -43,8 +43,8 @@ async def sign_csr(csr: str) -> str:
     return cast(str, data)
 
 
-@router.post("/")
-async def request_ca_and_certs(
+@router.post("/sign_csr")
+async def return_ca_and_sign_csr(
     certs: Certificates,
 ) -> Certificates:
     """
