@@ -3,7 +3,7 @@
 # Tox testsuite for multiple python version #
 #############################################
 FROM advian/tox-base:debian-bookworm as tox
-ARG PYTHON_VERSIONS="3.11 3.10 3.9 3.8"
+ARG PYTHON_VERSIONS="3.11 3.10 3.9 3.11"
 ARG POETRY_VERSION="1.5.1"
 RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && echo RESOLVED_VERSIONS=$RESOLVED_VERSIONS \
@@ -22,7 +22,7 @@ RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
 ######################
 # Base builder image #
 ######################
-FROM python:3.8-bookworm as builder_base
+FROM python:3.11-bookworm as builder_base
 
 ENV \
   # locale
@@ -98,7 +98,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 #########################
 # Main production build #
 #########################
-FROM python:3.8-slim-bookworm as production
+FROM python:3.11-slim-bookworm as production
 COPY --from=production_build /tmp/wheelhouse /tmp/wheelhouse
 COPY --from=production_build /docker-entrypoint.sh /docker-entrypoint.sh
 WORKDIR /app
