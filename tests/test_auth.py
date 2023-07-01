@@ -52,3 +52,37 @@ async def test_jwt_mtls(tilauspalvelu_jwt_client: TestClient) -> None:
     resp = await client.get("/api/v1/check-auth/mtls")
     LOGGER.debug("resp={}".format(resp))
     assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_jwt_both(tilauspalvelu_jwt_client: TestClient) -> None:
+    """Test JWT-or-mTLS -check endpoint with JWT authenticated client"""
+    client = tilauspalvelu_jwt_client
+    resp = await client.get("/api/v1/check-auth/mtls_or_jwt")
+    LOGGER.debug("resp={}".format(resp))
+    payload = resp.json()
+    LOGGER.debug("payload={}".format(payload))
+    assert resp.status_code == 200
+    assert "type" in payload
+    assert payload["type"] == "jwt"
+    assert "userid" in payload
+    assert "payload" in payload
+    subload = payload["payload"]
+    assert payload["userid"] == subload["sub"]
+
+
+@pytest.mark.asyncio
+async def test_mtls_both(mtls_client: TestClient) -> None:
+    """Test JWT-or-mTLS -check endpoint with mTLS authenticated client"""
+    client = mtls_client
+    resp = await client.get("/api/v1/check-auth/mtls_or_jwt")
+    LOGGER.debug("resp={}".format(resp))
+    payload = resp.json()
+    LOGGER.debug("payload={}".format(payload))
+    assert resp.status_code == 200
+    assert "type" in payload
+    assert payload["type"] == "mtls"
+    assert "userid" in payload
+    assert "payload" in payload
+    subload = payload["payload"]
+    assert payload["userid"] == subload["CN"]
