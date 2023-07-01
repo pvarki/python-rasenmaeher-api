@@ -20,6 +20,7 @@ class MTLSorJWTPayload:
     """payload either from mTLS or JWT auth"""
 
     type: MTLSorJWTPayloadType = field()
+    userid: Optional[str] = field()
     payload: Union[DNDict, JWTPayload] = field()
 
 
@@ -30,10 +31,14 @@ class MTLSorJWT(JWTBearer, MTLSHeader):  # pylint: disable=too-few-public-method
         jwtdep = JWTBearer(auto_error=False)
         mtlsdep = MTLSHeader(auto_error=False)
         if mtlsrep := await mtlsdep(request=request):
-            request.state.jwtormtls = MTLSorJWTPayload(type=MTLSorJWTPayloadType.MTLS, payload=mtlsrep)
+            request.state.jwtormtls = MTLSorJWTPayload(
+                type=MTLSorJWTPayloadType.MTLS, userid=mtlsrep.get("CN"), payload=mtlsrep
+            )
             return request.state.jwtormtls
         if jwtrep := await jwtdep(request=request):
-            request.state.jwtormtls = MTLSorJWTPayload(type=MTLSorJWTPayloadType.JWT, payload=jwtrep)
+            request.state.jwtormtls = MTLSorJWTPayload(
+                type=MTLSorJWTPayloadType.JWT, userid=jwtrep.get("sub"), payload=jwtrep
+            )
             return request.state.jwtormtls
         if self.auto_error:
             raise HTTPException(status_code=403, detail="Not authenticated")
