@@ -2,7 +2,7 @@
 import string
 import random
 import logging
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Body
 from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentStatusOut,
     EnrollmentInitIn,
@@ -31,10 +31,13 @@ LOGGER = logging.getLogger(__name__)
 @router.post("/config/set-state", response_model=EnrollmentConfigSetStateOut)
 async def post_config_set_state(
     request: Request,
-    request_in: EnrollmentConfigSetStateIn,
+    request_in: EnrollmentConfigSetStateIn = Body(
+        None,
+        examples=EnrollmentConfigSetStateIn.Config.schema_extra["examples"],
+    ),
 ) -> EnrollmentConfigSetStateOut:
     """
-    TODO set state link
+    Update/Set state for work_id (enrollment) using either enroll_str or work_id.
     """
 
     if request_in.work_id is None and request_in.enroll_str is None:
@@ -82,10 +85,13 @@ async def post_config_set_state(
 @router.post("/config/set-dl-link", response_model=EnrollmentConfigSetDLOut)
 async def post_config_set_dl_link(
     request: Request,
-    request_in: EnrollmentConfigSetDLIn,
+    request_in: EnrollmentConfigSetDLIn = Body(
+        None,
+        examples=EnrollmentConfigSetDLIn.Config.schema_extra["examples"],
+    ),
 ) -> EnrollmentConfigSetDLOut:
     """
-    TODO set download link
+    Store download link url for work_id (enrollment) using either work_id or enroll_str
     """
 
     if request_in.work_id is None and request_in.enroll_str is None:
@@ -134,10 +140,13 @@ async def post_config_set_dl_link(
 @router.post("/config/add-manager", response_model=EnrollmentConfigAddManagerOut)
 async def post_config_add_manager(
     request: Request,
-    request_in: EnrollmentConfigAddManagerIn,
+    request_in: EnrollmentConfigAddManagerIn = Body(
+        None,
+        examples=EnrollmentConfigAddManagerIn.Config.schema_extra["examples"],
+    ),
 ) -> EnrollmentConfigAddManagerOut:
     """
-    TODO add manager hash
+    Add new "manager" hash that has role/permission for X.
     """
 
     if len(request_in.new_permit_hash) < 64:
@@ -186,7 +195,7 @@ async def post_config_add_manager(
 @router.get("/status/{work_id}", response_model=EnrollmentStatusOut)
 async def request_enrolment_status(work_id: str, request: Request) -> EnrollmentStatusOut:
     """
-    TODO Check sqlite for status
+    Check the status for given work_id (enrollment). status=None means that there is no enrollment with given work_id
     """
     _q = settings.sqlite_sel_from_enrollment.format(work_id=work_id)
     _success, _result = sqlite.run_command(_q)
@@ -207,10 +216,13 @@ async def request_enrolment_status(work_id: str, request: Request) -> Enrollment
 @router.post("/init", response_model=EnrollmentInitOut)
 async def request_enrollment_init(
     request: Request,
-    request_in: EnrollmentInitIn,
+    request_in: EnrollmentInitIn = Body(
+        None,
+        examples=EnrollmentInitIn.Config.schema_extra["examples"],
+    ),
 ) -> EnrollmentInitOut:
     """
-    TODO init enrollment in background?
+    Add new work_id (enrollment) to environment.
     """
 
     # First check if there is already enrollment for requested workid
@@ -251,7 +263,7 @@ async def request_enrollment_init(
 @router.get("/deliver/{enroll_str}", response_model=EnrollmentDeliverOut)
 async def request_enrollment_status(request: Request, enroll_str: str) -> EnrollmentDeliverOut:
     """
-    TODO deliver enrollment download url if enrollment status is complete???
+    Deliver download url link using enroll_str
     """
 
     _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=enroll_str)
@@ -306,10 +318,13 @@ async def request_enrollment_status(request: Request, enroll_str: str) -> Enroll
 @router.post("/accept", response_model=EnrollmentAcceptOut)
 async def post_enrollment_accept(
     request: Request,
-    request_in: EnrollmentAcceptIn,
+    request_in: EnrollmentAcceptIn = Body(
+        None,
+        examples=EnrollmentAcceptIn.Config.schema_extra["examples"],
+    ),
 ) -> EnrollmentAcceptOut:
     """
-    TODO accept something in sqlite
+    Accept enroll_str (work_id/enrollment) using permit_str
     """
 
     _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)

@@ -133,6 +133,13 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     with environment variables.
     """
 
+    class Config:  # pylint: disable=too-few-public-methods
+        """Configuration of settings."""
+
+        env_file = ".env"
+        env_prefix = "RM_"
+        env_file_encoding = "utf-8"
+
     host: str = "127.0.0.1"
     port: int = 8000
     # quantity of workers for uvicorn
@@ -234,13 +241,6 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         SET state='{state}'
                                         WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
                                     ;"""
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Configuration of settings."""
-
-        env_file = ".env"
-        env_prefix = "RM_"
-        env_file_encoding = "utf-8"
 
 
 settings = Settings()

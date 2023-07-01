@@ -38,7 +38,6 @@ ENV \
   # poetry:
   POETRY_VERSION=1.3.1
 
-
 RUN apt-get update && apt-get install -y \
         curl \
         git \
@@ -50,6 +49,10 @@ RUN apt-get update && apt-get install -y \
         tini \
         openssh-client \
         cargo \
+        libxmlsec1-openssl \
+        libxmlsec1-dev \
+        libxml2-dev \
+        pkg-config \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     # githublab ssh

@@ -1,5 +1,6 @@
 """Utils API views."""
 from fastapi import APIRouter
+
 from rasenmaeher_api.web.api.utils.schema import LdapConnString, KeyCloakConnString
 
 from ....settings import settings
