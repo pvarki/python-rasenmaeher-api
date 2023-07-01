@@ -33,7 +33,7 @@ async def post_config_set_state(
     request: Request,
     request_in: EnrollmentConfigSetStateIn = Body(
         None,
-        examples=EnrollmentConfigSetStateIn.Config.schema_extra["examples"],
+        examples=[EnrollmentConfigSetStateIn.Config.schema_extra["examples"]],
     ),
 ) -> EnrollmentConfigSetStateOut:
     """
@@ -87,7 +87,7 @@ async def post_config_set_dl_link(
     request: Request,
     request_in: EnrollmentConfigSetDLIn = Body(
         None,
-        examples=EnrollmentConfigSetDLIn.Config.schema_extra["examples"],
+        examples=[EnrollmentConfigSetDLIn.Config.schema_extra["examples"]],
     ),
 ) -> EnrollmentConfigSetDLOut:
     """
@@ -142,7 +142,7 @@ async def post_config_add_manager(
     request: Request,
     request_in: EnrollmentConfigAddManagerIn = Body(
         None,
-        examples=EnrollmentConfigAddManagerIn.Config.schema_extra["examples"],
+        examples=[EnrollmentConfigAddManagerIn.Config.schema_extra["examples"]],
     ),
 ) -> EnrollmentConfigAddManagerOut:
     """
@@ -218,7 +218,7 @@ async def request_enrollment_init(
     request: Request,
     request_in: EnrollmentInitIn = Body(
         None,
-        examples=EnrollmentInitIn.Config.schema_extra["examples"],
+        examples=[EnrollmentInitIn.Config.schema_extra["examples"]],
     ),
 ) -> EnrollmentInitOut:
     """
@@ -320,7 +320,7 @@ async def post_enrollment_accept(
     request: Request,
     request_in: EnrollmentAcceptIn = Body(
         None,
-        examples=EnrollmentAcceptIn.Config.schema_extra["examples"],
+        examples=[EnrollmentAcceptIn.Config.schema_extra["examples"]],
     ),
 ) -> EnrollmentAcceptOut:
     """
