@@ -106,7 +106,7 @@ WORKDIR /app
 # and install the wheels we built in the previous step. generate default config
 RUN --mount=type=ssh apt-get update && apt-get install -y \
         bash \
-        libffi7 \
+        libffi8 \
         libzmq5 \
         tini \
     && apt-get autoremove -y \
