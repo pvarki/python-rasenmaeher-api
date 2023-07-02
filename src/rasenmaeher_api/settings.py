@@ -40,9 +40,6 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
         else:
             self.sqlite_filepath = self.settings.sqlite_filepath_prod
 
-        # sqlite_enrollement_table_name: str = "enrollment"
-        # sqlite_enrollement_table_schema: str = "TODO_SCHEMA"
-
         # Check sqlite database file
         self.db_ok = self.check_sqlitedatabase()
 
@@ -66,6 +63,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
             return True, []
         except Exception as _e:  # pylint: disable=broad-exception-caught
             LOGGER.error("SQLITE run command error : {}".format(_e))
+            LOGGER.error("SQLITE QUERY : {}".format(sql_cmd))
             return False, []
 
     def check_sqlitedatabase(self) -> bool:
@@ -92,9 +90,23 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
 
         # create tables and add management hash
         if self.sqlite_conn is not None:
+            # Create tables using schema in config
             self.run_command(self.settings.sqlite_enrollement_table_schema)
-
             self.run_command(self.settings.sqlite_management_table_schema)
+            self.run_command(self.settings.sqlite_services_table_schema)
+
+            # Add self to known services list
+            _e = f"{self.settings.api_healthcheck_proto}{self.settings.host}:{self.settings.port}"
+            _q = self.settings.sqlite_insert_into_services.format(
+                service_name="rasenmaeher",
+                init_state="init",
+                endpoint_proto_host_port=_e,
+                healthcheck_url=self.settings.api_healthcheck_url,
+                healthcheck_headers=self.settings.api_healthcheck_headers,
+            )
+            self.run_command(_q)
+
+            # Add initial management hash that has permissions to enroll users etc
             _q = self.settings.sqlite_insert_into_management.format(
                 management_hash=self.settings.sqlite_init_management_hash, special_rules="main"
             )
@@ -145,7 +157,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # quantity of workers for uvicorn
     workers_count: int = 1
     # Enable uvicorn reloading
-    reload: bool = False
+    reload: bool = True
 
     # Current environment
     environment: str = "dev"
@@ -166,6 +178,9 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
     test_api_client_cert_header_value: str = "TODO_CREATE_PKI_THAT_CAN_BE_PARSED_WITH__from_rfc4514_string"
+    api_healthcheck_proto: str = "http://"
+    api_healthcheck_url: str = "/api/v1/healthcheck"
+    api_healthcheck_headers: str = '{"asd":"qwe"}'
 
     # Sentry's configuration.
     sentry_dsn: Optional[str] = None
@@ -203,17 +218,51 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     sqlite_management_table_schema = """ CREATE TABLE IF NOT EXISTS management (
                                         id integer PRIMARY KEY AUTOINCREMENT,
                                         management_hash text NOT NULL,
-                                        special_rules text NOT NULL
+                                        special_rules text NOT NULL,
+                                        UNIQUE(management_hash)
                                     ); """
+
+    sqlite_services_table_schema = """ CREATE TABLE IF NOT EXISTS services (
+                                        id integer PRIMARY KEY AUTOINCREMENT,
+                                        service_name text NOT NULL,
+                                        init_state text NOT NULL,
+                                        endpoint_proto_host_port text NOT NULL,
+                                        healthcheck_url text NOT NULL,
+                                        healthcheck_headers text NOT NULL,
+                                        UNIQUE(service_name)
+                                    ); """
+
+    sqlite_insert_into_services = """ INSERT OR REPLACE INTO services
+                                        (service_name,
+                                        init_state,
+                                        endpoint_proto_host_port,
+                                        healthcheck_url,
+                                        healthcheck_headers
+                                        )
+                                        VALUES(
+                                            '{service_name}',
+                                            '{init_state}',
+                                            '{endpoint_proto_host_port}',
+                                            '{healthcheck_url}',
+                                            '{healthcheck_headers}'
+                                        )
+                                    ;"""
+
+    sqlite_sel_from_services = """SELECT service_name, init_state, endpoint_proto_host_port,
+                                         healthcheck_url, healthcheck_headers
+                                    FROM services
+                                ;"""
 
     sqlite_insert_into_enrollment = """ INSERT INTO enrollment
                                         (work_id, work_id_hash, state, accepted, dl_link)
                                         VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{dl_link}')
                                     ;"""
-    sqlite_insert_into_management = """ INSERT INTO management
+
+    sqlite_insert_into_management = """ INSERT OR REPLACE INTO management
                                         (management_hash, special_rules)
                                         VALUES('{management_hash}','{special_rules}')
                                     ;"""
+
     sqlite_sel_from_enrollment = """SELECT work_id, work_id_hash, state, accepted, dl_link
                                         FROM enrollment
                                         WHERE work_id='{work_id}'
@@ -232,6 +281,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         SET accepted='{enroll_str}'
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
+
     sqlite_update_enrollment_dl_link = """UPDATE enrollment
                                         SET dl_link='{download_link}'
                                         WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
@@ -240,6 +290,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     sqlite_update_enrollment_state = """UPDATE enrollment
                                         SET state='{state}'
                                         WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+
+    sqlite_healtcheck_query = """SELECT id
+                                        FROM management
+                                        LIMIT 2
                                     ;"""
 
 
