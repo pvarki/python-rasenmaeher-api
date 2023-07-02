@@ -79,7 +79,7 @@ pyopenssl = "^23.1"
 libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.2.0"}
 openapi-readme = "^0.2"
 python-multipart = "^0.0.6"
-aiohttp = "^3.8.4"
+aiohttp = "^3.8"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.1"

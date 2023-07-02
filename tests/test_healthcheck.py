@@ -1,9 +1,8 @@
-"""Test enrollment endpoint"""
+"""Test healthcheck endpoint"""
 import logging
 from typing import Dict, Any
 import pytest
 
-# from libadvian.binpackers import uuid_to_b64, b64_to_uuid
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
 LOGGER = logging.getLogger(__name__)
