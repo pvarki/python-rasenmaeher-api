@@ -18,7 +18,8 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigSetStateIn,
 )
 
-from ....settings import settings, sqlite
+from ....settings import settings
+from ....sqlitedatabase import sqlite
 
 
 router = APIRouter()

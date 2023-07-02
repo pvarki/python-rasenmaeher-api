@@ -5,7 +5,8 @@ import json
 import aiohttp
 from fastapi import APIRouter, Request, HTTPException
 
-from ....settings import settings, sqlite
+from ....settings import settings
+from ....sqlitedatabase import sqlite
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)

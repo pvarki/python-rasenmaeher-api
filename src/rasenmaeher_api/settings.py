@@ -2,12 +2,11 @@
 import enum
 import os
 import logging
+import json
 from pathlib import Path
 from tempfile import gettempdir
-from typing import Optional, Any, Tuple, List
-import sqlite3
+from typing import Optional, Any, Dict
 from pydantic import BaseSettings
-
 
 TEMP_DIR = Path(gettempdir())
 LOGGER = logging.getLogger(__name__)
@@ -22,119 +21,6 @@ class LogLevel(str, enum.Enum):  # noqa: WPS600
     WARNING = "WARNING"
     ERROR = "ERROR"
     FATAL = "FATAL"
-
-
-class SqliteDB:  # pylint: disable=too-few-public-methods
-    """
-    Application SqliteDB settings/connection
-
-    """
-
-    def __init__(self) -> None:
-        self.settings = Settings()
-
-        self.db_ok: bool = False
-
-        if self.settings.environment.lower() == "dev":
-            self.sqlite_filepath = self.settings.sqlite_filepath_dev
-        else:
-            self.sqlite_filepath = self.settings.sqlite_filepath_prod
-
-        # Check sqlite database file
-        self.db_ok = self.check_sqlitedatabase()
-
-        if self.db_ok is False:
-            self.create_sqlitedatabase()
-
-    def run_command(self, sql_cmd: str = "NA") -> Tuple[bool, List[Any]]:
-        """create a table from the create_table_sql statement
-        :param sql_cmd: sql command statement
-        """
-        try:
-            _c = self.sqlite_conn.cursor()
-            _c.execute(sql_cmd)
-            self.sqlite_conn.commit()
-
-            _rows = []
-            _rows = _c.fetchall()
-            _c.close()
-            if len(_rows) > 0:
-                return True, _rows
-            return True, []
-        except Exception as _e:  # pylint: disable=broad-exception-caught
-            LOGGER.error("SQLITE run command error : {}".format(_e))
-            LOGGER.error("SQLITE QUERY : {}".format(sql_cmd))
-            return False, []
-
-    def check_sqlitedatabase(self) -> bool:
-        """Check if the sqlite database has been initialized"""
-        if not os.path.isfile(self.sqlite_filepath):
-            return False
-        try:
-            self.sqlite_conn = sqlite3.connect(self.sqlite_filepath)
-            return True
-        except Exception as _e:  # pylint: disable=broad-exception-caught
-            # TODO Figure out should we actually do something about this or not.
-            # Now it will most likely end up being wiped.
-            LOGGER.error("SQLITE check sqlite database connection error : {}".format(_e))
-            return False
-
-    def create_sqlitedatabase(self) -> None:
-        """Check sqlite database connection"""
-        # Wipe the database if it exists, this should happen only if there
-        # is something fucky with the database file. see check_sqlitedatabase()
-        if os.path.isfile(self.sqlite_filepath):
-            os.remove(self.sqlite_filepath)
-
-        self.sqlite_conn = sqlite3.connect(self.sqlite_filepath)
-
-        # create tables and add management hash
-        if self.sqlite_conn is not None:
-            # Create tables using schema in config
-            self.run_command(self.settings.sqlite_enrollement_table_schema)
-            self.run_command(self.settings.sqlite_management_table_schema)
-            self.run_command(self.settings.sqlite_services_table_schema)
-
-            # Add self to known services list
-            _e = f"{self.settings.api_healthcheck_proto}{self.settings.host}:{self.settings.port}"
-            _q = self.settings.sqlite_insert_into_services.format(
-                service_name="rasenmaeher",
-                init_state="init",
-                endpoint_proto_host_port=_e,
-                healthcheck_url=self.settings.api_healthcheck_url,
-                healthcheck_headers=self.settings.api_healthcheck_headers,
-            )
-            self.run_command(_q)
-
-            # Add initial management hash that has permissions to enroll users etc
-            _q = self.settings.sqlite_insert_into_management.format(
-                management_hash=self.settings.sqlite_init_management_hash, special_rules="main"
-            )
-            self.run_command(_q)
-
-            # Create development dummy roles
-            if self.settings.environment.lower() == "dev":
-                # Create kissa dummy role
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="kissa",
-                    work_id_hash="kissa123",
-                    state="ReadyForDelivery",
-                    accepted="somehashwhoaccepted_this",
-                    dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                )
-                self.run_command(_q)
-                # Create koira dummy role
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="koira", work_id_hash="koira123", state="init", accepted="", dl_link=""
-                )
-                self.run_command(_q)
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="porakoira", work_id_hash="porakoira123", state="init", accepted="", dl_link=""
-                )
-                self.run_command(_q)
-
-        else:
-            LOGGER.critical("Error! cannot create the database connection.")
 
 
 class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
@@ -175,12 +61,25 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     elif log_level == "FATAL":
         log_level_int = logging.FATAL
 
+    # Manifest file from kraftwerk
+    integration_api_port: int = 4625
+    kraftwerk_manifest_path: str = "/pvarki/kraftwerk-rasenmaeher-init.json"
+    kraftwerk_manifest_bool: bool = False
+    kraftwerk_manifest_dict: Dict[Any, Any] = {}
+    if os.path.exists(kraftwerk_manifest_path):
+        with open(kraftwerk_manifest_path, encoding="utf8") as _f:
+            try:
+                kraftwerk_manifest_dict = json.load(_f)
+                kraftwerk_manifest_bool = True
+            except ValueError as _e:
+                LOGGER.fatal("JSON malformed in kraftwerk_manifest_path {} : {}".format(kraftwerk_manifest_path, _e))
+
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
     test_api_client_cert_header_value: str = "TODO_CREATE_PKI_THAT_CAN_BE_PARSED_WITH__from_rfc4514_string"
     api_healthcheck_proto: str = "http://"
     api_healthcheck_url: str = "/api/v1/healthcheck"
-    api_healthcheck_headers: str = '{"asd":"qwe"}'
+    api_healthcheck_headers: str = '{"propably":"not_needed"}'
 
     # Sentry's configuration.
     sentry_dsn: Optional[str] = None
@@ -299,4 +198,3 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
 
 settings = Settings()
-sqlite = SqliteDB()
