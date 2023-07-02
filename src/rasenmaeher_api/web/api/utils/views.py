@@ -72,7 +72,7 @@ async def get_crl() -> bytes:
     Quick and dirty method to get CA from CFSSL
     returns: CA certificate
     """
-    url = "http://127.0.0.1:8888/api/v1/cfssl/crl"
+    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/crl"
 
     response = requests.request("GET", url, timeout=5)
     data = response.json().get("result")
