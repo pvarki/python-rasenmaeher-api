@@ -234,8 +234,6 @@ the "tox" target in the Dockerfile::
 Production docker
 ^^^^^^^^^^^^^^^^^
 
-TODO: Remove this section if this is a library and not an application
-
 There's a "production" target as well for running the application, remember to change that
 architecture tag to arm64 if building on ARM::
 
@@ -245,21 +243,11 @@ architecture tag to arm64 if building on ARM::
 Development
 -----------
 
-TODO: Remove the repo init from this document after you have done it.
-
 TLDR:
 
 - Create and activate a Python 3.8 virtualenv (assuming virtualenvwrapper)::
 
     mkvirtualenv -p `which python3.8` my_virtualenv
-
-- Init your repo (first create it on-line and make note of the remote URI)::
-
-    git init
-    git add .
-    git commit -m 'Cookiecutter stubs'
-    git remote add origin MYREPOURI
-    git push origin master
 
 - change to a branch::
 
