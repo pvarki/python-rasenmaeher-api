@@ -20,7 +20,7 @@ server {
     listen ${NGINX_HTTPS_PORT} ssl;
 
     location / {
-        proxy_pass  http://rmapi:8000;
+        proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT};
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
         proxy_set_header  X-Real-IP         $remote_addr;
@@ -53,7 +53,7 @@ server {
         if ($ssl_client_verify != SUCCESS) {
             return 403;
         }
-        proxy_pass  http://rmapi:8000;
+        proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT};
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
         proxy_set_header  X-Real-IP         $remote_addr;
