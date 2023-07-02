@@ -45,7 +45,6 @@ RUN apt-get update && apt-get install -y \
         build-essential \
         libffi-dev \
         libssl-dev \
-        libzmq3-dev \
         tini \
         openssh-client \
         cargo \
@@ -107,7 +106,6 @@ WORKDIR /app
 RUN --mount=type=ssh apt-get update && apt-get install -y \
         bash \
         libffi8 \
-        libzmq5 \
         tini \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
