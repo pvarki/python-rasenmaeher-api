@@ -8,7 +8,9 @@ python-rasenmaeher-api
 Configuration
 -------------
 
-This application can be configured with environment variables.
+This application can be configured with environment variables. Below is a example list of available variables.
+You can find all available variables here https://github.com/pvarki/python-rasenmaeher-api/blob/main/src/rasenmaeher_api/settings.py.
+
 
 .. list-table:: Container Variables
    :widths: 30 30 50
@@ -83,6 +85,26 @@ RM_ENVIRONMENT="dev"
 ```
 
 You can read more about BaseSettings class here: https://pydantic-docs.helpmanual.io/usage/settings/
+
+
+Backend services manifest
+-------------------------
+Integration APIs are always https in port 4625.
+Default location for the manifest is /pvarki/kraftwerk-rasenmaeher-init.json
+
+
+```json
+{
+"dns": "sleepy-sloth.pvarki.fi",
+"products": {
+"tak": "tak.sleepy-sloth.pvarki.fi",
+"ptt": "ptt.sleepy-sloth.pvarki.fi"
+}
+}
+```
+
+
+
 
 Api endpoints and usage
 -----------------------
