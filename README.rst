@@ -122,7 +122,7 @@ Api endpoints and usage
      - Accept the enrollment request
    * - Testing
      - POST
-     - /api/v1/takreg
+     - /api/v1/product/sign_csr
      - { 'TO':'DO'}
      - { 'TO':'DO'}
      - Accept the enrollment request

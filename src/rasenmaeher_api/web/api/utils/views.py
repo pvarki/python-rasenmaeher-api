@@ -1,5 +1,8 @@
 """Utils API views."""
-from fastapi import APIRouter
+import base64
+from typing import cast
+from fastapi import APIRouter, Response
+import requests
 
 from rasenmaeher_api.web.api.utils.schema import LdapConnString, KeyCloakConnString
 
@@ -62,3 +65,29 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
         keycloak_client_s_sting=settings.keycloak_client_secret,
         reason="",
     )
+
+
+async def get_crl() -> bytes:
+    """
+    Quick and dirty method to get CA from CFSSL
+    returns: CA certificate
+    """
+    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/crl"
+
+    response = requests.request("GET", url, timeout=5)
+    data = response.json().get("result")
+    # decode base64
+    data = base64.b64decode(data)
+
+    return cast(bytes, data)
+
+
+@router.get("/crl")
+async def return_crl() -> Response:
+    """
+    Method for TAK sign CSR and request CA
+    params: csr
+    """
+    crl = await get_crl()
+
+    return Response(content=crl, media_type="application/pkix-crl")

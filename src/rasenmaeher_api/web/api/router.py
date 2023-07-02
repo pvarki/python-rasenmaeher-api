@@ -3,8 +3,7 @@ from fastapi.routing import APIRouter
 
 from rasenmaeher_api.web.api import (
     healthcheck,
-    takreg,
-    crlproxy,
+    product,
     checkauth,
     enduserpfx,
     utils,
@@ -14,8 +13,7 @@ from rasenmaeher_api.web.api import (
 
 api_router = APIRouter()
 api_router.include_router(healthcheck.router, prefix="/healthcheck", tags=["healthcheck"])
-api_router.include_router(takreg.router, prefix="/takreg", tags=["cfssl"])
-api_router.include_router(crlproxy.router, prefix="/crlproxy", tags=["cfssl"])
+api_router.include_router(product.router, prefix="/product", tags=["product"])
 api_router.include_router(checkauth.router, prefix="/check-auth", tags=["info"])
 api_router.include_router(enduserpfx.router, prefix="/enduserpfx", tags=["enduserpfx"])
 api_router.include_router(utils.router, prefix="/utils", tags=["utils"])
