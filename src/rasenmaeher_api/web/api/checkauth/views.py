@@ -1,18 +1,38 @@
 """Info API views."""
 from typing import cast
-from fastapi import APIRouter, Depends
-from multikeyjwt.middleware import JWTBearer
+
+
+from fastapi import APIRouter, Depends, Request
+from multikeyjwt.middleware import JWTBearer, JWTPayload
+from libpvarki.middleware.mtlsheader import MTLSHeader, DNDict
+
+from ..middleware import MTLSorJWT, MTLSorJWTPayload
 
 router = APIRouter()
 
 
-@router.get("/", dependencies=[Depends(JWTBearer())])
-async def return_info() -> str:
-    """
-    Method for testing JWT
-    """
+@router.get("/jwt", dependencies=[Depends(JWTBearer(auto_error=True))])
+async def return_jwt_payload(request: Request) -> JWTPayload:
+    """Method for testing JWT"""
+    return cast(JWTPayload, request.state.jwt)
 
-    return cast(str, "Hello World")
+
+@router.get("/mtls", dependencies=[Depends(MTLSHeader(auto_error=True))])
+async def return_mtls_payload(request: Request) -> DNDict:
+    """Method for testing mTLS"""
+    return cast(DNDict, request.state.mtlsdn)
+
+
+@router.get("/mtls_or_jwt", dependencies=[Depends(MTLSorJWT(auto_error=True))])
+async def return_mtlsjwt_payload(request: Request) -> MTLSorJWTPayload:
+    """Method for testing mTLS and JWT auth"""
+    return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
+
+
+@router.get("/mtls_or_jwt/permissive", dependencies=[Depends(MTLSorJWT(auto_error=True, disallow_jwt_sub=[]))])
+async def return_mtlsjwt_payload_permissive(request: Request) -> MTLSorJWTPayload:
+    """Method for testing mTLS and JWT auth, do not disallow any subjects"""
+    return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
 
 
 @router.get("/ldap/connection-string", dependencies=[Depends(JWTBearer())])
