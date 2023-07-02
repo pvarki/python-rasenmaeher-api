@@ -45,7 +45,6 @@ RUN apt-get update && apt-get install -y \
         build-essential \
         libffi-dev \
         libssl-dev \
-        libzmq3-dev \
         tini \
         openssh-client \
         cargo \
@@ -106,9 +105,10 @@ WORKDIR /app
 # and install the wheels we built in the previous step. generate default config
 RUN --mount=type=ssh apt-get update && apt-get install -y \
         bash \
-        libffi7 \
-        libzmq5 \
+        libffi8 \
         tini \
+        git \
+        openssh-client \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
