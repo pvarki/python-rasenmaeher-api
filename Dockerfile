@@ -107,6 +107,8 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
         bash \
         libffi8 \
         tini \
+        git \
+        openssh-client \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
