@@ -67,7 +67,6 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
     )
 
 
-
 async def get_crl() -> bytes:
     """
     Quick and dirty method to get CA from CFSSL
