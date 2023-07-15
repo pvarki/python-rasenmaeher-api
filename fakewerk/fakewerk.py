@@ -4,6 +4,7 @@ import logging
 import uuid
 import shutil
 import json
+import os
 
 from libadvian.logging import init_logging
 from multikeyjwt.keygen import generate_keypair
@@ -56,8 +57,14 @@ def create_fakeproduct_manifest() -> None:
             "csr": True,
         }
     )
+    rm_port = int(os.environ.get("RASENMAEHER_HTTPS_PORT", "4439"))
+    rm_host = os.environ.get("RASENMAEHER_HOST", "localmaeher.pvarki.fi")
+    if rm_port != 443:
+        rm_uri = f"https://{rm_host}:{rm_port}/"
+    else:
+        rm_uri = f"https://{rm_host}/"
     manifest = {
-        "rasenmaeher": {"base_uri": "https://localmaeher.pvarki.fi/", "csr_jwt": token},
+        "rasenmaeher": {"base_uri": rm_uri, "csr_jwt": token},
         "product": {"dns": "fake.localmaeher.pvarki.fi"},
     }
     with FP_MANIFEST_PATH.open("wt", encoding="utf-8") as fpntr:

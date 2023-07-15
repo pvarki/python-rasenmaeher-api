@@ -41,6 +41,9 @@ services:
       context: ./fakewerk
       dockerfile: Dockerfile
       target: production
+    environment:
+      RASENMAEHER_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
+      RASENMAEHER_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
     volumes:
       - kraftwerk_shared:/pvarki
       - kraftwerk_data:/data/persistent
