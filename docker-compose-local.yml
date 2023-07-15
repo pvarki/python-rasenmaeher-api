@@ -250,6 +250,19 @@ services:
       retries: 3
       start_period: 5s
 
+  kwinit:  # Mostly to make sure it's built
+    image: pvarki/kw_product_init:latest
+    build:
+      context: ./kw_product_init
+      dockerfile: Dockerfile
+      target: production
+    command: ["help"]
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+      - kraftwerk_shared:/pvarki
+      - kwinit_data:/data/persistent
+
   rmfpapi:
     image: pvarki/rmfpapi:latest
     build:
@@ -326,6 +339,7 @@ networks:
 
 volumes:
   kraftwerk_data:
+  kwinit_data:
   kraftwerk_shared:
   pg_data:
   cfssl_data:
