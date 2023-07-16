@@ -18,6 +18,14 @@ services:
       rmapi:
         condition: service_healthy
 
+  kwinit_prod:  # For building the go executable needed by rmfpapi
+    image: pvarki/kw_product_init:latest
+    build:
+      context: ./kw_product_init
+      dockerfile: Dockerfile
+      target: production
+    command: ["help"]
+
   rmfpapi:
     image: pvarki/rmfpapi:devel_shell
     build:
@@ -36,7 +44,6 @@ services:
     depends_on:
       rmfpapi:
         condition: service_healthy
-
 
   kwinit:  # docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml exec kwinit zsh
     image: pvarki/kw_product_init:devel_shell
