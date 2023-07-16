@@ -80,6 +80,7 @@ services:
     volumes:
       - mkcert_ca:/caroot
       - le_certs:/certs
+      - ca_public:/ca_public
 
   postgres:
     image: postgres:12
