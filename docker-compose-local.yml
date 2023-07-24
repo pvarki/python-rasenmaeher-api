@@ -58,6 +58,8 @@ services:
     environment:
       # This does not seem to work correctly, I had to manually mount the volume and copy a chain there
       INT_SHARED_CERT_FOLDER: /ca_public
+      CFSSL_BIND_ADDRESS: ${CFSLL_PERSISTENT_FOLDER:-0.0.0.0}
+      CFSSL_BIND_PORT: ${CFSLL_PERSISTENT_FOLDER:-8888}
     volumes:
       - cfssl_data:/opt/cfssl/persistent
       - ca_public:/ca_public
