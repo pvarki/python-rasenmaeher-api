@@ -1,9 +1,8 @@
 #!/bin/bash -l
 set -e
 if [ "$#" -eq 0 ]; then
-  # TODO: Put your actual program start here
-  uvicorn rasenmaeher_api.web.application:get_app
-  exec true
+  # FIXME: can we know the traefik/nginx internal docker ip easily ?
+  exec gunicorn "rasenmaeher_api.web.application:get_app()" --bind 0.0.0.0:8000 --forwarded-allow-ips='*' -w 4 -k uvicorn.workers.UvicornWorker
 else
   exec "$@"
 fi
