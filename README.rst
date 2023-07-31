@@ -34,6 +34,7 @@ TLDR::
 Launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
 
+OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
 
 Directories that are submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
