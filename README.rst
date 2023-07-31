@@ -28,8 +28,15 @@ _________________________________
 
 TLDR::
 
-    docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml build
-    docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml up
+    docker-compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
+    docker-compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up
+
+or::
+
+    docker-compose -p rmlocal -f docker-compose-local.yml build
+    docker-compose -p rmlocal -f docker-compose-local.yml up
+
+Remember to run "down -v" if you want to reset the persistent volumes.
 
 Launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
