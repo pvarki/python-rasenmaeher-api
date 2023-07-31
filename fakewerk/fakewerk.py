@@ -63,8 +63,9 @@ def create_fakeproduct_manifest() -> None:
         rm_uri = f"https://{rm_host}:{rm_port}/"
     else:
         rm_uri = f"https://{rm_host}/"
+    mtls_uri = rm_uri.replace("https://", "https://mtls.")  # FIXME: Use env etc
     manifest = {
-        "rasenmaeher": {"base_uri": rm_uri, "csr_jwt": token},
+        "rasenmaeher": { "init": {"base_uri": rm_uri, "csr_jwt": token}, "mtls": {"base_uri": mtls_uri}},
         "product": {"dns": "fake.localmaeher.pvarki.fi"},
     }
     with FP_MANIFEST_PATH.open("wt", encoding="utf-8") as fpntr:
