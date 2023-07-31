@@ -16,8 +16,9 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
         """Example values for schema"""
 
         schema_extra = {
-            "examples": {
-                "normal": {
+            "examples": [
+                {
+                    "name": "normal",
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
@@ -27,7 +28,8 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                         "enroll_str": "[str]",
                     },
                 },
-                "with_values": {
+                {
+                    "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
@@ -36,7 +38,8 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                         "work_id": "kissa",
                     },
                 },
-                "with_values2": {
+                {
+                    "name": "with_values2",
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
@@ -45,7 +48,7 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                         "enroll_str": "kissa123",
                     },
                 },
-            }
+            ]
         }
 
 
@@ -78,8 +81,9 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
         """Example values for schema"""
 
         schema_extra = {
-            "examples": {
-                "normal": {
+            "examples": [
+                {
+                    "name": "normal",
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
@@ -89,7 +93,8 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                         "enroll_str": "[str]",
                     },
                 },
-                "with_values": {
+                {
+                    "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
@@ -98,7 +103,8 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                         "work_id": "kissa",
                     },
                 },
-                "with_values2": {
+                {
+                    "name": "with_values2",
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
@@ -107,7 +113,7 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                         "enroll_str": "kissa123",
                     },
                 },
-            }
+            ]
         }
 
 
@@ -139,8 +145,9 @@ class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public
         """Example values for schema"""
 
         schema_extra = {
-            "examples": {
-                "normal": {
+            "examples": [
+                {
+                    "name": "normal",
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
@@ -149,7 +156,8 @@ class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public
                         "permission_str": "[str] - Extra permission for new permit_str.",
                     },
                 },
-                "with_values": {
+                {
+                    "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
@@ -158,7 +166,7 @@ class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public
                         "permission_str": "[str] - Extra permission for new permit_str.",
                     },
                 },
-            }
+            ]
         }
 
 
@@ -209,18 +217,20 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
         schema_extra = {
-            "examples": {
-                "normal": {
+            "examples": [
+                {
+                    "name": "normal",
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {"work_id": "[str] - Plain text enrollment role id"},
                 },
-                "with_values": {
+                {
+                    "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {"work_id": "taikaponi"},
                 },
-            }
+            ]
         }
 
 
@@ -280,8 +290,9 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
         schema_extra = {
-            "examples": {
-                "normal": {
+            "examples": [
+                {
+                    "name": "normal",
                     "summary": "Description text",
                     "description": "This contains **description** of values.",
                     "value": {
@@ -289,7 +300,8 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                         "permit_str": "[str] - Hash string having permissions to accept enroll_str",
                     },
                 },
-                "with_values": {
+                {
+                    "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
@@ -297,7 +309,7 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                         "permit_str": f"{settings.sqlite_init_management_hash}",
                     },
                 },
-            }
+            ]
         }
 
 
