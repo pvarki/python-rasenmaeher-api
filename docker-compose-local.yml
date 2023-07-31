@@ -58,8 +58,8 @@ services:
     environment:
       # This does not seem to work correctly, I had to manually mount the volume and copy a chain there
       INT_SHARED_CERT_FOLDER: /ca_public
-      CFSSL_BIND_ADDRESS: ${CFSLL_PERSISTENT_FOLDER:-0.0.0.0}
-      CFSSL_BIND_PORT: ${CFSLL_PERSISTENT_FOLDER:-8888}
+      CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+      CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
     volumes:
       - cfssl_data:/opt/cfssl/persistent
       - ca_public:/ca_public
@@ -199,6 +199,8 @@ services:
       JWT_PUBKEY_PATH: "/pvarki/publickeys"
       JWT_PRIVKEY_PATH: "/data/persistent/jwt.key"
       JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
+      RM_CFSSL_HOST: "http://cfssl"
+      RM_CFSSL_PORT: ${CFSSL_BIND_PORT:-8888}
     networks:
       - apinet
       - kcnet
