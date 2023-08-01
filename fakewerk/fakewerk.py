@@ -5,8 +5,10 @@ import uuid
 import shutil
 import json
 import os
+import uuid
 
 from libadvian.logging import init_logging
+from libadvian.binpackers import uuid_to_b64
 from multikeyjwt.keygen import generate_keypair
 from multikeyjwt import Issuer
 from multikeyjwt.config import Secret
@@ -55,6 +57,7 @@ def create_fakeproduct_manifest() -> None:
         {
             "sub": "fakeproduct",
             "csr": True,
+            "nonce": uuid_to_b64(uuid.uuid4()),
         }
     )
     rm_port = int(os.environ.get("RASENMAEHER_HTTPS_PORT", "4439"))
