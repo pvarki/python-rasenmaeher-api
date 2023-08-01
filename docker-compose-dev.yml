@@ -1,5 +1,5 @@
 # This extends the _local file, run with:
-#   `docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml up -d`
+#   `docker-compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up -d`
 version: '3.7'
 services:
   rmapi:
@@ -45,7 +45,7 @@ services:
       rmfpapi:
         condition: service_healthy
 
-  kwinit:  # docker-compose -f docker-compose-local.yml -f docker-compose-dev.yml exec kwinit zsh
+  kwinit:  # docker-compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml exec kwinit zsh
     image: pvarki/kw_product_init:devel_shell
     build:
       context: ./kw_product_init
