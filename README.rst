@@ -28,20 +28,24 @@ _________________________________
 
 TLDR::
 
-    docker-compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
-    docker-compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up
+    docker compose -p rmdev -f docker compose-local.yml -f docker compose-dev.yml build
+    docker compose -p rmdev -f docker compose-local.yml -f docker compose-dev.yml up
 
 or::
 
-    docker-compose -p rmlocal -f docker-compose-local.yml build
-    docker-compose -p rmlocal -f docker-compose-local.yml up
+    docker compose -p rmlocal -f docker compose-local.yml build
+    docker compose -p rmlocal -f docker compose-local.yml up
+
+OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
+
+IMPORTANT: Only keep either rmlocal or rmdev created at one time or you may have weird network issues
+run "docker compose ... down" for one env before starting the other.
 
 Remember to run "down -v" if you want to reset the persistent volumes.
 
-Launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
+The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
 
-OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
 
 Directories that are submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
