@@ -28,13 +28,13 @@ _________________________________
 
 TLDR::
 
-    docker compose -p rmdev -f docker compose-local.yml -f docker compose-dev.yml build
-    docker compose -p rmdev -f docker compose-local.yml -f docker compose-dev.yml up
+    docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
+    docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up
 
 or::
 
-    docker compose -p rmlocal -f docker compose-local.yml build
-    docker compose -p rmlocal -f docker compose-local.yml up
+    docker compose -p rmlocal -f docker-compose-local.yml build
+    docker compose -p rmlocal -f docker-compose-local.yml up
 
 OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
 
