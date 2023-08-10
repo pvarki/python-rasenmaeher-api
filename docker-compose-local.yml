@@ -35,6 +35,19 @@ x-keycloakinit_users_env: &keycloakinit_users_env
   KEYCLOAK_PASSWORD: *kcadminpass # pragma: allowlist secret
 
 services:
+  fakewerk:
+    image: pvarki/fakewerk:latest
+    build:
+      context: ./fakewerk
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      RASENMAEHER_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
+      RASENMAEHER_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
+    volumes:
+      - kraftwerk_shared:/pvarki
+      - kraftwerk_data:/data/persistent
+
   cfssl:
     image: pvarki/cfssl:latest
     build:
@@ -45,6 +58,8 @@ services:
     environment:
       # This does not seem to work correctly, I had to manually mount the volume and copy a chain there
       INT_SHARED_CERT_FOLDER: /ca_public
+      CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+      CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
     volumes:
       - cfssl_data:/opt/cfssl/persistent
       - ca_public:/ca_public
@@ -55,17 +70,19 @@ services:
       retries: 3
       start_period: 5s
 
-  mkcert:
+  rmmkcert:
     image: pvarki/mkcert:latest
     build:
       context: ./mkcert
       dockerfile: Dockerfile
+      target: production
     environment:
       SERVER_DOMAIN: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
       CAROOT: /caroot
     volumes:
       - mkcert_ca:/caroot
       - le_certs:/certs
+      - ca_public:/ca_public
 
   postgres:
     image: postgres:12
@@ -115,7 +132,7 @@ services:
       - le_certs:/le_certs
       - ./nginx/includes/dhparam.pem:/dhparam.pem
     depends_on:
-      mkcert:
+      rmmkcert:
         condition: service_completed_successfully
       cfssl:
         condition: service_healthy
@@ -178,6 +195,12 @@ services:
       target: production
     ports:
       - "8000:8000"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
+    environment:
+      JWT_PUBKEY_PATH: "/pvarki/publickeys"
+      JWT_PRIVKEY_PATH: "/data/persistent/jwt.key"
+      JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
+      RM_CFSSL_HOST: "http://cfssl"
+      RM_CFSSL_PORT: ${CFSSL_BIND_PORT:-8888}
     networks:
       - apinet
       - kcnet
@@ -185,12 +208,15 @@ services:
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
+      - kraftwerk_shared:/pvarki
     depends_on:
       cfssl:
         condition: service_healthy
       keycloak:
         condition: service_healthy
       keycloak-init:
+        condition: service_completed_successfully
+      fakewerk:
         condition: service_completed_successfully
     healthcheck:
       test: 'true'  # FIXME
@@ -199,7 +225,7 @@ services:
       retries: 3
       start_period: 5s
 
-  nginx:
+  rmnginx:
     image: nginx
     volumes:
       - ./nginx/templates:/etc/nginx/templates
@@ -210,6 +236,8 @@ services:
       NGINX_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
       NGINX_HTTP_PORT: ${NGINX_HTTP_PORT:-8015}
       NGINX_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
+      NGINX_UPSTREAM: "rmapi"
+      NGINX_UPSTREAM_PORT: "8000"
     networks:
       - apinet
       - kcnet
@@ -217,24 +245,115 @@ services:
       - "${NGINX_HTTP_PORT:-8015}:${NGINX_HTTP_PORT:-8015}"
       - "${NGINX_HTTPS_PORT:-4439}:${NGINX_HTTPS_PORT:-4439}"
     depends_on:
-      mkcert:
+      rmmkcert:
         condition: service_completed_successfully
       keycloak:
         condition: service_healthy
       rmapi:
         condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  kwinit:  # Mostly to make sure it's built
+    image: pvarki/kw_product_init:latest
+    build:
+      context: ./kw_product_init
+      dockerfile: Dockerfile
+      target: production
+    command: ["help"]
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+      - kraftwerk_shared:/pvarki
+      - kwinit_data:/data/persistent
+
+  rmfpapi:
+    image: pvarki/rmfpapi:latest
+    build:
+      context: ./fpintegration
+      dockerfile: Dockerfile
+      target: production
+    ports:
+      - "8001:8001"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
+    networks:
+      - productnet
+    volumes:
+      - ca_public:/ca_public
+      - kraftwerk_shared:/pvarki
+      - rmfpapi_data:/data/persistent
+    depends_on:
+      rmnginx:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  fpmkcert:
+    image: pvarki/mkcert:latest
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      SERVER_DOMAIN: "fake.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
+      CAROOT: /caroot
+    volumes:
+      - mkcert_ca:/caroot
+      - le_certs:/certs
+
+  fpnginx:
+    image: nginx
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates_onlymtls
+      - ./nginx/includes:/etc/nginx/includes
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    environment:
+      NGINX_HOST: "fake.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
+      NGINX_HTTP_PORT: ${NGINX_HTTP_PRODUCT_PORT:-8016}
+      NGINX_HTTPS_PORT: ${NGINX_HTTPS_PRODUCT_PORT:-4625}
+      NGINX_UPSTREAM: "rmfpapi"
+      NGINX_UPSTREAM_PORT: "8001"
+    networks:
+      - productnet
+    ports:
+      - "${NGINX_HTTP_PRODUCT_PORT:-8016}:${NGINX_HTTP_PRODUCT_PORT:-8016}"
+      - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
+    depends_on:
+      fpmkcert:
+        condition: service_completed_successfully
+      rmfpapi:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
 
 networks:
+  productnet:
   apinet:
   kcnet:
   canet:
   dbnet:
 
 volumes:
+  kraftwerk_data:
+  kwinit_data:
+  kraftwerk_shared:
   pg_data:
   cfssl_data:
   openldap_data:
   rmapi_data:
+  rmfpapi_data:
   ca_public:
   le_certs:
   mkcert_ca:
