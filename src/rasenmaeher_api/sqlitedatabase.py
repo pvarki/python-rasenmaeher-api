@@ -120,16 +120,30 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                     work_id_hash="kissa123",
                     state="ReadyForDelivery",
                     accepted="somehashwhoaccepted_this",
-                    dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
+                    cert_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
+                    cert_howto_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
+                    mtls_test_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
                 )
                 self.run_command(_q)
                 # Create koira dummy role
                 _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="koira", work_id_hash="koira123", state="init", accepted="", dl_link=""
+                    work_id="koira",
+                    work_id_hash="koira123",
+                    state="init",
+                    accepted="",
+                    cert_dl_link="",
+                    cert_howto_dl_link="",
+                    mtls_test_link="",
                 )
                 self.run_command(_q)
                 _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="porakoira", work_id_hash="porakoira123", state="init", accepted="", dl_link=""
+                    work_id="porakoira",
+                    work_id_hash="porakoira123",
+                    state="init",
+                    accepted="",
+                    cert_dl_link="",
+                    cert_howto_dl_link="",
+                    mtls_test_link="",
                 )
                 self.run_command(_q)
 

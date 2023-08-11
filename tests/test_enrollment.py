@@ -128,17 +128,130 @@ async def test_post_enrollment_config_setstate_fail_oopsie_state(app_client: Tes
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
-async def test_post_enrollment_config_setdl_success_work_id(app_client: TestClient) -> None:
+async def test_post_enrollment_config_setmtlstest_success_work_id(app_client: TestClient) -> None:
     """
-    /config/set-dl-link
+    /config/set-mtls-test-link
     Result should be successful
     """
     json_dict: Dict[Any, Any] = {
-        "download_link": "https://kuvaton.com",
+        "mtls_test_link": "https://kuvaton.com",
+        "work_id": "kissa",
+        "set_for_all": False,
+        "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["success"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setmtlstest_success_all(app_client: TestClient) -> None:
+    """
+    /config/set-mtls-test-link
+    Result should be successful
+    """
+    json_dict: Dict[Any, Any] = {
+        "mtls_test_link": "https://kuvaton.com",
+        "set_for_all": True,
+        "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["success"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setmtlstest_fail(app_client: TestClient) -> None:
+    """
+    /config/set-mtls-test-link
+    Result should be fail
+    'Error. Both work_id and enroll_str are undefined. At least one is required when 'set_for_all' is set to False'
+    """
+    json_dict: Dict[Any, Any] = {
+        "mtls_test_link": "https://kuvaton.com",
+        "set_for_all": False,
+        "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    print(resp_dict)
+    assert resp.status_code == 200
+    assert resp_dict["success"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setmtlstest_fail_permissions(app_client: TestClient) -> None:
+    """
+    /config/set-mtls-test-link
+    Result should be fail
+    'Error. 'permit_str' doesn't have rights to set 'mtls_test_link''
+    """
+    json_dict: Dict[Any, Any] = {
+        "mtls_test_link": "https://kuvaton.com",
+        "set_for_all": True,
+        "permit_str": "Not_enough_permissions",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["success"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setmtlstest_fail_oopsie(app_client: TestClient) -> None:
+    """
+    /config/set-mtls-test-link
+    Result should be fail
+    'Error. Both work_id and enroll_str are undefined. At least one is required when 'set_for_all' is set to True'
+    """
+    json_dict: Dict[Any, Any] = {
+        "mtls_test_link": "https://kuvaton.com",
+        "set_for_all": True,
+        "permit_str": "opsie'%3Boopsie",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["success"] is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setdl_success_work_id(app_client: TestClient) -> None:
+    """
+    /config/set-cert-dl-link
+    Result should be successful
+    """
+    json_dict: Dict[Any, Any] = {
+        "cert_download_link": "https://kuvaton.com",
         "work_id": "kissa",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/set-dl-link", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["success"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_howto_setdl_success_work_id(app_client: TestClient) -> None:
+    """
+    /config/set-cert-dl-link
+    Result should be successful
+    """
+    json_dict: Dict[Any, Any] = {
+        "howto_download_link": "https://kuvaton.com",
+        "work_id": "kissa",
+        "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is True
@@ -148,15 +261,15 @@ async def test_post_enrollment_config_setdl_success_work_id(app_client: TestClie
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_setdl_success_work_idhash(app_client: TestClient) -> None:
     """
-    /config/set-dl-link
+    /config/set-cert-dl-link
     Result should be successful
     """
     json_dict: Dict[Any, Any] = {
-        "download_link": "https://kuvaton.com",
+        "cert_download_link": "https://kuvaton.com",
         "enroll_str": "kissa123",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/set-dl-link", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is True
@@ -166,15 +279,15 @@ async def test_post_enrollment_config_setdl_success_work_idhash(app_client: Test
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_setdl_fail_missing(app_client: TestClient) -> None:
     """
-    /config/set-dl-link
+    /config/set-cert-dl-link
     Result should fail
     reason="Error. Both work_id and enroll_str are undefined. At least one is required"
     """
     json_dict: Dict[Any, Any] = {
-        "download_link": "https://kuvaton.com",
+        "cert_download_link": "https://kuvaton.com",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/set-dl-link", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is False
@@ -185,16 +298,16 @@ async def test_post_enrollment_config_setdl_fail_missing(app_client: TestClient)
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_setdl_fail_permit_oopsie(app_client: TestClient) -> None:
     """
-    /config/set-dl-link
+    /config/set-cert-dl-link
     Result should fail
     reason="Error. Undefined backend error q_ssfm3"
     """
     json_dict: Dict[Any, Any] = {
-        "download_link": "https://kuvaton.com",
+        "cert_download_link": "https://kuvaton.com",
         "work_id": "kissa",
         "permit_str": "opsie'%3Boopsie",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/set-dl-link", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is False
@@ -205,36 +318,63 @@ async def test_post_enrollment_config_setdl_fail_permit_oopsie(app_client: TestC
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_setdl_fail_no_righs(app_client: TestClient) -> None:
     """
-    /config/set-dl-link
+    /config/set-cert-dl-link
     Result should fail
-    reason="Error. 'permit_str' doesn't have rights to set 'download_link'", <-- non existing permit_str
+    reason="Error. 'permit_str' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
     """
-    json_dict: Dict[Any, Any] = {"download_link": "https://kuvaton.com", "work_id": "kissa", "permit_str": "no_righs"}
-    resp = await app_client.post("/api/v1/enrollment/config/set-dl-link", json=json_dict)
+    json_dict: Dict[Any, Any] = {
+        "cert_download_link": "https://kuvaton.com",
+        "work_id": "kissa",
+        "permit_str": "no_righs",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is False
-    assert resp_dict["reason"] == "Error. 'permit_str' doesn't have rights to set 'download_link'"
+    assert (
+        resp_dict["reason"]
+        == "Error. 'permit_str' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
+    )
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_setdl_fail_oopsie_link(app_client: TestClient) -> None:
     """
-    /config/set-dl-link
+    /config/set-cert-dl-link
     Result should fail
-    reason="Error. Undefined backend error q_ssuedl1"
+    reason="Error. Undefined backend error q_ssuecdll1"
     """
     json_dict: Dict[Any, Any] = {
-        "download_link": "opsie'%3Boopsie",
+        "cert_download_link": "opsie'%3Boopsie",
         "work_id": "kissa",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/set-dl-link", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is False
-    assert resp_dict["reason"] == "Error. Undefined backend error q_ssuedl1"
+    assert resp_dict["reason"] == "Error. Undefined backend error q_ssuecdll1"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setdl_fail_oopsie_link2(app_client: TestClient) -> None:
+    """
+    /config/set-cert-dl-link
+    Result should fail
+    reason="Error. Undefined backend error q_ssuecdll1"
+    """
+    json_dict: Dict[Any, Any] = {
+        "howto_download_link": "opsie'%3Boopsie",
+        "work_id": "kissa",
+        "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+    }
+    resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["success"] is False
+    assert resp_dict["reason"] == "Error. Undefined backend error q_ssuechdl1"
 
 
 @pytest.mark.asyncio
@@ -433,7 +573,7 @@ async def test_get_enrollment_deliver_kissa(app_client: TestClient) -> None:
     resp = await app_client.get("/api/v1/enrollment/deliver/kissa123")
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
-    assert resp_dict["download_url"] != ""
+    assert resp_dict["cert_download_link"] != ""
     assert resp_dict["success"] is True
 
 
@@ -448,7 +588,7 @@ async def test_get_enrollment_deliver_error(app_client: TestClient) -> None:
     resp = await app_client.get("/api/v1/enrollment/deliver/oopsie'%3Boopsie")
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
-    assert resp_dict["download_url"] == ""
+    assert resp_dict["cert_download_link"] == ""
     assert resp_dict["success"] is False
     assert resp_dict["reason"] == "Error. Undefined backend error q_sssfewh1"
 
@@ -464,7 +604,7 @@ async def test_get_enrollment_deliver_error_not_found(app_client: TestClient) ->
     resp = await app_client.get("/api/v1/enrollment/deliver/notfoundhash")
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
-    assert resp_dict["download_url"] == ""
+    assert resp_dict["cert_download_link"] == ""
     assert resp_dict["success"] is False
     assert resp_dict["reason"] == "Error. 'enroll_str' not found from database."
 
@@ -480,7 +620,7 @@ async def test_get_enrollment_deliver_error_not_finished(app_client: TestClient)
     resp = await app_client.get("/api/v1/enrollment/deliver/koira123")
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
-    assert resp_dict["download_url"] == ""
+    assert resp_dict["cert_download_link"] == ""
     assert resp_dict["success"] is False
     assert resp_dict["reason"] == "Enrollment is still in progress or it hasn't been accepted."
 

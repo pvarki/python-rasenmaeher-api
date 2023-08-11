@@ -16,6 +16,8 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigSetDLIn,
     EnrollmentConfigSetStateOut,
     EnrollmentConfigSetStateIn,
+    EnrollmentConfigSetMtlsIn,
+    EnrollmentConfigSetMtlsOut,
 )
 
 from ....settings import settings
@@ -83,8 +85,68 @@ async def post_config_set_state(
     return EnrollmentConfigSetStateOut(success=True, reason="")
 
 
-@router.post("/config/set-dl-link", response_model=EnrollmentConfigSetDLOut)
-async def post_config_set_dl_link(
+# mtls_test_link
+@router.post("/config/set-mtls-test-link", response_model=EnrollmentConfigSetMtlsOut)
+async def post_config_set_mtls_test_link(
+    request: Request,
+    request_in: EnrollmentConfigSetMtlsIn = Body(
+        None,
+        examples=[EnrollmentConfigSetMtlsIn.Config.schema_extra["examples"]],
+    ),
+) -> EnrollmentConfigSetMtlsOut:
+    """
+    Set MTLS test link for one or all work_id's
+    """
+    if request_in.set_for_all is False and request_in.work_id is None and request_in.enroll_str is None:
+        _reason = "Error. Both work_id and enroll_str are undefined. At least one is required when \
+'set_for_all' is set to False"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentConfigSetMtlsOut(
+            success=False,
+            reason=_reason,
+        )
+
+    # Get manager hash
+    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssfm5"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentConfigSetMtlsOut(
+            success=False,
+            reason=_reason,
+        )
+
+    if len(_result) == 0:
+        _reason = "Error. 'permit_str' doesn't have rights to set 'mtls_test_link'"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentConfigSetMtlsOut(
+            success=False,
+            reason=_reason,
+        )
+
+    if request_in.set_for_all is True:
+        _q = settings.sqlite_update_enrollment_mtls_test_link_all.format(mtls_test_link=request_in.mtls_test_link)
+        _success, _result = sqlite.run_command(_q)
+    else:
+        _q = settings.sqlite_update_enrollment_mtls_test_link.format(
+            work_id=request_in.work_id, work_id_hash=request_in.enroll_str, mtls_test_link=request_in.mtls_test_link
+        )
+        _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssuemtl1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentConfigSetMtlsOut(
+            success=False,
+            reason=_reason,
+        )
+    return EnrollmentConfigSetMtlsOut(success=True, reason="")
+
+
+@router.post("/config/set-cert-dl-link", response_model=EnrollmentConfigSetDLOut)
+async def post_config_set_cert_dl_link(
     request: Request,
     request_in: EnrollmentConfigSetDLIn = Body(
         None,
@@ -92,7 +154,7 @@ async def post_config_set_dl_link(
     ),
 ) -> EnrollmentConfigSetDLOut:
     """
-    Store download link url for work_id (enrollment) using either work_id or enroll_str
+    Store certificate or howto download link url for work_id (enrollment) using either work_id or enroll_str
     """
 
     if request_in.work_id is None and request_in.enroll_str is None:
@@ -115,20 +177,39 @@ async def post_config_set_dl_link(
         )
 
     if len(_result) == 0:
-        _reason = "Error. 'permit_str' doesn't have rights to set 'download_link'"
+        _reason = "Error. 'permit_str' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
         LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,
             reason=_reason,
         )
 
-    _q = settings.sqlite_update_enrollment_dl_link.format(
-        work_id=request_in.work_id, work_id_hash=request_in.enroll_str, download_link=request_in.download_link
-    )
-    _success, _result = sqlite.run_command(_q)
+    if request_in.cert_download_link is None and request_in.howto_download_link is None:
+        _reason = "Error. Both cert_download_link and howto_download_link are undefined. At least one is required"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return EnrollmentConfigSetDLOut(
+            success=False,
+            reason=_reason,
+        )
+
+    if request_in.cert_download_link is not None:
+        _q = settings.sqlite_update_enrollment_cert_dl_link.format(
+            work_id=request_in.work_id,
+            work_id_hash=request_in.enroll_str,
+            cert_download_link=request_in.cert_download_link,
+        )
+        _success, _result = sqlite.run_command(_q)
+
+    else:
+        _q = settings.sqlite_update_enrollment_cert_howto_dl_link.format(
+            work_id=request_in.work_id,
+            work_id_hash=request_in.enroll_str,
+            howto_download_link=request_in.howto_download_link,
+        )
+        _success, _result = sqlite.run_command(_q)
 
     if _success is False:
-        _reason = "Error. Undefined backend error q_ssuedl1"
+        _reason = "Error. Undefined backend error q_ssuechdl1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,
@@ -203,15 +284,19 @@ async def request_enrolment_status(work_id: str, request: Request) -> Enrollment
 
     if len(_result) > 0:
         _status: str = _result[0][2]
+        _work_id_hash: str = _result[0][1]
     else:
         _status = "none"
+        _work_id_hash = "none"
 
     if _success is False:
         _reason = "Error. Undefined backend error sssfe2"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return EnrollmentStatusOut(work_id=work_id, status=_status, success=_success, reason=_reason)
+        return EnrollmentStatusOut(
+            work_id=work_id, work_id_hash=_work_id_hash, status=_status, success=_success, reason=_reason
+        )
 
-    return EnrollmentStatusOut(work_id=work_id, status=_status, success=_success, reason="")
+    return EnrollmentStatusOut(work_id=work_id, work_id_hash=_work_id_hash, status=_status, success=_success, reason="")
 
 
 @router.post("/init", response_model=EnrollmentInitOut)
@@ -249,7 +334,13 @@ async def request_enrollment_init(
     )
 
     _q = settings.sqlite_insert_into_enrollment.format(
-        work_id=request_in.work_id, work_id_hash=_work_id_hash, state="init", accepted="no", dl_link="na"
+        work_id=request_in.work_id,
+        work_id_hash=_work_id_hash,
+        state="init",
+        accepted="no",
+        cert_dl_link="na",
+        cert_howto_dl_link="na",
+        mtls_test_link="na",
     )
 
     _success, _result = sqlite.run_command(_q)
@@ -276,7 +367,9 @@ async def request_enrollment_status(request: Request, enroll_str: str) -> Enroll
         return EnrollmentDeliverOut(
             work_id="",
             enroll_str=enroll_str,
-            download_url="",
+            cert_download_link="",
+            howto_download_link="",
+            mtls_test_link="",
             success=False,
             state="",
             reason=_reason,
@@ -288,7 +381,9 @@ async def request_enrollment_status(request: Request, enroll_str: str) -> Enroll
         return EnrollmentDeliverOut(
             work_id="",
             enroll_str=enroll_str,
-            download_url="",
+            cert_download_link="",
+            howto_download_link="",
+            mtls_test_link="",
             success=False,
             state="",
             reason=_reason,
@@ -301,7 +396,9 @@ async def request_enrollment_status(request: Request, enroll_str: str) -> Enroll
             work_id="",
             enroll_str=enroll_str,
             state=_result[0][2],
-            download_url="",
+            cert_download_link="",
+            howto_download_link="",
+            mtls_test_link="",
             success=False,
             reason=_reason,
         )
@@ -310,7 +407,9 @@ async def request_enrollment_status(request: Request, enroll_str: str) -> Enroll
         work_id=_result[0][0],
         enroll_str=enroll_str,
         success=True,
-        download_url=_result[0][4],
+        cert_download_link=_result[0][4],
+        howto_download_link=_result[0][5],
+        mtls_test_link=_result[0][6],
         reason="",
         state=_result[0][2],
     )

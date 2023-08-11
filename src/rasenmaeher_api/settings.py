@@ -111,7 +111,9 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         work_id_hash text NOT NULL,
                                         state text NOT NULL,
                                         accepted text NOT NULL,
-                                        dl_link text NOT NULL
+                                        cert_dl_link text NOT NULL,
+                                        cert_howto_dl_link text NOT NULL,
+                                        mtls_test_link text NOT NULL
                                     ); """
 
     sqlite_management_table_schema = """ CREATE TABLE IF NOT EXISTS management (
@@ -153,8 +155,8 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                 ;"""
 
     sqlite_insert_into_enrollment = """ INSERT INTO enrollment
-                                        (work_id, work_id_hash, state, accepted, dl_link)
-                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{dl_link}')
+                                        (work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link)
+                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{cert_dl_link}', '{cert_howto_dl_link}', '{mtls_test_link}')
                                     ;"""
 
     sqlite_insert_into_management = """ INSERT OR REPLACE INTO management
@@ -162,12 +164,14 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         VALUES('{management_hash}','{special_rules}')
                                     ;"""
 
-    sqlite_sel_from_enrollment = """SELECT work_id, work_id_hash, state, accepted, dl_link
+    sqlite_sel_from_enrollment = """SELECT
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link
                                         FROM enrollment
                                         WHERE work_id='{work_id}'
                                     ;"""
 
-    sqlite_sel_from_enrollment_where_hash = """SELECT work_id, work_id_hash, state, accepted, dl_link
+    sqlite_sel_from_enrollment_where_hash = """SELECT
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link
                                         FROM enrollment
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
@@ -181,9 +185,21 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
-    sqlite_update_enrollment_dl_link = """UPDATE enrollment
-                                        SET dl_link='{download_link}'
+    sqlite_update_enrollment_cert_dl_link = """UPDATE enrollment
+                                        SET cert_dl_link='{cert_download_link}'
                                         WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+    sqlite_update_enrollment_cert_howto_dl_link = """UPDATE enrollment
+                                        SET cert_howto_dl_link='{howto_download_link}'
+                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+    sqlite_update_enrollment_mtls_test_link = """UPDATE enrollment
+                                        SET mtls_test_link='{mtls_test_link}'
+                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+    sqlite_update_enrollment_mtls_test_link_all = """UPDATE enrollment
+                                        SET mtls_test_link='{mtls_test_link}'
+                                        WHERE work_id_hash IS NOT NULL
                                     ;"""
 
     sqlite_update_enrollment_state = """UPDATE enrollment

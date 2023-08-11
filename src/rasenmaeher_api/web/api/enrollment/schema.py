@@ -69,11 +69,12 @@ class EnrollmentConfigSetStateOut(BaseModel):  # pylint: disable=too-few-public-
         }
 
 
-class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config add manager schema in"""
+class EnrollmentConfigSetMtlsIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config set mtls schema in"""
 
     permit_str: str
-    download_link: str
+    mtls_test_link: str
+    set_for_all: bool
     work_id: Optional[str]
     enroll_str: Optional[str]
 
@@ -88,7 +89,8 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                     "description": "This containts **description** of values.",
                     "value": {
                         "permit_str": "[str] - Hash string having permissions to accept enroll_str",
-                        "download_link": "[str] - Link where package can be downloaded",
+                        "mtls_test_link": "[str] - Link where mtls can be tested",
+                        "set_for_all": "[bool] - Set mtls test link for everyone?",
                         "work_id": "[str]",
                         "enroll_str": "[str]",
                     },
@@ -99,7 +101,8 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                     "description": "**Example** of values.",
                     "value": {
                         "permit_str": f"{settings.sqlite_init_management_hash}",
-                        "download_link": "https://kuvaton.com/kissa123.jpg",
+                        "mtls_test_link": "https://kuvaton.com/kissa123.jpg",
+                        "set_for_all": False,
                         "work_id": "kissa",
                     },
                 },
@@ -109,7 +112,76 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                     "description": "**Example** of values.",
                     "value": {
                         "permit_str": f"{settings.sqlite_init_management_hash}",
-                        "download_link": "https://kuvaton.com/kissa123.jpg",
+                        "mtls_test_link": "https://kuvaton.com/kissa123.jpg",
+                        "set_for_all": True,
+                    },
+                },
+            ]
+        }
+
+
+class EnrollmentConfigSetMtlsOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add mtls schema out"""
+
+    success: bool
+    reason: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "example": {
+                "success": "[bool] - Task completed succesfully/failed",
+                "reason": "[opt][str] - Usually contiains some info why task might have failed",
+            }
+        }
+
+
+class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema in"""
+
+    permit_str: str
+    cert_download_link: Optional[str]
+    howto_download_link: Optional[str]
+    work_id: Optional[str]
+    enroll_str: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {
+                    "name": "normal",
+                    "summary": "Description text",
+                    "description": "This containts **description** of values.",
+                    "value": {
+                        "permit_str": "[str] - Hash string having permissions to accept enroll_str",
+                        "cert_download_link": "[str] - Link where certificate package can be downloaded",
+                        "howto_download_link": "[str] - Link where howto info can be downloaded",
+                        "work_id": "[str]",
+                        "enroll_str": "[str]",
+                    },
+                },
+                {
+                    "name": "with_values",
+                    "summary": "Example values",
+                    "description": "**Example** of values.",
+                    "value": {
+                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "cert_download_link": "https://kuvaton.com/kissa123.jpg",
+                        "howto_download_link": "https://kuvaton.com/kissa123.jpg",
+                        "work_id": "kissa",
+                    },
+                },
+                {
+                    "name": "with_values2",
+                    "summary": "Example values",
+                    "description": "**Example** of values.",
+                    "value": {
+                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "cert_download_link": "https://kuvaton.com/kissa123.jpg",
+                        "howto_download_link": "https://kuvaton.com/kissa123.jpg",
                         "enroll_str": "kissa123",
                     },
                 },
@@ -192,6 +264,7 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
 
     status: str
     work_id: str
+    work_id_hash: str
     success: bool
     reason: Optional[str]
 
@@ -202,6 +275,7 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
             "example": {
                 "state": "[str] - Current state of enrollment",
                 "work_id": "[str] - Plain text enrollment role id",
+                "work_id_hash": "[str] - Hash generated for role id",
                 "success": "[bool] - Task completed succesfully/failed",
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
@@ -260,7 +334,9 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
 
     work_id: str
     enroll_str: str
-    download_url: str
+    cert_download_link: str
+    howto_download_link: str
+    mtls_test_link: str
     success: bool
     reason: Optional[str]
     state: Optional[str]
@@ -272,7 +348,9 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
             "example": {
                 "work_id": "[str] - Plain text enrollment role id",
                 "enroll_str": "[str] - Hash string for work_id",
-                "download_url": "[str] - Link where package can be downloaded",
+                "cert_download_link": "[str] - Link where certificate package can be downloaded",
+                "howto_download_link": "[str] - Link where certificate install howto can be downloaded",
+                "mtls_test_link": "[str] - Link that can be used to test mtls connection",
                 "success": "[bool] - Task completed succesfully/failed",
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
                 "state": "[str] - Current state of enrollment",
