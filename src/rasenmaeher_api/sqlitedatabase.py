@@ -112,6 +112,12 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
             )
             self.run_command(_q)
 
+            # Add initial 'first time user' hash that has permission to create admin users
+            _q = self.settings.sqlite_insert_into_management.format(
+                management_hash=self.settings.sqlite_first_time_user_hash, special_rules="first-user"
+            )
+            self.run_command(_q)
+
             # Create development dummy roles
             if self.settings.environment.lower() == "dev":
                 # Create kissa dummy role

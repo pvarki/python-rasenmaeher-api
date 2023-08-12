@@ -200,16 +200,17 @@ async def post_config_set_cert_dl_link(
         )
         _success, _result = sqlite.run_command(_q)
 
-    else:
+    _success2: bool = True
+    if request_in.howto_download_link is not None:
         _q = settings.sqlite_update_enrollment_cert_howto_dl_link.format(
             work_id=request_in.work_id,
             work_id_hash=request_in.enroll_str,
             howto_download_link=request_in.howto_download_link,
         )
-        _success, _result = sqlite.run_command(_q)
+        _success2, _result = sqlite.run_command(_q)
 
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssuechdl1"
+    if _success is False or _success2 is False:
+        _reason = "Error. Undefined backend error q_ssuecdll1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentConfigSetDLOut(
             success=False,

@@ -100,10 +100,14 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     ldap_username: Optional[str] = None
     ldap_client_secret: Optional[str] = None
 
+    # Initial shared secret between services (provided by kraftwerk)
+    sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
+    # Initial 'One time' code used to create first admin accounts (provided by kraftwerk)
+    sqlite_first_time_user_hash: str = "PerPerPerjantaiPulloParisee"
+
     # Sqlite configurations
     sqlite_filepath_prod: str = "/data/persistent/sqlite/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
     sqlite_filepath_dev: str = "/tmp/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
-    sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
 
     sqlite_enrollement_table_schema = """ CREATE TABLE IF NOT EXISTS enrollment (
                                         id integer PRIMARY KEY AUTOINCREMENT,
@@ -178,6 +182,25 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     sqlite_sel_from_management = """SELECT management_hash, special_rules FROM management
                                         WHERE management_hash='{management_hash}'
+                                    ;"""
+
+    sqlite_sel_from_management_where_special_rule_like = """
+                                        SELECT management_hash, special_rules FROM management
+                                        WHERE special_rules LIKE '%{special_rules}%'
+                                    ;"""
+
+    sqlite_del_from_management_where_special_rule_like = """
+                                        DELETE FROM management
+                                        WHERE special_rules LIKE '%{special_rules}%'
+                                    ;"""
+
+    sqlite_del_from_management_where_hash = """
+                                        DELETE FROM management
+                                        WHERE management_hash='{management_hash}'
+                                    ;"""
+
+    sqlite_del_from_enrollment_where_hash = """DELETE FROM enrollment
+                                        WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
     sqlite_update_accept_enrollment = """UPDATE enrollment
