@@ -374,7 +374,7 @@ async def test_post_enrollment_config_setdl_fail_oopsie_link2(app_client: TestCl
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is False
-    assert resp_dict["reason"] == "Error. Undefined backend error q_ssuechdl1"
+    assert resp_dict["reason"] == "Error. Undefined backend error q_ssuecdll1"
 
 
 @pytest.mark.asyncio
