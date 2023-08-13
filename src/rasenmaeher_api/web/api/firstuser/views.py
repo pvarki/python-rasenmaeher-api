@@ -2,8 +2,8 @@
 import logging
 import string
 import random
-from typing import Tuple, Dict, List, Any
-from fastapi import APIRouter, Request, Body, Depends, Response
+from typing import Dict, List, Any
+from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
 from rasenmaeher_api.web.api.firstuser.schema import (
     FirstuserIsActiveOut,
@@ -29,7 +29,7 @@ router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
 
-async def check_if_api_is_active() -> Tuple[bool, str, int]:
+async def check_if_api_is_active() -> bool:
     """
     Simple function to check if the api is enabled or not.
     """
@@ -40,43 +40,33 @@ async def check_if_api_is_active() -> Tuple[bool, str, int]:
     if _success is False:
         _reason = "Error. Undefined backend error q_sssfmwsrl1"
         LOGGER.error("{}".format(_reason))
-        return False, _reason, 500
+        raise HTTPException(status_code=500, detail=_reason)
 
     if len(_result) > 0:
-        return True, "", 200
+        return True
 
-    return False, "api is disabled", 200
+    return False
 
 
 # /is-active
 @router.get("/is-active", response_model=FirstuserIsActiveOut)
-async def get_is_active(
-    response: Response,
-) -> FirstuserIsActiveOut:
+async def get_is_active() -> FirstuserIsActiveOut:
     """
     /is-active, basically this one just checks if there is a row with special_rules='first-user' in management table.
     If not, then this API is deemed to be "disabled"...
     """
-    response.status_code = 200
-
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
+    _api_active = await check_if_api_is_active()
+    if _api_active:
+        return FirstuserIsActiveOut(api_is_active=True, success=_success, reason="")
 
-    if _api_active is False:
-        response.status_code = _response_code
-
-    if response.status_code != 200:
-        _success = False
-
-    LOGGER.error("{} .............. {}".format(response.status_code, _reason))
-
-    return FirstuserIsActiveOut(api_is_active=_api_active, success=_success, reason=_reason)
+    return FirstuserIsActiveOut(api_is_active=False, success=_success, reason="/firstuser API is disabled")
 
 
 # /check-code
 @router.get("/check-code", response_model=FirstuserCheckCodeOut)
 async def get_check_code(
-    response: Response,
+    request: Request,
     params: FirstuserCheckCodeIn = Depends(),
 ) -> FirstuserCheckCodeOut:
     """
@@ -84,17 +74,21 @@ async def get_check_code(
     Checks if the given code can be used or not in this /firstuser api route...
     """
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
-    response.status_code = _response_code
+    _api_active = await check_if_api_is_active()
 
     if _api_active is False:
-        return FirstuserCheckCodeOut(code_ok=False, success=False, reason=_reason)
+        _reason = "/firstuser API is disabled"
+        raise HTTPException(status_code=410, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
     _success, _result = sqlite.run_command(_q)
 
+    if _success is False:
+        _reason = "Error. Undefined backend error q_sssfmwsrl2"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
     for _first_user in _result:
-        LOGGER.info("{} :::: {}".format(_first_user, params.temp_admin_code))
         if _first_user[0] == params.temp_admin_code:
             return FirstuserCheckCodeOut(code_ok=True, success=True, reason="")
 
@@ -105,20 +99,21 @@ async def get_check_code(
 @router.post("/disable", response_model=FirstuserDisableOut)
 async def post_disable(
     request: Request,
-    response: Response,
     request_in: FirstuserDisableIn = Body(
         None,
         examples=[FirstuserDisableIn.Config.schema_extra["examples"]],
     ),
 ) -> FirstuserDisableOut:
     """
-    asd TODO disable
+    This one disables the /firstuser API route. permit_str aka "admin hash" is required.
+    Cannot be done with temp_admin_code.
     """
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
-    response.status_code = _response_code
+    _api_active = await check_if_api_is_active()
+
     if _api_active is False:
-        return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
+        _reason = "/firstuser API is disabled"
+        raise HTTPException(status_code=410, detail=_reason)
 
     # Check that the permit_str is found from management table
     _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
@@ -126,20 +121,19 @@ async def post_disable(
     if _success is False:
         _reason = "Error. Undefined backend error sssfm2"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
-    LOGGER.info("::: {} :::::::: {}".format(_result, request_in.permit_str))
     if len(_result) == 0:
         _reason = "Error. Given permit_str doesnt have permissions to disable this api."
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=403, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
     _success, _result = sqlite.run_command(_q)
     if _success is False:
-        _reason = "Error. Undefined backend error sssfmwsrl1"
+        _reason = "Error. Undefined backend error sssfmwsrl3"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     # Delete the rule from management table where special_rules value is 'first-user'
     _q = settings.sqlite_update_from_management_where_special_rule_like.format(
@@ -150,7 +144,7 @@ async def post_disable(
     if _success is False:
         _reason = "Error. Undefined backend error ssdfmwsrl1"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     return FirstuserDisableOut(api_disabled=True, success=True, reason="")
 
@@ -159,19 +153,20 @@ async def post_disable(
 @router.post("/enable", response_model=FirstuserEnableOut)
 async def post_enable(
     request: Request,
-    response: Response,
     request_in: FirstuserEnableIn = Body(
         None,
         examples=[FirstuserEnableIn.Config.schema_extra["examples"]],
     ),
 ) -> FirstuserEnableOut:
     """
-    asd TODO enable
+    This one enables the /firstuser API route. permit_str aka "admin hash" is required.
+    Cannot be done with temp_admin_code. This was mainly added because pytests kind a needs it.
     """
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
-    response.status_code = _response_code
+    _api_active = await check_if_api_is_active()
+
     if _api_active is True:
+        _reason = "/firstuser API already enabled"
         return FirstuserEnableOut(api_enabled=True, success=False, reason="API already enabled")
 
     # Check that the permit_str is found from management table
@@ -180,20 +175,20 @@ async def post_enable(
     if _success is False:
         _reason = "Error. Undefined backend error sssfm2"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     LOGGER.info("::: {} :::::::: {}".format(_result, request_in.permit_str))
     if len(_result) == 0:
         _reason = "Error. Given permit_str doesnt have permissions to disable this api."
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=403, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="fu-disabled")
     _success, _result = sqlite.run_command(_q)
     if _success is False:
-        _reason = "Error. Undefined backend error sssfmwsrl1"
+        _reason = "Error. Undefined backend error sssfmwsrl4"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     # Delete the rule from management table where special_rules value is 'first-user'
     _q = settings.sqlite_update_from_management_where_special_rule_like.format(
@@ -204,7 +199,7 @@ async def post_enable(
     if _success is False:
         _reason = "Error. Undefined backend error ssdfmwsrl1"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     return FirstuserEnableOut(api_enabled=True, success=True, reason="")
 
@@ -212,7 +207,6 @@ async def post_enable(
 # /add-admin
 @router.post("/add-admin", response_model=FirstuserAddAdminOut)
 async def post_admin_add(
-    response: Response,
     request: Request,
     request_in: FirstuserAddAdminIn = Body(
         None,
@@ -220,26 +214,25 @@ async def post_admin_add(
     ),
 ) -> FirstuserAddAdminOut:
     """
-    asd TODO add-admin
+    Add work_id aka username/identity. This work_id is also elevated to have managing permissions.
     """
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
-    response.status_code = _response_code
+    _api_active = await check_if_api_is_active()
     if _api_active is False:
-        return FirstuserAddAdminOut(admin_added=False, success=False, reason=_reason)
+        _reason = "/firstuser API is disabled"
+        raise HTTPException(status_code=410, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
     _success, _result = sqlite.run_command(_q)
 
     _admin_found: bool = False
     for _first_user in _result:
-        LOGGER.info("{} :::: {}".format(_first_user, request_in.temp_admin_code))
         if _first_user[0] == request_in.temp_admin_code:
             _admin_found = True
 
     if _admin_found is False:
         _reason = "Given 'temp_admin_code' has no permission to add new admins."
-        return FirstuserAddAdminOut(admin_added=False, success=False, reason=_reason)
+        raise HTTPException(status_code=403, detail=_reason)
 
     _work_id_hash = "".join(
         # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
@@ -257,13 +250,14 @@ async def post_admin_add(
         cert_dl_link="na",
         cert_howto_dl_link="na",
         mtls_test_link="na",
+        verification_code="na",
     )
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
-        _reason = "Error. Undefined backend error ssiie1"
+        _reason = "Error. Undefined backend error ssiie2"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserAddAdminOut(admin_added=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     _q = settings.sqlite_insert_into_management.format(management_hash=_work_id_hash, special_rules="user-admin")
     _success, _result = sqlite.run_command(_q)
@@ -271,7 +265,7 @@ async def post_admin_add(
     if _success is False:
         _reason = "Error. Undefined backend error ssiim1"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserAddAdminOut(admin_added=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     return FirstuserAddAdminOut(admin_added=True, success=True, reason="")
 
@@ -279,7 +273,6 @@ async def post_admin_add(
 # /delete-admin
 @router.post("/delete-admin", response_model=FirstuserDeleteAdminOut)
 async def post_delete_admin(
-    response: Response,
     request: Request,
     request_in: FirstuserDeleteAdminIn = Body(
         None,
@@ -287,17 +280,22 @@ async def post_delete_admin(
     ),
 ) -> FirstuserDeleteAdminOut:
     """
-    asd TODO delete-admin
+    Remove work_id aka username/identity. The work_id's management hash is also removed from management table.
     """
 
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
-    response.status_code = _response_code
+    _api_active = await check_if_api_is_active()
     if _api_active is False:
-        return FirstuserDeleteAdminOut(admin_removed=False, success=False, reason=_reason)
+        _reason = "/firstuser API is disabled"
+        raise HTTPException(status_code=410, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
     _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error sssfmwsrl6"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
 
     _admin_found: bool = False
     for _first_user in _result:
@@ -307,7 +305,7 @@ async def post_delete_admin(
 
     if _admin_found is False:
         _reason = "Given 'temp_admin_code' has no permission to add new admins."
-        return FirstuserDeleteAdminOut(admin_removed=False, success=False, reason=_reason)
+        raise HTTPException(status_code=403, detail=_reason)
 
     # Get the hash for the work_id
     _q = settings.sqlite_sel_from_enrollment.format(
@@ -318,9 +316,10 @@ async def post_delete_admin(
     if len(_result) == 0 or _success is False:
         if _success is False:
             _reason = "Error. Undefined backend error sssfe1"
-        else:
-            _reason = "No user found with given id."
-        return FirstuserDeleteAdminOut(admin_removed=False, success=False, reason=_reason)
+            raise HTTPException(status_code=500, detail=_reason)
+
+        _reason = "No user found with given id."
+        raise HTTPException(status_code=404, detail=_reason)
 
     _work_id_hash: str = _result[0][1]
 
@@ -329,7 +328,7 @@ async def post_delete_admin(
     if _success is False:
         _reason = "Error. Undefined backend error ssdfmwh1"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserDeleteAdminOut(admin_removed=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     _q = settings.sqlite_del_from_enrollment_where_hash.format(work_id_hash=_work_id_hash)
     _success, _result = sqlite.run_command(_q)
@@ -337,7 +336,7 @@ async def post_delete_admin(
     if _success is False:
         _reason = "Error. Undefined backend error ssdfewh1"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserDeleteAdminOut(admin_removed=False, success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     return FirstuserDeleteAdminOut(admin_removed=True, success=True, reason="")
 
@@ -345,18 +344,17 @@ async def post_delete_admin(
 # /list-admin
 @router.get("/list-admin", response_model=FirstuserListAdminOut)
 async def get_list_admin(
-    response: Response,
     request: Request,
     params: FirstuserListAdminIn = Depends(),
 ) -> FirstuserListAdminOut:
     """
-    asd TODO list-admin
+    Return available 'admin' id's and hashes.
     """
     _success: bool = True
-    _api_active, _reason, _response_code = await check_if_api_is_active()
-    response.status_code = _response_code
+    _api_active = await check_if_api_is_active()
     if _api_active is False:
-        return FirstuserListAdminOut(admin_list=[], success=False, reason=_reason)
+        _reason = "/firstuser API is disabled"
+        raise HTTPException(status_code=410, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
     _success, _result = sqlite.run_command(_q)
@@ -369,7 +367,7 @@ async def get_list_admin(
 
     if _admin_found is False:
         _reason = "Given 'temp_admin_code' has no permission to add new admins."
-        return FirstuserListAdminOut(admin_list=[], success=False, reason=_reason)
+        raise HTTPException(status_code=403, detail=_reason)
 
     _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="user-admin")
     _success, _result = sqlite.run_command(_q)
@@ -377,10 +375,11 @@ async def get_list_admin(
     if _success is False:
         _reason = "Error. Undefined backend error sssfmwsrl2"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return FirstuserListAdminOut(admin_list=[], success=False, reason=_reason)
+        raise HTTPException(status_code=500, detail=_reason)
 
     if len(_result) == 0:
-        return FirstuserListAdminOut(admin_list=[], success=True, reason="No users...")
+        _reason = "No users found..."
+        raise HTTPException(status_code=404, detail=_reason)
 
     _return_list: List[Dict[Any, Any]] = []
     for _manager in _result:
@@ -389,7 +388,7 @@ async def get_list_admin(
         if _success2 is False:
             _reason = "Error. Undefined backend error sssfewh1"
             LOGGER.error("{} : {}".format(request.url, _reason))
-            return FirstuserListAdminOut(admin_list=[], success=False, reason=_reason)
+            raise HTTPException(status_code=500, detail=_reason)
 
         _return_list.append({"work_id": _result2[0][0], "work_id_hash": _result2[0][1]})
 

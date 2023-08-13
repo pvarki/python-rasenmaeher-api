@@ -129,6 +129,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                     cert_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
                     cert_howto_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
                     mtls_test_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
+                    verification_code="",
                 )
                 self.run_command(_q)
                 # Create koira dummy role
@@ -140,6 +141,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                     cert_dl_link="",
                     cert_howto_dl_link="",
                     mtls_test_link="",
+                    verification_code="",
                 )
                 self.run_command(_q)
                 _q = self.settings.sqlite_insert_into_enrollment.format(
@@ -150,6 +152,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                     cert_dl_link="",
                     cert_howto_dl_link="",
                     mtls_test_link="",
+                    verification_code="",
                 )
                 self.run_command(_q)
 

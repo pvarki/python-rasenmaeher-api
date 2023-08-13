@@ -4,13 +4,12 @@ from pydantic import BaseModel
 from ....settings import settings
 
 
-class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentConfigGenVerifiIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema in"""
 
-    permit_str: str
-    state: str
+    service_management_hash: str
     work_id: Optional[str]
-    enroll_str: Optional[str]
+    work_id_hash: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -22,10 +21,9 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
-                        "permit_str": "[str] - Hash string having permissions to accept enroll_str",
-                        "state": "[str] - Current state of enrollment",
-                        "work_id": "[str]",
-                        "enroll_str": "[str]",
+                        "service_management_hash": "[str] - Hash string having permissions to accept work_id_hash",
+                        "work_id": "[str] User defined username/id/workname",
+                        "work_id_hash": "[str] Generated hash for work-id",
                     },
                 },
                 {
@@ -33,7 +31,72 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "service_management_hash": f"{settings.sqlite_init_management_hash}",
+                        "work_id": "kissa",
+                    },
+                },
+                {
+                    "name": "with_values2",
+                    "summary": "Example values",
+                    "description": "**Example** of values.",
+                    "value": {
+                        "service_management_hash": f"{settings.sqlite_init_management_hash}",
+                        "work_id_hash": "kissa123",
+                    },
+                },
+            ]
+        }
+
+
+class EnrollmentConfigGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema out"""
+
+    verification_code: str
+    success: bool
+    reason: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "example": {
+                "verification_code": "[str] Generated verification code for enrollment.",
+                "success": "[bool] - Task completed succesfully/failed",
+                "reason": "[opt][str] - Usually contiains some info why task might have failed",
+            }
+        }
+
+
+class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema in"""
+
+    management_hash: str
+    state: str
+    work_id: Optional[str]
+    work_id_hash: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {
+                    "name": "normal",
+                    "summary": "Description text",
+                    "description": "This containts **description** of values.",
+                    "value": {
+                        "management_hash": "[str] - Hash string having permissions to accept work_id_hash",
+                        "state": "[str] - Current state of enrollment",
+                        "work_id": "[str] User defined username/id/workname",
+                        "work_id_hash": "[str]",
+                    },
+                },
+                {
+                    "name": "with_values",
+                    "summary": "Example values",
+                    "description": "**Example** of values.",
+                    "value": {
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "state": "somestate",
                         "work_id": "kissa",
                     },
@@ -43,9 +106,9 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "state": "somestate",
-                        "enroll_str": "kissa123",
+                        "work_id_hash": "kissa123",
                     },
                 },
             ]
@@ -72,11 +135,11 @@ class EnrollmentConfigSetStateOut(BaseModel):  # pylint: disable=too-few-public-
 class EnrollmentConfigSetMtlsIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config set mtls schema in"""
 
-    permit_str: str
+    management_hash: str
     mtls_test_link: str
     set_for_all: bool
     work_id: Optional[str]
-    enroll_str: Optional[str]
+    work_id_hash: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -88,11 +151,11 @@ class EnrollmentConfigSetMtlsIn(BaseModel):  # pylint: disable=too-few-public-me
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
-                        "permit_str": "[str] - Hash string having permissions to accept enroll_str",
+                        "management_hash": "[str] - Hash string having permissions to accept work_id_hash",
                         "mtls_test_link": "[str] - Link where mtls can be tested",
                         "set_for_all": "[bool] - Set mtls test link for everyone?",
                         "work_id": "[str]",
-                        "enroll_str": "[str]",
+                        "work_id_hash": "[str]",
                     },
                 },
                 {
@@ -100,7 +163,7 @@ class EnrollmentConfigSetMtlsIn(BaseModel):  # pylint: disable=too-few-public-me
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "mtls_test_link": "https://kuvaton.com/kissa123.jpg",
                         "set_for_all": False,
                         "work_id": "kissa",
@@ -111,7 +174,7 @@ class EnrollmentConfigSetMtlsIn(BaseModel):  # pylint: disable=too-few-public-me
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "mtls_test_link": "https://kuvaton.com/kissa123.jpg",
                         "set_for_all": True,
                     },
@@ -140,11 +203,11 @@ class EnrollmentConfigSetMtlsOut(BaseModel):  # pylint: disable=too-few-public-m
 class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema in"""
 
-    permit_str: str
+    management_hash: str
     cert_download_link: Optional[str]
     howto_download_link: Optional[str]
     work_id: Optional[str]
-    enroll_str: Optional[str]
+    work_id_hash: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -156,11 +219,11 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
-                        "permit_str": "[str] - Hash string having permissions to accept enroll_str",
+                        "management_hash": "[str] - Hash string having permissions to accept work_id_hash",
                         "cert_download_link": "[str] - Link where certificate package can be downloaded",
                         "howto_download_link": "[str] - Link where howto info can be downloaded",
-                        "work_id": "[str]",
-                        "enroll_str": "[str]",
+                        "work_id": "[str] User defined username/id/workname",
+                        "work_id_hash": "[str]",
                     },
                 },
                 {
@@ -168,7 +231,7 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "cert_download_link": "https://kuvaton.com/kissa123.jpg",
                         "howto_download_link": "https://kuvaton.com/kissa123.jpg",
                         "work_id": "kissa",
@@ -179,10 +242,10 @@ class EnrollmentConfigSetDLIn(BaseModel):  # pylint: disable=too-few-public-meth
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "cert_download_link": "https://kuvaton.com/kissa123.jpg",
                         "howto_download_link": "https://kuvaton.com/kissa123.jpg",
-                        "enroll_str": "kissa123",
+                        "work_id_hash": "kissa123",
                     },
                 },
             ]
@@ -209,7 +272,7 @@ class EnrollmentConfigSetDLOut(BaseModel):  # pylint: disable=too-few-public-met
 class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema in"""
 
-    permit_str: str
+    management_hash: str
     new_permit_hash: str
     permissions_str: str
 
@@ -223,9 +286,9 @@ class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
-                        "permit_str": "[str] - Hash string having permissions to accept enroll_str",
-                        "new_permit_hash": "[str] - Hash string for new 'permit_str'",
-                        "permission_str": "[str] - Extra permission for new permit_str.",
+                        "management_hash": "[str] - Hash string having permissions to accept work_id_hash",
+                        "new_permit_hash": "[str] - Hash string for new 'management_hash'",
+                        "permission_str": "[str] - Extra permission for new management_hash.",
                     },
                 },
                 {
@@ -233,9 +296,9 @@ class EnrollmentConfigAddManagerIn(BaseModel):  # pylint: disable=too-few-public
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                         "new_permit_hash": "asdQWEasd2" * 7,  # pragma: allowlist secret
-                        "permission_str": "[str] - Extra permission for new permit_str.",
+                        "permission_str": "[str] - Extra permission for new management_hash.",
                     },
                 },
             ]
@@ -274,8 +337,8 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "example": {
                 "state": "[str] - Current state of enrollment",
-                "work_id": "[str] - Plain text enrollment role id",
-                "work_id_hash": "[str] - Hash generated for role id",
+                "work_id": "[str] User defined username/id/workname",
+                "work_id_hash": "[str] - Hash generated for work_id",
                 "success": "[bool] - Task completed succesfully/failed",
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
@@ -312,7 +375,7 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
     work_id: str
-    enroll_str: str
+    work_id_hash: str
     success: bool
     reason: Optional[str]
 
@@ -321,8 +384,8 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
 
         schema_extra = {
             "example": {
-                "work_id": "[str] - Plain text enrollment role id",
-                "enroll_str": "[str] - Hash string for work_id",
+                "work_id": "[str] User defined username/id/workname",
+                "work_id_hash": "[str] - Hash string for work_id",
                 "success": "[bool] - Task completed succesfully/failed",
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
@@ -333,7 +396,7 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
     work_id: str
-    enroll_str: str
+    work_id_hash: str
     cert_download_link: str
     howto_download_link: str
     mtls_test_link: str
@@ -346,8 +409,8 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
 
         schema_extra = {
             "example": {
-                "work_id": "[str] - Plain text enrollment role id",
-                "enroll_str": "[str] - Hash string for work_id",
+                "work_id": "[str] User defined username/id/workname",
+                "work_id_hash": "[str] - Hash string for work_id",
                 "cert_download_link": "[str] - Link where certificate package can be downloaded",
                 "howto_download_link": "[str] - Link where certificate install howto can be downloaded",
                 "mtls_test_link": "[str] - Link that can be used to test mtls connection",
@@ -361,8 +424,8 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    enroll_str: str
-    permit_str: str
+    work_id_hash: str
+    management_hash: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -374,8 +437,8 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This contains **description** of values.",
                     "value": {
-                        "enroll_str": "[str] - Enrollment hash string.",
-                        "permit_str": "[str] - Hash string having permissions to accept enroll_str",
+                        "work_id_hash": "[str] - Enrollment hash string.",
+                        "management_hash": "[str] - Hash string having permissions to accept work_id_hash",
                     },
                 },
                 {
@@ -383,8 +446,8 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
-                        "enroll_str": "kissa123",
-                        "permit_str": f"{settings.sqlite_init_management_hash}",
+                        "work_id_hash": "kissa123",
+                        "management_hash": f"{settings.sqlite_init_management_hash}",
                     },
                 },
             ]
@@ -395,8 +458,8 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
     work_id: str
-    enroll_str: str
-    permit_str: str
+    work_id_hash: str
+    management_hash: str
     success: bool
     reason: Optional[str]
 
@@ -405,9 +468,9 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
 
         schema_extra = {
             "example": {
-                "work_id": "[str] - Plain text enrollment role id",
-                "enroll_str": "[str] - Hash string for work_id",
-                "permit_str": "[str] - Hash string used to accept enrollment",
+                "work_id": "[str] User defined username/id/workname",
+                "work_id_hash": "[str] - Hash string for work_id",
+                "management_hash": "[str] - Hash string used to accept enrollment",
                 "success": "[bool] - Task completed succesfully/failed",
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }

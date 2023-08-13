@@ -117,7 +117,9 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         accepted text NOT NULL,
                                         cert_dl_link text NOT NULL,
                                         cert_howto_dl_link text NOT NULL,
-                                        mtls_test_link text NOT NULL
+                                        mtls_test_link text NOT NULL,
+                                        verification_code text NOT NULL,
+                                        UNIQUE(work_id)
                                     ); """
 
     sqlite_management_table_schema = """ CREATE TABLE IF NOT EXISTS management (
@@ -159,8 +161,8 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                 ;"""
 
     sqlite_insert_into_enrollment = """ INSERT INTO enrollment
-                                        (work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link)
-                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{cert_dl_link}', '{cert_howto_dl_link}', '{mtls_test_link}')
+                                        (work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code)
+                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{cert_dl_link}', '{cert_howto_dl_link}', '{mtls_test_link}', '{verification_code}')
                                     ;"""
 
     sqlite_insert_into_management = """ INSERT OR REPLACE INTO management
@@ -169,13 +171,13 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                     ;"""
 
     sqlite_sel_from_enrollment = """SELECT
-    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
                                         FROM enrollment
                                         WHERE work_id='{work_id}'
                                     ;"""
 
     sqlite_sel_from_enrollment_where_hash = """SELECT
-    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
                                         FROM enrollment
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
@@ -210,7 +212,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                     ;"""
 
     sqlite_update_accept_enrollment = """UPDATE enrollment
-                                        SET accepted='{enroll_str}'
+                                        SET accepted='{management_hash}'
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
@@ -233,6 +235,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     sqlite_update_enrollment_state = """UPDATE enrollment
                                         SET state='{state}'
+                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+
+    sqlite_update_enrollment_verification_code = """UPDATE enrollment
+                                        SET verification_code='{verification_code}'
                                         WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
                                     ;"""
 
