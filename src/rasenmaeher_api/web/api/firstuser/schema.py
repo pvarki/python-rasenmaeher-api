@@ -112,6 +112,51 @@ class FirstuserDisableOut(BaseModel):  # pylint: disable=too-few-public-methods
         }
 
 
+class FirstuserEnableIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment init in response schema"""
+
+    permit_str: str
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {
+                    "name": "normal",
+                    "summary": "Description text",
+                    "description": "This containts **description** of values.",
+                    "value": {"permit_str": "[str] - admin users string"},
+                },
+                {
+                    "name": "with_values",
+                    "summary": "Example values",
+                    "description": "**Example** of values.",
+                    "value": {"permit_str": "some_permit_hash_abba_abc"},
+                },
+            ]
+        }
+
+
+class FirstuserEnableOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment config add manager schema out"""
+
+    api_enabled: bool
+    success: bool
+    reason: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "example": {
+                "api_enabled": "[bool] - True = this api (/firstuser) should be enabled now.",
+                "success": "[bool] - Task completed succesfully/failed",
+                "reason": "[opt][str] - Usually contiains some info why task might have failed",
+            }
+        }
+
+
 class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 

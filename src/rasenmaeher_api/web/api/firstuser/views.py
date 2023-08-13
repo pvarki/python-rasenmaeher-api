@@ -11,6 +11,8 @@ from rasenmaeher_api.web.api.firstuser.schema import (
     FirstuserCheckCodeOut,
     FirstuserDisableIn,
     FirstuserDisableOut,
+    FirstuserEnableIn,
+    FirstuserEnableOut,
     FirstuserAddAdminIn,
     FirstuserAddAdminOut,
     FirstuserDeleteAdminIn,
@@ -132,8 +134,17 @@ async def post_disable(
         LOGGER.error("{} : {}".format(request.url, _reason))
         return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
 
+    _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error sssfmwsrl1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
+
     # Delete the rule from management table where special_rules value is 'first-user'
-    _q = settings.sqlite_del_from_management_where_special_rule_like.format(special_rules="first-user")
+    _q = settings.sqlite_update_from_management_where_special_rule_like.format(
+        special_rules="first-user", new_special_rules=_result[0][1].replace("first-user", "fu-disabled")
+    )
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
@@ -142,6 +153,60 @@ async def post_disable(
         return FirstuserDisableOut(api_disabled=False, success=False, reason=_reason)
 
     return FirstuserDisableOut(api_disabled=True, success=True, reason="")
+
+
+# /enable
+@router.post("/enable", response_model=FirstuserEnableOut)
+async def post_enable(
+    request: Request,
+    response: Response,
+    request_in: FirstuserEnableIn = Body(
+        None,
+        examples=[FirstuserEnableIn.Config.schema_extra["examples"]],
+    ),
+) -> FirstuserEnableOut:
+    """
+    asd TODO enable
+    """
+    _success: bool = True
+    _api_active, _reason, _response_code = await check_if_api_is_active()
+    response.status_code = _response_code
+    if _api_active is True:
+        return FirstuserEnableOut(api_enabled=True, success=False, reason="API already enabled")
+
+    # Check that the permit_str is found from management table
+    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error sssfm2"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+
+    LOGGER.info("::: {} :::::::: {}".format(_result, request_in.permit_str))
+    if len(_result) == 0:
+        _reason = "Error. Given permit_str doesnt have permissions to disable this api."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+
+    _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="fu-disabled")
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error sssfmwsrl1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+
+    # Delete the rule from management table where special_rules value is 'first-user'
+    _q = settings.sqlite_update_from_management_where_special_rule_like.format(
+        special_rules="fu-disabled", new_special_rules=_result[0][1].replace("fu-disabled", "first-user")
+    )
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error ssdfmwsrl1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        return FirstuserEnableOut(api_enabled=False, success=False, reason=_reason)
+
+    return FirstuserEnableOut(api_enabled=True, success=True, reason="")
 
 
 # /add-admin

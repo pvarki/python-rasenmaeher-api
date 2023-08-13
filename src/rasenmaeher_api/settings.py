@@ -194,6 +194,12 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE special_rules LIKE '%{special_rules}%'
                                     ;"""
 
+    sqlite_update_from_management_where_special_rule_like = """
+                                        UPDATE management
+                                        SET special_rules='{new_special_rules}'
+                                        WHERE special_rules LIKE '{special_rules}'
+                                    ;"""
+
     sqlite_del_from_management_where_hash = """
                                         DELETE FROM management
                                         WHERE management_hash='{management_hash}'
