@@ -1,5 +1,5 @@
 """Schema for enrollment."""
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from ....settings import settings
 
@@ -475,3 +475,11 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
+
+
+class EnrollmentListOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment init out response schema"""
+
+    success: bool
+    reason: Optional[str]
+    work_id_list: List[Dict[Any, Any]]

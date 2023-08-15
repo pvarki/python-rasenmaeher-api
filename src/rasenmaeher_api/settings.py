@@ -176,6 +176,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE work_id='{work_id}'
                                     ;"""
 
+    sqlite_sel_from_enrollment_all = """SELECT
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
+                                        FROM enrollment
+                                    ;"""
+
     sqlite_sel_from_enrollment_where_hash = """SELECT
     work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
                                         FROM enrollment

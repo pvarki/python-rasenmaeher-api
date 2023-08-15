@@ -2,6 +2,7 @@
 import string
 import random
 import logging
+from typing import Dict, List, Any
 from fastapi import APIRouter, Request, Body, HTTPException
 from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentStatusOut,
@@ -20,6 +21,7 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigSetMtlsOut,
     EnrollmentConfigGenVerifiIn,
     EnrollmentConfigGenVerifiOut,
+    EnrollmentListOut,
 )
 
 from ....settings import settings
@@ -327,6 +329,31 @@ async def request_enrolment_status(work_id: str, request: Request) -> Enrollment
         raise HTTPException(status_code=500, detail=_reason)
 
     return EnrollmentStatusOut(work_id=work_id, work_id_hash=_work_id_hash, status=_status, success=_success, reason="")
+
+
+@router.get("/list", response_model=EnrollmentListOut)
+async def request_enrollment_list(request: Request) -> EnrollmentListOut:
+    """
+    Return users/work-id's/enrollments. If 'accepted' has something else than 'no', it has been accepted.
+    Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'no' } ]
+    """
+    _q = settings.sqlite_sel_from_enrollment_all.format()
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssfea1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    LOGGER.info(_result)
+    if len(_result) == 0:
+        return EnrollmentListOut(work_id_list=[], success=True, reason="")
+
+    _work_id_list: List[Dict[Any, Any]] = []
+    for _id in _result:
+        _work_id_list.append({"work_id": _id[0], "work_id_hash": _id[1], "state": _id[2], "accepted": _id[3]})
+
+    return EnrollmentListOut(work_id_list=_work_id_list, success=True, reason="")
 
 
 @router.post("/init", response_model=EnrollmentInitOut)

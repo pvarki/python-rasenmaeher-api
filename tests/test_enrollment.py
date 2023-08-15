@@ -686,6 +686,20 @@ async def test_post_enrollment_init_already_enrolled(app_client: TestClient) -> 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_get_enrollment_list(app_client: TestClient) -> None:
+    """
+    /enrollment/list
+    Result should be success and work_id_list not empty
+    """
+    resp = await app_client.get("/api/v1/enrollment/list")
+    resp_dict: Dict[Any, Any] = resp.json()
+    assert resp.status_code == 200
+    assert len(resp_dict["work_id_list"]) > 0
+    assert resp_dict["success"] is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_get_verification_code(app_client: TestClient) -> None:
     """
     /config/generate-verification-code
