@@ -102,6 +102,9 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     # Initial shared secret between services (provided by kraftwerk)
     sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
+    # TestingCredentials - admin hash and name
+    sqlite_init_testing_management_hash: str = "TestikalukalukalukaulinJotainAsdJotainJotainJotain"
+    sqlite_init_testing_management_username: str = "pyteststuff"
     # Initial 'One time' code used to create first admin accounts (provided by kraftwerk)
     sqlite_first_time_user_hash: str = "PerPerPerjantaiPulloParisee"
 
@@ -191,6 +194,12 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE management_hash='{management_hash}'
                                     ;"""
 
+    sqlite_sel_from_management_where_hash_and_special_rule_like = """
+                                        SELECT management_hash, special_rules FROM management
+                                        WHERE special_rules LIKE '%{special_rules}%'
+                                        AND management_hash='{management_hash}'
+                                    ;"""
+
     sqlite_sel_from_management_where_special_rule_like = """
                                         SELECT management_hash, special_rules FROM management
                                         WHERE special_rules LIKE '%{special_rules}%'
@@ -214,6 +223,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     sqlite_del_from_enrollment_where_hash = """DELETE FROM enrollment
                                         WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+
+    sqlite_update_management_rules = """UPDATE management
+                                        SET special_rules='{special_rules}'
+                                        WHERE work_id_hash='{management_hash}'
                                     ;"""
 
     sqlite_update_accept_enrollment = """UPDATE enrollment

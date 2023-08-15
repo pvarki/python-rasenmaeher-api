@@ -7,6 +7,7 @@ import pytest
 
 # from libadvian.binpackers import uuid_to_b64, b64_to_uuid
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
+from rasenmaeher_api.settings import settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ async def test_post_enrollment_config_setstate_success_work_id(app_client: TestC
     json_dict: Dict[Any, Any] = {
         "state": "testing",
         "work_id": "koira",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -47,7 +48,7 @@ async def test_post_enrollment_config_setstate_success_work_idhash(app_client: T
     json_dict: Dict[Any, Any] = {
         "state": "testing",
         "work_id_hash": "koira123",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -65,7 +66,7 @@ async def test_post_enrollment_config_setstate_fail_both_missing(app_client: Tes
     """
     json_dict: Dict[Any, Any] = {
         "state": "testing",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -79,13 +80,26 @@ async def test_post_enrollment_config_setstate_fail_no_rights(app_client: TestCl
     """
     /config/set-state
     Result should fail
-    reason="Error. 'management_hash' doesn't have rights to set 'state'",
+    detail="Error. Given management hash doesn't have 'enrollment' permissions.",
     """
-    json_dict: Dict[Any, Any] = {"state": "testing", "work_id": "koira", "management_hash": "no_rights"}
+    json_dict: Dict[Any, Any] = {"state": "testing", "work_id": "koira", "service_management_hash": "no_rights"}
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 403
-    assert resp_dict["detail"] == "Error. 'management_hash' doesn't have rights to set 'state'"
+    assert resp_dict["detail"] == "Error. Given management hash doesn't have 'enrollment' permissions."
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
+async def test_post_enrollment_config_setstate_fail_missing_value(app_client: TestClient) -> None:
+    """
+    /config/set-state
+    Result should fail
+    detail="Error. Given management hash doesn't have 'enrollment' permissions.",
+    """
+    json_dict: Dict[Any, Any] = {"state": "testing", "work_id": "koira", "err_something_missing": "no_rights"}
+    resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
+    assert resp.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -94,13 +108,13 @@ async def test_post_enrollment_config_setstate_fail_oopsie_permitstr(app_client:
     """
     /config/set-state
     Result should fail
-    reason="Error. Undefined backend error q_ssfm4"
+    reason="Error. Undefined backend error q_sssfmwhasrl1"
     """
-    json_dict: Dict[Any, Any] = {"state": "testing", "work_id": "koira", "management_hash": "opsie'%3Boopsie"}
+    json_dict: Dict[Any, Any] = {"state": "testing", "work_id": "koira", "service_management_hash": "opsie'%3Boopsie"}
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
-    assert resp_dict["detail"] == "Error. Undefined backend error q_ssfm4"
+    assert resp_dict["detail"] == "Error. Undefined backend error q_sssfmwhasrl1"
 
 
 @pytest.mark.asyncio
@@ -114,7 +128,7 @@ async def test_post_enrollment_config_setstate_fail_oopsie_state(app_client: Tes
     json_dict: Dict[Any, Any] = {
         "state": "opsie'%3Boopsie",
         "work_id": "koira",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -133,7 +147,7 @@ async def test_post_enrollment_config_setmtlstest_success_work_id(app_client: Te
         "mtls_test_link": "https://kuvaton.com",
         "work_id": "kissa",
         "set_for_all": False,
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -151,7 +165,7 @@ async def test_post_enrollment_config_setmtlstest_success_all(app_client: TestCl
     json_dict: Dict[Any, Any] = {
         "mtls_test_link": "https://kuvaton.com",
         "set_for_all": True,
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -170,7 +184,7 @@ async def test_post_enrollment_config_setmtlstest_fail(app_client: TestClient) -
     json_dict: Dict[Any, Any] = {
         "mtls_test_link": "https://kuvaton.com",
         "set_for_all": False,
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -185,12 +199,12 @@ async def test_post_enrollment_config_setmtlstest_fail_permissions(app_client: T
     """
     /config/set-mtls-test-link
     Result should be fail
-    'Error. 'management_hash' doesn't have rights to set 'mtls_test_link''
+    'Error. 'service_management_hash' doesn't have rights to set 'mtls_test_link''
     """
     json_dict: Dict[Any, Any] = {
         "mtls_test_link": "https://kuvaton.com",
         "set_for_all": True,
-        "management_hash": "Not_enough_permissions",
+        "service_management_hash": "Not_enough_permissions",
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -209,7 +223,7 @@ async def test_post_enrollment_config_setmtlstest_fail_oopsie(app_client: TestCl
     json_dict: Dict[Any, Any] = {
         "mtls_test_link": "https://kuvaton.com",
         "set_for_all": True,
-        "management_hash": "opsie'%3Boopsie",
+        "service_management_hash": "opsie'%3Boopsie",
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-mtls-test-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -227,7 +241,7 @@ async def test_post_enrollment_config_setdl_success_work_id(app_client: TestClie
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "https://kuvaton.com",
         "work_id": "kissa",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -245,7 +259,7 @@ async def test_post_enrollment_config_howto_setdl_success_work_id(app_client: Te
     json_dict: Dict[Any, Any] = {
         "howto_download_link": "https://kuvaton.com",
         "work_id": "kissa",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -263,7 +277,7 @@ async def test_post_enrollment_config_setdl_success_work_idhash(app_client: Test
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "https://kuvaton.com",
         "work_id_hash": "kissa123",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -281,7 +295,7 @@ async def test_post_enrollment_config_setdl_fail_missing(app_client: TestClient)
     """
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "https://kuvaton.com",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -300,12 +314,12 @@ async def test_post_enrollment_config_setdl_fail_permit_oopsie(app_client: TestC
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "https://kuvaton.com",
         "work_id": "kissa",
-        "management_hash": "opsie'%3Boopsie",
+        "service_management_hash": "opsie'%3Boopsie",
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
-    assert resp_dict["detail"] == "Error. Undefined backend error q_ssfm3"
+    assert resp_dict["detail"] == "Error. Undefined backend error q_sssfmwhasrl1"
 
 
 @pytest.mark.asyncio
@@ -314,20 +328,17 @@ async def test_post_enrollment_config_setdl_fail_no_righs(app_client: TestClient
     """
     /config/set-cert-dl-link
     Result should fail
-    reason="Error. 'management_hash' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
+    reason="Error. 'service_management_hash' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
     """
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "https://kuvaton.com",
         "work_id": "kissa",
-        "management_hash": "no_righs",
+        "service_management_hash": "no_righs",
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 403
-    assert (
-        resp_dict["detail"]
-        == "Error. 'management_hash' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
-    )
+    assert resp_dict["detail"] == "Error. Given management hash doesn't have 'enrollment' permissions."
 
 
 @pytest.mark.asyncio
@@ -341,7 +352,7 @@ async def test_post_enrollment_config_setdl_fail_oopsie_link(app_client: TestCli
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "opsie'%3Boopsie",
         "work_id": "kissa",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -360,7 +371,7 @@ async def test_post_enrollment_config_setdl_fail_oopsie_link2(app_client: TestCl
     json_dict: Dict[Any, Any] = {
         "howto_download_link": "opsie'%3Boopsie",
         "work_id": "kissa",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -372,15 +383,15 @@ async def test_post_enrollment_config_setdl_fail_oopsie_link2(app_client: TestCl
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_add_mgr(app_client: TestClient) -> None:
     """
-    /config/add-manager
+    /config/add-service-management-hash
     Enrollment accept should be successful
     """
     json_dict: Dict[Any, Any] = {
         "permissions_str": "banana",
-        "new_permit_hash": "beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "new_service_management_hash": "beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
-    resp = await app_client.post("/api/v1/enrollment/config/add-manager", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/add-service-management-hash", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["success"] is True
@@ -390,73 +401,73 @@ async def test_post_enrollment_config_add_mgr(app_client: TestClient) -> None:
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_fail_mgr_short(app_client: TestClient) -> None:
     """
-    /config/add-manager
+    /config/add-service-management-hash
     Enrollment should fail
-    reason="Error. new_permit_hash too short. Needs to be 64 or more.",
+    reason="Error. new_service_management_hash too short. Needs to be 64 or more.",
     """
     json_dict: Dict[Any, Any] = {
         "permissions_str": "banana",
-        "new_permit_hash": "too_short",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "new_service_management_hash": "too_short",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
-    resp = await app_client.post("/api/v1/enrollment/config/add-manager", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/add-service-management-hash", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 400
-    assert resp_dict["detail"] == "Error. new_permit_hash too short. Needs to be 64 or more."
+    assert resp_dict["detail"] == "Error. new_service_management_hash too short. Needs to be 64 or more."
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_fail_mgr_bad_permit(app_client: TestClient) -> None:
     """
-    /config/add-manager
+    /config/add-service-management-hash
     Enrollment should fail
-    reason="Error. Undefined backend error q_ssfm2"
+    reason="Error. Undefined backend error q_sssfmwhasrl1"
     """
     json_dict: Dict[Any, Any] = {
         "permissions_str": "banana",
-        "new_permit_hash": "toobeni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni_short",
-        "management_hash": "opsie'%3Boopsie",
+        "new_service_management_hash": "toobeni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni_short",
+        "service_management_hash": "opsie'%3Boopsie",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/add-manager", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/add-service-management-hash", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
-    assert resp_dict["detail"] == "Error. Undefined backend error q_ssfm2"
+    assert resp_dict["detail"] == "Error. Undefined backend error q_sssfmwhasrl1"
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_fail_mgr_no_rights(app_client: TestClient) -> None:
     """
-    /config/add-manager
+    /config/add-service-management-hash
     Enrollment should fail
-    reason="Error. 'management_hash' doesn't have rights add 'new_permit_hash'",  <-- non existing management_hash
+    reason="Error. 'service_management_hash' doesn't have rights
     """
     json_dict: Dict[Any, Any] = {
         "permissions_str": "banana",
-        "new_permit_hash": "beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni",
-        "management_hash": "no_rights",
+        "new_service_management_hash": "beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni",
+        "service_management_hash": "no_rights",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/add-manager", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/add-service-management-hash", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 403
-    assert resp_dict["detail"] == "Error. 'management_hash' doesn't have rights add 'new_permit_hash'"
+    assert resp_dict["detail"] == "Error. Given management hash doesn't have 'enrollment' permissions."
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_config_fail_mgr_bad_perm_str(app_client: TestClient) -> None:
     """
-    /config/add-manager
+    /config/add-service-management-hash
     Enrollment should fail
     reason="Error. Undefined backend error q_ssiim1", <-- permissions_str sql inject
     """
     json_dict: Dict[Any, Any] = {
         "permissions_str": "opsie'%3Boopsie",
-        "new_permit_hash": "beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "new_service_management_hash": "beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni5666beni",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
-    resp = await app_client.post("/api/v1/enrollment/config/add-manager", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/config/add-service-management-hash", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
     assert resp_dict["detail"] == "Error. Undefined backend error q_ssiim1"
@@ -471,7 +482,7 @@ async def test_post_enrollment_accept(app_client: TestClient) -> None:
     """
     json_dict: Dict[Any, Any] = {
         "work_id_hash": "kissa123",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "user_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -488,11 +499,11 @@ async def test_post_enrollment_accept_fail_oopsie_permitstr(app_client: TestClie
     Enrollment should fail
     reason="Error. Undefined backend error q_ssfm1"
     """
-    json_dict: Dict[Any, Any] = {"work_id_hash": "kissa123", "management_hash": "oopsie'%3Boopsie"}
+    json_dict: Dict[Any, Any] = {"work_id_hash": "kissa123", "user_management_hash": "oopsie'%3Boopsie"}
     resp = await app_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
-    assert resp_dict["detail"] == "Error. Undefined backend error q_ssfm1"
+    assert resp_dict["detail"] == "Error. Undefined backend error q_sssfmwhasrl1"
 
 
 @pytest.mark.asyncio
@@ -503,11 +514,11 @@ async def test_post_enrollment_accept_fail_wrong_permit(app_client: TestClient) 
     Enrollment should fail
     reason="Error. 'management_hash' doesn't have rights to accept given 'work_id_hash'"
     """
-    json_dict: Dict[Any, Any] = {"work_id_hash": "kissa123", "management_hash": "wrongenroll"}
+    json_dict: Dict[Any, Any] = {"work_id_hash": "kissa123", "user_management_hash": "wrongenroll"}
     resp = await app_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 403
-    assert resp_dict["detail"] == "Error. 'management_hash' doesn't have rights to accept given 'work_id_hash'"
+    assert resp_dict["detail"] == "Error. Given management hash doesn't have 'enrollment' permissions."
 
 
 @pytest.mark.asyncio
@@ -520,7 +531,7 @@ async def test_post_enrollment_accept_fail_oopsie_enroll(app_client: TestClient)
     """
     json_dict: Dict[Any, Any] = {
         "work_id_hash": "oopsie'%3Boopsie",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "user_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -538,7 +549,7 @@ async def test_post_enrollment_accept_fail_wrong_enroll(app_client: TestClient) 
     """
     json_dict: Dict[Any, Any] = {
         "work_id_hash": "not_foound",
-        "management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "user_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -550,10 +561,13 @@ async def test_post_enrollment_accept_fail_wrong_enroll(app_client: TestClient) 
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_get_enrollment_deliver_kissa(app_client: TestClient) -> None:
     """
-    /deliver/{work_id_hash}
+    /deliver
     Result should be success
     """
-    resp = await app_client.get("/api/v1/enrollment/deliver/kissa123")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/deliver?work_id_hash=kissa123&\
+        service_management_hash={settings.sqlite_init_testing_management_hash}"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["cert_download_link"] != ""
@@ -568,10 +582,12 @@ async def test_get_enrollment_deliver_error(app_client: TestClient) -> None:
     Result should fail
     reason="Error. Undefined backend error q_sssfewh1"
     """
-    resp = await app_client.get("/api/v1/enrollment/deliver/oopsie'%3Boopsie")
+    resp = await app_client.get(
+        "/api/v1/enrollment/deliver?work_id_hash=kissa123&service_management_hash=oopsie'%3Boopsie"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
-    assert resp_dict["detail"] == "Error. Undefined backend error q_sssfewh1"
+    assert resp_dict["detail"] == "Error. Undefined backend error q_sssfmwhasrl1"
 
 
 @pytest.mark.asyncio
@@ -582,7 +598,10 @@ async def test_get_enrollment_deliver_error_not_found(app_client: TestClient) ->
     Result should fail
     reason="Error. 'work_id_hash' not found from database."
     """
-    resp = await app_client.get("/api/v1/enrollment/deliver/notfoundhash")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/deliver?work_id_hash=notfoundhash&\
+        service_management_hash={settings.sqlite_init_testing_management_hash}"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 404
     assert resp_dict["detail"] == "Error. 'work_id_hash' not found from database."
@@ -596,7 +615,10 @@ async def test_get_enrollment_deliver_error_not_finished(app_client: TestClient)
     Result should fail
     reason="Enrollment is still in progress or it hasn't been accepted."
     """
-    resp = await app_client.get("/api/v1/enrollment/deliver/koira123")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/deliver?work_id_hash=koira123&\
+        service_management_hash={settings.sqlite_init_testing_management_hash}"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["cert_download_link"] == ""
@@ -610,7 +632,10 @@ async def test_get_enrollment_status_kissa(app_client: TestClient) -> None:
     """
     Enrollment status should be 200 !str(none)
     """
-    resp = await app_client.get("/api/v1/enrollment/status/kissa")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/status?work_id=kissa&\
+        service_management_hash={settings.sqlite_init_testing_management_hash}"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["status"] != ""
@@ -622,7 +647,10 @@ async def test_get_enrollment_status_nope(app_client: TestClient) -> None:
     """
     Enrollment status should be 200 str('none')
     """
-    resp = await app_client.get("/api/v1/enrollment/status/notexisting")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/status?work_id=notexisting&\
+        service_management_hash={settings.sqlite_init_testing_management_hash}"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["status"] == "none"
@@ -634,7 +662,10 @@ async def test_get_enrollment_status_error(app_client: TestClient) -> None:
     """
     Enrollment status should be 200 str('none')
     """
-    resp = await app_client.get("/api/v1/enrollment/status/oopsie'%3Boopsie")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/status?work_id=oopsie'%3Boopsie&service_management_\
+        hash={settings.sqlite_init_testing_management_hash}"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     print("#test_get_enrollment_status#")
     print(resp)
@@ -664,7 +695,10 @@ async def test_post_enrollment_init(app_client: TestClient) -> None:
             for n in range(64)
         ]
     )
-    json_dict: Dict[Any, Any] = {"work_id": _enrollment_id}
+    json_dict: Dict[Any, Any] = {
+        "work_id": _enrollment_id,
+        "user_management_hash": settings.sqlite_init_testing_management_hash,
+    }
     resp = await app_client.post("/api/v1/enrollment/init", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
@@ -676,7 +710,10 @@ async def test_post_enrollment_init(app_client: TestClient) -> None:
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_init_already_enrolled(app_client: TestClient) -> None:
     """Enrollment init should return code 200 and {'success':False}"""
-    json_dict: Dict[Any, Any] = {"work_id": "kissa"}
+    json_dict: Dict[Any, Any] = {
+        "work_id": "kissa",
+        "user_management_hash": settings.sqlite_init_testing_management_hash,
+    }
     resp = await app_client.post("/api/v1/enrollment/init", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     print(resp_dict)
@@ -691,7 +728,10 @@ async def test_get_enrollment_list(app_client: TestClient) -> None:
     /enrollment/list
     Result should be success and work_id_list not empty
     """
-    resp = await app_client.get("/api/v1/enrollment/list")
+    resp = await app_client.get(
+        f"/api/v1/enrollment/list?user_management_hash={settings.sqlite_init_testing_management_hash}"
+    )
+    print(resp)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert len(resp_dict["work_id_list"]) > 0
@@ -707,7 +747,7 @@ async def test_post_enrollment_get_verification_code(app_client: TestClient) -> 
     """
     json_dict: Dict[Any, Any] = {
         "work_id": "koira",
-        "service_management_hash": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
+        "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
     resp = await app_client.post("/api/v1/enrollment/config/generate-verification-code", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
@@ -732,9 +772,7 @@ async def test_post_enrollment_get_verification_code_fail(app_client: TestClient
     }
     resp = await app_client.post("/api/v1/enrollment/config/generate-verification-code", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
-
+    print(resp)
     print(resp_dict)
     assert resp.status_code == 403
-    assert (
-        resp_dict["detail"] == "Error. 'service_management_hash' doesn't have rights to update/change verification code"
-    )
+    assert resp_dict["detail"] == "Error. Given management hash doesn't have 'enrollment' permissions."

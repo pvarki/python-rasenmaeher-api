@@ -3,25 +3,34 @@ import string
 import random
 import logging
 from typing import Dict, List, Any
-from fastapi import APIRouter, Request, Body, HTTPException
+from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from rasenmaeher_api.web.api.enrollment.schema import (
+    EnrollmentStatusIn,
     EnrollmentStatusOut,
-    EnrollmentInitIn,
-    EnrollmentInitOut,
-    EnrollmentDeliverOut,
     EnrollmentAcceptIn,
     EnrollmentAcceptOut,
-    EnrollmentConfigAddManagerOut,
-    EnrollmentConfigAddManagerIn,
-    EnrollmentConfigSetDLOut,
-    EnrollmentConfigSetDLIn,
+    EnrollmentAddServiceManagementOut,
+    EnrollmentAddServiceManagementIn,
+    EnrollmentConfigSetDLCertOut,
+    EnrollmentConfigSetDLCertIn,
     EnrollmentConfigSetStateOut,
     EnrollmentConfigSetStateIn,
     EnrollmentConfigSetMtlsIn,
     EnrollmentConfigSetMtlsOut,
     EnrollmentConfigGenVerifiIn,
     EnrollmentConfigGenVerifiOut,
+    EnrollmentListIn,
     EnrollmentListOut,
+    EnrollmentPromoteIn,
+    EnrollmentPromoteOut,
+    EnrollmentInitIn,
+    EnrollmentInitOut,
+    EnrollmentDeliverIn,
+    EnrollmentDeliverOut,
+    EnrollmentDemoteIn,
+    EnrollmentDemoteOut,
+    EnrollmentLockIn,
+    EnrollmentLockOut,
 )
 
 from ....settings import settings
@@ -33,6 +42,34 @@ LOGGER = logging.getLogger(__name__)
 
 # TODO ERROR LOGGAUS if _success is False, varmaankin riittaa etta se
 #      on ihan ok tuolla sqlite.run_command() funkkarissa
+
+
+async def check_management_hash_permissions(
+    raise_exeption: bool = True, management_hash: str = "", special_rule: str = "enrollment"
+) -> bool:
+    """
+    Simple function to check if management_hash is found and has permissions.
+    """
+    # Get special_rules='first-user from managment
+    _q = settings.sqlite_sel_from_management_where_hash_and_special_rule_like.format(
+        special_rules=special_rule, management_hash=management_hash
+    )
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error q_sssfmwhasrl1"
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result) > 0:
+        return True
+
+    if raise_exeption is True:
+        _reason = "Error. Given management hash doesn't have 'enrollment' permissions."
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=403, detail=_reason)
+
+    return False
 
 
 @router.post("/config/generate-verification-code", response_model=EnrollmentConfigGenVerifiOut)
@@ -52,18 +89,7 @@ async def post_config_generate_verification_code(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.service_management_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssfm4"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'service_management_hash' doesn't have rights to update/change verification code"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=403, detail=_reason)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
 
     if request_in.work_id_hash is not None:
         _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.work_id_hash)
@@ -115,7 +141,7 @@ async def post_config_set_state(
     ),
 ) -> EnrollmentConfigSetStateOut:
     """
-    Update/Set state for work_id (enrollment) using either work_id_hash or work_id.
+    Update/Set state/status for work_id/user/enrollment using either work_id_hash or work_id.
     """
 
     if request_in.work_id is None and request_in.work_id_hash is None:
@@ -123,18 +149,7 @@ async def post_config_set_state(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.management_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssfm4"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'management_hash' doesn't have rights to set 'state'"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=403, detail=_reason)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
 
     _q = settings.sqlite_update_enrollment_state.format(
         work_id=request_in.work_id, work_id_hash=request_in.work_id_hash, state=request_in.state
@@ -169,19 +184,7 @@ async def post_config_set_mtls_test_link(
             reason=_reason,
         )
 
-    # Get manager hash
-    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.management_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssfm5"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'management_hash' doesn't have rights to set 'mtls_test_link'"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=403, detail=_reason)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
 
     if request_in.set_for_all is True:
         _q = settings.sqlite_update_enrollment_mtls_test_link_all.format(mtls_test_link=request_in.mtls_test_link)
@@ -200,14 +203,14 @@ async def post_config_set_mtls_test_link(
     return EnrollmentConfigSetMtlsOut(success=True, reason="")
 
 
-@router.post("/config/set-cert-dl-link", response_model=EnrollmentConfigSetDLOut)
+@router.post("/config/set-cert-dl-link", response_model=EnrollmentConfigSetDLCertOut)
 async def post_config_set_cert_dl_link(
     request: Request,
-    request_in: EnrollmentConfigSetDLIn = Body(
+    request_in: EnrollmentConfigSetDLCertIn = Body(
         None,
-        examples=[EnrollmentConfigSetDLIn.Config.schema_extra["examples"]],
+        examples=[EnrollmentConfigSetDLCertIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigSetDLOut:
+) -> EnrollmentConfigSetDLCertOut:
     """
     Store certificate or howto download link url for work_id (enrollment) using either work_id or work_id_hash
     """
@@ -217,24 +220,14 @@ async def post_config_set_cert_dl_link(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.management_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssfm3"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'management_hash' doesn't have rights to set 'cert_download_link' or 'howto_download_link'"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=403, detail=_reason)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
 
     if request_in.cert_download_link is None and request_in.howto_download_link is None:
         _reason = "Error. Both cert_download_link and howto_download_link are undefined. At least one is required"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
+    _success: bool = True
     if request_in.cert_download_link is not None:
         _q = settings.sqlite_update_enrollment_cert_dl_link.format(
             work_id=request_in.work_id,
@@ -257,41 +250,32 @@ async def post_config_set_cert_dl_link(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentConfigSetDLOut(success=True, reason="")
+    return EnrollmentConfigSetDLCertOut(success=True, reason="")
 
 
-@router.post("/config/add-manager", response_model=EnrollmentConfigAddManagerOut)
+@router.post("/config/add-service-management-hash", response_model=EnrollmentAddServiceManagementOut)
 async def post_config_add_manager(
     request: Request,
-    request_in: EnrollmentConfigAddManagerIn = Body(
+    request_in: EnrollmentAddServiceManagementIn = Body(
         None,
-        examples=[EnrollmentConfigAddManagerIn.Config.schema_extra["examples"]],
+        examples=[EnrollmentAddServiceManagementIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigAddManagerOut:
+) -> EnrollmentAddServiceManagementOut:
     """
-    Add new "manager" hash that has role/permission for X.
+    Add new "management hash" with certain permissions. This is not same as users/work-id's promotion to admin.
+    You should think this as of adding "machine admin permissions". User related admin promotions should
+    be done using /promote and /demote /lock.
     """
 
-    if len(request_in.new_permit_hash) < 64:
-        _reason = "Error. new_permit_hash too short. Needs to be 64 or more."
+    if len(request_in.new_service_management_hash) < 64:
+        _reason = "Error. new_service_management_hash too short. Needs to be 64 or more."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.management_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssfm2"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'management_hash' doesn't have rights add 'new_permit_hash'"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=403, detail=_reason)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
 
     _q = settings.sqlite_insert_into_management.format(
-        management_hash=request_in.new_permit_hash, special_rules=request_in.permissions_str
+        management_hash=request_in.new_service_management_hash, special_rules=request_in.permissions_str
     )
     _success, _result = sqlite.run_command(_q)
 
@@ -300,15 +284,21 @@ async def post_config_add_manager(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentConfigAddManagerOut(success=_success, reason="")
+    return EnrollmentAddServiceManagementOut(success=_success, reason="")
 
 
-@router.get("/status/{work_id}", response_model=EnrollmentStatusOut)
-async def request_enrolment_status(work_id: str, request: Request) -> EnrollmentStatusOut:
+@router.get("/status", response_model=EnrollmentStatusOut)
+async def request_enrolment_status(
+    request: Request,
+    params: EnrollmentStatusIn = Depends(),
+) -> EnrollmentStatusOut:
     """
     Check the status for given work_id (enrollment). status=None means that there is no enrollment with given work_id
     """
-    _q = settings.sqlite_sel_from_enrollment.format(work_id=work_id)
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=params.service_management_hash)
+
+    _q = settings.sqlite_sel_from_enrollment.format(work_id=params.work_id)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
@@ -328,15 +318,24 @@ async def request_enrolment_status(work_id: str, request: Request) -> Enrollment
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentStatusOut(work_id=work_id, work_id_hash=_work_id_hash, status=_status, success=_success, reason="")
+    return EnrollmentStatusOut(
+        work_id=params.work_id, work_id_hash=_work_id_hash, status=_status, success=_success, reason=""
+    )
 
 
 @router.get("/list", response_model=EnrollmentListOut)
-async def request_enrollment_list(request: Request) -> EnrollmentListOut:
+async def request_enrollment_list(
+    request: Request,
+    params: EnrollmentListIn = Depends(),
+) -> EnrollmentListOut:
     """
+    /list?service_management_hash=dasqdsdasqwe
     Return users/work-id's/enrollments. If 'accepted' has something else than 'no', it has been accepted.
     Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'no' } ]
     """
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=params.user_management_hash)
+
     _q = settings.sqlite_sel_from_enrollment_all.format()
     _success, _result = sqlite.run_command(_q)
 
@@ -367,6 +366,8 @@ async def request_enrollment_init(
     """
     Add new work_id (enrollment) to environment.
     """
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
 
     # First check if there is already enrollment for requested workid
     _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
@@ -412,13 +413,120 @@ async def request_enrollment_init(
     return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash, success=_success, reason="")
 
 
-@router.get("/deliver/{work_id_hash}", response_model=EnrollmentDeliverOut)
-async def request_enrollment_status(request: Request, work_id_hash: str) -> EnrollmentDeliverOut:
+@router.post("/promote", response_model=EnrollmentPromoteOut)
+async def request_enrollment_promote(
+    request: Request,
+    request_in: EnrollmentPromoteIn = Body(
+        None,
+        examples=[EnrollmentPromoteIn.Config.schema_extra["examples"]],
+    ),
+) -> EnrollmentPromoteOut:
+    """
+    "Promote" work_id/user/enrollment to have 'admin' rights
+    """
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+
+    if request_in.work_id is None and request_in.work_id_hash is None:
+        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    if request_in.work_id_hash is not None:
+        _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.work_id_hash)
+    else:
+        _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
+
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error ssfewhx22"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result) == 0:
+        _reason = "Cannot promote. Requested work_id or work_id_hash not found..."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=404, detail=_reason)
+
+    # Check if the hash is already in database.
+    _q = settings.sqlite_sel_from_management.format(management_hash=_result[1])
+    _success2, _result2 = sqlite.run_command(_q)
+    if _success2 is False:
+        _reason = "Error. Undefined backend error sssfm3"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result2) > 0:
+        if "enrollment" in _result2[0][1]:
+            _reason = "Given work_id already has elevated permissions."
+            LOGGER.error("{} : {}".format(request.url, _reason))
+            raise HTTPException(status_code=400, detail=_reason)
+
+        _q = settings.sqlite_update_management_rules.format(
+            special_rules=f"{_result2[0][1]}:enrollment", management_hash=_result2[0][0]
+        )
+        _success, _result = sqlite.run_command(_q)
+        if _success is False:
+            _reason = "Error. Undefined backend error qsumr1"
+            LOGGER.error("{} : {}".format(request.url, _reason))
+            raise HTTPException(status_code=500, detail=_reason)
+
+    else:
+        _q = settings.sqlite_insert_into_management.format(management_hash=_result[1], special_rules="enrollment")
+        _success, _result = sqlite.run_command(_q)
+
+        if _success is False:
+            _reason = "Error. Undefined backend error qssiim2"
+            LOGGER.error("{} : {}".format(request.url, _reason))
+            raise HTTPException(status_code=500, detail=_reason)
+
+    return EnrollmentPromoteOut(success=True, reason="")
+
+
+@router.post("/demote", response_model=EnrollmentDemoteOut)
+async def request_enrollment_demote(
+    request_in: EnrollmentDemoteIn = Body(
+        None,
+        examples=[EnrollmentDemoteIn.Config.schema_extra["examples"]],
+    ),
+) -> EnrollmentDemoteOut:
+    """
+    "Demote" work_id/user/enrollment to have 'admin' rights
+    """
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+
+    return EnrollmentDemoteOut(success=True, reason="")
+
+
+@router.post("/lock", response_model=EnrollmentLockOut)
+async def request_enrollment_lock(
+    request_in: EnrollmentLockIn = Body(
+        None,
+        examples=[EnrollmentLockIn.Config.schema_extra["examples"]],
+    ),
+) -> EnrollmentLockOut:
+    """
+    Lock work_id/user/enrollment so it cannot be used anymore.
+    """
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+
+    return EnrollmentLockOut(success=True, reason="")
+
+
+@router.get("/deliver", response_model=EnrollmentDeliverOut)
+async def request_enrollment_status(
+    request: Request,
+    params: EnrollmentDeliverIn = Depends(),
+) -> EnrollmentDeliverOut:
     """
     Deliver download url link using work_id_hash
     """
 
-    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=work_id_hash)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=params.service_management_hash)
+
+    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=params.work_id_hash)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
@@ -436,7 +544,7 @@ async def request_enrollment_status(request: Request, work_id_hash: str) -> Enro
         LOGGER.error("{} : {}".format(request.url, _reason))
         return EnrollmentDeliverOut(
             work_id="",
-            work_id_hash=work_id_hash,
+            work_id_hash=params.work_id_hash,
             state=_result[0][2],
             cert_download_link="",
             howto_download_link="",
@@ -447,7 +555,7 @@ async def request_enrollment_status(request: Request, work_id_hash: str) -> Enro
 
     return EnrollmentDeliverOut(
         work_id=_result[0][0],
-        work_id_hash=work_id_hash,
+        work_id_hash=params.work_id_hash,
         success=True,
         cert_download_link=_result[0][4],
         howto_download_link=_result[0][5],
@@ -469,18 +577,7 @@ async def post_enrollment_accept(
     Accept work_id_hash (work_id/enrollment) using management_hash
     """
 
-    _q = settings.sqlite_sel_from_management.format(management_hash=request_in.management_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssfm1"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'management_hash' doesn't have rights to accept given 'work_id_hash'"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=403, detail=_reason)
+    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
 
     _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.work_id_hash)
     _success, _result = sqlite.run_command(_q)
@@ -496,7 +593,7 @@ async def post_enrollment_accept(
         raise HTTPException(status_code=404, detail=_reason)
 
     _q = settings.sqlite_update_accept_enrollment.format(
-        management_hash=request_in.management_hash, work_id_hash=request_in.work_id_hash
+        management_hash=request_in.user_management_hash, work_id_hash=request_in.work_id_hash
     )
     _success, _result = sqlite.run_command(_q)
 
@@ -508,7 +605,7 @@ async def post_enrollment_accept(
     return EnrollmentAcceptOut(
         work_id="",
         work_id_hash=request_in.work_id_hash,
-        management_hash=request_in.management_hash,
+        management_hash=request_in.user_management_hash,
         success=_success,
         reason="",
     )
