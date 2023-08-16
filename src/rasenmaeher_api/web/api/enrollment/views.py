@@ -2,7 +2,7 @@
 import string
 import random
 import logging
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentStatusIn,
@@ -72,6 +72,56 @@ async def check_management_hash_permissions(
     return False
 
 
+async def is_workid_or_workidhash_given(
+    raise_exeption: bool = True, work_id: Optional[str] = None, work_id_hash: Optional[str] = None
+) -> bool:
+    """
+    Simple function to check if either work_id or work_id_hash has been given.
+    """
+
+    if work_id is None and work_id_hash is None:
+        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
+        LOGGER.error(_reason)
+        if raise_exeption:
+            raise HTTPException(status_code=400, detail=_reason)
+        return False
+    return True
+
+
+async def get_hash_with_either_workid_or_hash(
+    raise_exeption: bool = True, work_id: Optional[str] = None, work_id_hash: Optional[str] = None
+) -> str:
+    """
+    Simple function to get/check the work_id_hash and return it as str.
+    """
+    if work_id_hash is not None:
+        _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=work_id_hash)
+    else:
+        _q = settings.sqlite_sel_from_enrollment.format(work_id=work_id)
+
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error func_ssfewhx24"
+        LOGGER.error(_reason)
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result) > 1:
+        _reason = "Error. Dafug, more than one hit in results..."
+        LOGGER.error(_reason)
+        LOGGER.error(_result)
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result) == 0:
+        _reason = "Wont do. Requested work_id or work_id_hash not found..."
+        LOGGER.error(_reason)
+        if raise_exeption:
+            raise HTTPException(status_code=404, detail=_reason)
+
+        return ""
+
+    return str(_result[0][1])
+
+
 @router.post("/config/generate-verification-code", response_model=EnrollmentConfigGenVerifiOut)
 async def post_config_generate_verification_code(
     request: Request,
@@ -84,28 +134,14 @@ async def post_config_generate_verification_code(
     Update/Generate verification_code on database for given work_id or work_id_hash
     """
 
-    if request_in.work_id is None and request_in.work_id_hash is None:
-        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=400, detail=_reason)
-
     await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
+    await is_workid_or_workidhash_given(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
 
-    if request_in.work_id_hash is not None:
-        _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.work_id_hash)
-    else:
-        _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
-
-    _success, _result = sqlite.run_command(_q)
-    if _success is False:
-        _reason = "Error. Undefined backend error ssfewhx21"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Cannot set verification code. Requested work_id or work_id_hash not found..."
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=404, detail=_reason)
+    _work_id_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
 
     _verification_code = "".join(
         # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
@@ -116,7 +152,7 @@ async def post_config_generate_verification_code(
     )
 
     _q = settings.sqlite_update_enrollment_verification_code.format(
-        verification_code=_verification_code, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+        verification_code=_verification_code, work_id_hash=_work_id_hash
     )
 
     _success, _result = sqlite.run_command(_q)
@@ -144,12 +180,10 @@ async def post_config_set_state(
     Update/Set state/status for work_id/user/enrollment using either work_id_hash or work_id.
     """
 
-    if request_in.work_id is None and request_in.work_id_hash is None:
-        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=400, detail=_reason)
-
     await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
+    await is_workid_or_workidhash_given(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
 
     _q = settings.sqlite_update_enrollment_state.format(
         work_id=request_in.work_id, work_id_hash=request_in.work_id_hash, state=request_in.state
@@ -190,8 +224,12 @@ async def post_config_set_mtls_test_link(
         _q = settings.sqlite_update_enrollment_mtls_test_link_all.format(mtls_test_link=request_in.mtls_test_link)
         _success, _result = sqlite.run_command(_q)
     else:
+        _work_id_hash = await get_hash_with_either_workid_or_hash(
+            raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+        )
+
         _q = settings.sqlite_update_enrollment_mtls_test_link.format(
-            work_id=request_in.work_id, work_id_hash=request_in.work_id_hash, mtls_test_link=request_in.mtls_test_link
+            work_id_hash=_work_id_hash, mtls_test_link=request_in.mtls_test_link
         )
         _success, _result = sqlite.run_command(_q)
 
@@ -215,23 +253,24 @@ async def post_config_set_cert_dl_link(
     Store certificate or howto download link url for work_id (enrollment) using either work_id or work_id_hash
     """
 
-    if request_in.work_id is None and request_in.work_id_hash is None:
-        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=400, detail=_reason)
-
     await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
+    await is_workid_or_workidhash_given(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
 
     if request_in.cert_download_link is None and request_in.howto_download_link is None:
         _reason = "Error. Both cert_download_link and howto_download_link are undefined. At least one is required"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
+    _work_id_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
+
     _success: bool = True
     if request_in.cert_download_link is not None:
         _q = settings.sqlite_update_enrollment_cert_dl_link.format(
-            work_id=request_in.work_id,
-            work_id_hash=request_in.work_id_hash,
+            work_id_hash=_work_id_hash,
             cert_download_link=request_in.cert_download_link,
         )
         _success, _result = sqlite.run_command(_q)
@@ -239,8 +278,7 @@ async def post_config_set_cert_dl_link(
     _success2: bool = True
     if request_in.howto_download_link is not None:
         _q = settings.sqlite_update_enrollment_cert_howto_dl_link.format(
-            work_id=request_in.work_id,
-            work_id_hash=request_in.work_id_hash,
+            work_id_hash=_work_id_hash,
             howto_download_link=request_in.howto_download_link,
         )
         _success2, _result = sqlite.run_command(_q)
@@ -401,6 +439,7 @@ async def request_enrollment_init(
         cert_howto_dl_link="na",
         mtls_test_link="na",
         verification_code="na",
+        locked="",
     )
 
     _success, _result = sqlite.run_command(_q)
@@ -426,30 +465,16 @@ async def request_enrollment_promote(
     """
 
     await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await is_workid_or_workidhash_given(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
 
-    if request_in.work_id is None and request_in.work_id_hash is None:
-        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=400, detail=_reason)
-
-    if request_in.work_id_hash is not None:
-        _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.work_id_hash)
-    else:
-        _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
-
-    _success, _result = sqlite.run_command(_q)
-    if _success is False:
-        _reason = "Error. Undefined backend error ssfewhx22"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Cannot promote. Requested work_id or work_id_hash not found..."
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=404, detail=_reason)
+    _work_id_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
 
     # Check if the hash is already in database.
-    _q = settings.sqlite_sel_from_management.format(management_hash=_result[1])
+    _q = settings.sqlite_sel_from_management.format(management_hash=_work_id_hash)
     _success2, _result2 = sqlite.run_command(_q)
     if _success2 is False:
         _reason = "Error. Undefined backend error sssfm3"
@@ -472,7 +497,7 @@ async def request_enrollment_promote(
             raise HTTPException(status_code=500, detail=_reason)
 
     else:
-        _q = settings.sqlite_insert_into_management.format(management_hash=_result[1], special_rules="enrollment")
+        _q = settings.sqlite_insert_into_management.format(management_hash=_work_id_hash, special_rules="enrollment")
         _success, _result = sqlite.run_command(_q)
 
         if _success is False:
@@ -485,22 +510,68 @@ async def request_enrollment_promote(
 
 @router.post("/demote", response_model=EnrollmentDemoteOut)
 async def request_enrollment_demote(
+    request: Request,
     request_in: EnrollmentDemoteIn = Body(
         None,
         examples=[EnrollmentDemoteIn.Config.schema_extra["examples"]],
     ),
 ) -> EnrollmentDemoteOut:
     """
-    "Demote" work_id/user/enrollment to have 'admin' rights
+    "Demote" work_id/user/enrollment from having 'admin' rights. work_id_hash can be used too.
     """
 
     await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await is_workid_or_workidhash_given(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
+
+    _work_id_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
+
+    # Check if the hash is already in database.
+    _q = settings.sqlite_sel_from_management.format(management_hash=_work_id_hash)
+    _success2, _result2 = sqlite.run_command(_q)
+    if _success2 is False:
+        _reason = "Error. Undefined backend error sssfm4"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result2) > 0:
+        _reason = "Given work_id/work_id_hash doesn't have any privileges to take away. Skipping..."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    if "enrollment" not in _result2[0][1]:
+        _reason = "Given work_id/work_id_hash doesn't have 'enrollment' privileges to take away. Skipping..."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    # If the updated _new_rules is empty. Remove the whole hash from db
+    _new_rules: str = _result2[0][1].replace("enrollment", "").replace("::", ":")
+    if _new_rules == "":
+        _q = settings.sqlite_del_from_management_where_hash.format(management_hash=_result2[0][0])
+        _success, _result = sqlite.run_command(_q)
+
+        if _success is False:
+            _reason = "Error. Undefined backend error qssdfmwhs1"
+            LOGGER.error("{} : {}".format(request.url, _reason))
+            raise HTTPException(status_code=500, detail=_reason)
+
+    else:
+        _q = settings.sqlite_update_management_rules.format(special_rules=_new_rules, management_hash=_result2[0][0])
+        _success, _result = sqlite.run_command(_q)
+        if _success is False:
+            _reason = "Error. Undefined backend error qsumr2"
+            LOGGER.error("{} : {}".format(request.url, _reason))
+            raise HTTPException(status_code=500, detail=_reason)
 
     return EnrollmentDemoteOut(success=True, reason="")
 
 
 @router.post("/lock", response_model=EnrollmentLockOut)
 async def request_enrollment_lock(
+    request: Request,
     request_in: EnrollmentLockIn = Body(
         None,
         examples=[EnrollmentLockIn.Config.schema_extra["examples"]],
@@ -511,6 +582,27 @@ async def request_enrollment_lock(
     """
 
     await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await is_workid_or_workidhash_given(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
+
+    _work_id_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    )
+
+    if request_in.lock_reason == "":
+        _reason = "lock_reason cannot be empty."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    _q = settings.sqlite_update_enrollment_locked_state.format(
+        work_id_hash=_work_id_hash, locked=request_in.lock_reason
+    )
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error qsuels1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
 
     return EnrollmentLockOut(success=True, reason="")
 

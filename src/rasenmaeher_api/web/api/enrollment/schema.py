@@ -586,6 +586,7 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment lock in schema"""
 
     user_management_hash: str
+    lock_reason: str
     work_id: Optional[str]
     work_id_hash: Optional[str]
 

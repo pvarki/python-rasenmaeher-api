@@ -122,6 +122,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         cert_howto_dl_link text NOT NULL,
                                         mtls_test_link text NOT NULL,
                                         verification_code text NOT NULL,
+                                        locked text NOT NULL,
                                         UNIQUE(work_id)
                                     ); """
 
@@ -164,8 +165,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                 ;"""
 
     sqlite_insert_into_enrollment = """ INSERT INTO enrollment
-                                        (work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code)
-                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{cert_dl_link}', '{cert_howto_dl_link}', '{mtls_test_link}', '{verification_code}')
+                                        (work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked)
+                                        VALUES(
+                                        '{work_id}','{work_id_hash}','{state}', '{accepted}', '{cert_dl_link}',
+                                        '{cert_howto_dl_link}', '{mtls_test_link}', '{verification_code}','{locked}'
+                                        )
                                     ;"""
 
     sqlite_insert_into_management = """ INSERT OR REPLACE INTO management
@@ -174,18 +178,18 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                     ;"""
 
     sqlite_sel_from_enrollment = """SELECT
-    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked
                                         FROM enrollment
                                         WHERE work_id='{work_id}'
                                     ;"""
 
     sqlite_sel_from_enrollment_all = """SELECT
-    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked
                                         FROM enrollment
                                     ;"""
 
     sqlite_sel_from_enrollment_where_hash = """SELECT
-    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked
                                         FROM enrollment
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
@@ -237,15 +241,15 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     sqlite_update_enrollment_cert_dl_link = """UPDATE enrollment
                                         SET cert_dl_link='{cert_download_link}'
-                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                        WHERE work_id_hash='{work_id_hash}'
                                     ;"""
     sqlite_update_enrollment_cert_howto_dl_link = """UPDATE enrollment
                                         SET cert_howto_dl_link='{howto_download_link}'
-                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                        WHERE work_id_hash='{work_id_hash}'
                                     ;"""
     sqlite_update_enrollment_mtls_test_link = """UPDATE enrollment
                                         SET mtls_test_link='{mtls_test_link}'
-                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                        WHERE work_id_hash='{work_id_hash}'
                                     ;"""
     sqlite_update_enrollment_mtls_test_link_all = """UPDATE enrollment
                                         SET mtls_test_link='{mtls_test_link}'
@@ -259,7 +263,12 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     sqlite_update_enrollment_verification_code = """UPDATE enrollment
                                         SET verification_code='{verification_code}'
-                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+
+    sqlite_update_enrollment_locked_state = """UPDATE enrollment
+                                        SET locked='{locked}'
+                                        WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
     sqlite_healtcheck_query = """SELECT id

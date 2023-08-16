@@ -251,6 +251,7 @@ async def post_admin_add(
         cert_howto_dl_link="na",
         mtls_test_link="na",
         verification_code="na",
+        locked="",
     )
     _success, _result = sqlite.run_command(_q)
 

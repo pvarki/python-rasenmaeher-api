@@ -566,7 +566,7 @@ async def test_get_enrollment_deliver_kissa(app_client: TestClient) -> None:
     """
     resp = await app_client.get(
         f"/api/v1/enrollment/deliver?work_id_hash=kissa123&\
-        service_management_hash={settings.sqlite_init_testing_management_hash}"
+service_management_hash={settings.sqlite_init_testing_management_hash}"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
@@ -600,7 +600,7 @@ async def test_get_enrollment_deliver_error_not_found(app_client: TestClient) ->
     """
     resp = await app_client.get(
         f"/api/v1/enrollment/deliver?work_id_hash=notfoundhash&\
-        service_management_hash={settings.sqlite_init_testing_management_hash}"
+service_management_hash={settings.sqlite_init_testing_management_hash}"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 404
@@ -617,7 +617,7 @@ async def test_get_enrollment_deliver_error_not_finished(app_client: TestClient)
     """
     resp = await app_client.get(
         f"/api/v1/enrollment/deliver?work_id_hash=koira123&\
-        service_management_hash={settings.sqlite_init_testing_management_hash}"
+service_management_hash={settings.sqlite_init_testing_management_hash}"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
@@ -634,7 +634,7 @@ async def test_get_enrollment_status_kissa(app_client: TestClient) -> None:
     """
     resp = await app_client.get(
         f"/api/v1/enrollment/status?work_id=kissa&\
-        service_management_hash={settings.sqlite_init_testing_management_hash}"
+service_management_hash={settings.sqlite_init_testing_management_hash}"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
@@ -649,7 +649,7 @@ async def test_get_enrollment_status_nope(app_client: TestClient) -> None:
     """
     resp = await app_client.get(
         f"/api/v1/enrollment/status?work_id=notexisting&\
-        service_management_hash={settings.sqlite_init_testing_management_hash}"
+service_management_hash={settings.sqlite_init_testing_management_hash}"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
@@ -664,7 +664,7 @@ async def test_get_enrollment_status_error(app_client: TestClient) -> None:
     """
     resp = await app_client.get(
         f"/api/v1/enrollment/status?work_id=oopsie'%3Boopsie&service_management_\
-        hash={settings.sqlite_init_testing_management_hash}"
+hash={settings.sqlite_init_testing_management_hash}"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     print("#test_get_enrollment_status#")
