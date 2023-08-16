@@ -209,6 +209,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE special_rules LIKE '%{special_rules}%'
                                     ;"""
 
+    sqlite_sel_from_enrollment_where_verification_code = """SELECT work_id_hash
+                                        FROM enrollment
+                                        WHERE verification_code='{verification_code}'
+                                    ;"""
+
     sqlite_del_from_management_where_special_rule_like = """
                                         DELETE FROM management
                                         WHERE special_rules LIKE '%{special_rules}%'

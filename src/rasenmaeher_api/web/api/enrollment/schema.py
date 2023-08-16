@@ -4,8 +4,8 @@ from pydantic import BaseModel
 from ....settings import settings
 
 
-class EnrollmentConfigGenVerifiIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config add manager schema in"""
+class EnrollmentGenVerifiIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment gen verification code in"""
 
     service_management_hash: str
     work_id: Optional[str]
@@ -48,8 +48,8 @@ class EnrollmentConfigGenVerifiIn(BaseModel):  # pylint: disable=too-few-public-
         }
 
 
-class EnrollmentConfigGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config add manager schema out"""
+class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment gen verification code out"""
 
     verification_code: str
     success: bool
@@ -346,6 +346,66 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
                 "state": "[str] - Current state of enrollment",
                 "work_id": "[str] User defined username/id/workname",
                 "work_id_hash": "[str] - Hash generated for work_id",
+                "success": "[bool] - Task completed succesfully/failed",
+                "reason": "[opt][str] - Usually contiains some info why task might have failed",
+            }
+        }
+
+
+class EnrollmentShowVerificationCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment status in schema"""
+
+    user_management_hash: str
+    verification_code: str
+
+
+class EnrollmentShowVerificationCodeOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment status check schema"""
+
+    state: str
+    work_id: str
+    work_id_hash: str
+    accepted: str
+    locked: str
+    success: bool
+    reason: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "example": {
+                "state": "[str] - Current state of enrollment",
+                "work_id": "[str] User defined username/id/workname",
+                "work_id_hash": "[str] - Hash generated for work_id",
+                "accepted": "[str] - Has this been already accepted, empty or 'na' == not accepted",
+                "locked": "[str] - Contain info if the enrollment is locked. For unlocked enrollment, it's empty ''",
+                "success": "[bool] - Task completed succesfully/failed",
+                "reason": "[opt][str] - Usually contiains some info why task might have failed",
+            }
+        }
+
+
+class EnrollmentHaveIBeenAcceptedIn(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment status in schema"""
+
+    service_management_hash: str
+    work_id_hash: str
+
+
+class EnrollmentHaveIBeenAcceptedOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment status check schema"""
+
+    have_i_been_accepted: bool
+    success: bool
+    reason: Optional[str]
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "example": {
+                "have_i_been_accepted": "[bool] - Accepted status. True/False",
                 "success": "[bool] - Task completed succesfully/failed",
                 "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }

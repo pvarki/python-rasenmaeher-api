@@ -17,8 +17,12 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigSetStateIn,
     EnrollmentConfigSetMtlsIn,
     EnrollmentConfigSetMtlsOut,
-    EnrollmentConfigGenVerifiIn,
-    EnrollmentConfigGenVerifiOut,
+    EnrollmentGenVerifiIn,
+    EnrollmentGenVerifiOut,
+    EnrollmentShowVerificationCodeIn,
+    EnrollmentShowVerificationCodeOut,
+    EnrollmentHaveIBeenAcceptedIn,
+    EnrollmentHaveIBeenAcceptedOut,
     EnrollmentListIn,
     EnrollmentListOut,
     EnrollmentPromoteIn,
@@ -79,12 +83,19 @@ async def is_workid_or_workidhash_given(
     Simple function to check if either work_id or work_id_hash has been given.
     """
 
+    if work_id == "":
+        work_id = None
+
+    if work_id_hash == "":
+        work_id_hash = None
+
     if work_id is None and work_id_hash is None:
-        _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required"
+        _reason = "Error. Both work_id and work_id_hash are undefined or empty. At least one is required"
         LOGGER.error(_reason)
         if raise_exeption:
             raise HTTPException(status_code=400, detail=_reason)
         return False
+
     return True
 
 
@@ -94,6 +105,11 @@ async def get_hash_with_either_workid_or_hash(
     """
     Simple function to get/check the work_id_hash and return it as str.
     """
+    if work_id == "":
+        work_id = None
+    if work_id_hash == "":
+        work_id_hash = None
+
     if work_id_hash is not None:
         _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=work_id_hash)
     else:
@@ -122,14 +138,14 @@ async def get_hash_with_either_workid_or_hash(
     return str(_result[0][1])
 
 
-@router.post("/config/generate-verification-code", response_model=EnrollmentConfigGenVerifiOut)
-async def post_config_generate_verification_code(
+@router.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)
+async def post_generate_verification_code(
     request: Request,
-    request_in: EnrollmentConfigGenVerifiIn = Body(
+    request_in: EnrollmentGenVerifiIn = Body(
         None,
-        examples=[EnrollmentConfigGenVerifiIn.Config.schema_extra["examples"]],
+        examples=[EnrollmentGenVerifiIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigGenVerifiOut:
+) -> EnrollmentGenVerifiOut:
     """
     Update/Generate verification_code on database for given work_id or work_id_hash
     """
@@ -161,11 +177,88 @@ async def post_config_generate_verification_code(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentConfigGenVerifiOut(
+    return EnrollmentGenVerifiOut(
         verification_code=f"{_verification_code}",
         success=True,
         reason="",
     )
+
+
+@router.get("/show-verification-code-info", response_model=EnrollmentShowVerificationCodeOut)
+async def request_show_verification_code(
+    request: Request,
+    params: EnrollmentShowVerificationCodeIn = Depends(),
+) -> EnrollmentShowVerificationCodeOut:
+    """
+    /show-verification-code-info?user_management_hash=dasqdsdasqwe&verification_code=jaddajaa
+    Return's information about the user/enrollment that made the code.
+    """
+
+    if params.verification_code in ("na", ""):
+        _reason = "Verification code cannot be empty or na"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=params.user_management_hash)
+
+    # Get the code from db
+    _q = settings.sqlite_sel_from_enrollment_where_verification_code.format(verification_code=params.verification_code)
+
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error qsssfmewvc1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if len(_result) == 0:
+        _reason = "Code not found."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=404, detail=_reason)
+
+    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=_result[0][0])
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error qsssfewh1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    return EnrollmentShowVerificationCodeOut(
+        work_id=_result[0][0],
+        work_id_hash=_result[0][1],
+        state=_result[0][2],
+        accepted=_result[0][3],
+        locked=_result[0][8],
+        success=True,
+        reason="",
+    )
+
+
+@router.get("/have-i-been-accepted", response_model=EnrollmentHaveIBeenAcceptedOut)
+async def request_have_i_been_accepted(
+    request: Request,
+    params: EnrollmentHaveIBeenAcceptedIn = Depends(),
+) -> EnrollmentHaveIBeenAcceptedOut:
+    """
+    /have-i-been-accepted?service_management_hash=dasqdsdasqwe&work_id_hash=jaddajaa
+    Return's True/False in 'have_i_been_accepted'
+    """
+
+    await check_management_hash_permissions(raise_exeption=True, management_hash=params.service_management_hash)
+
+    await is_workid_or_workidhash_given(raise_exeption=True, work_id=None, work_id_hash=params.work_id_hash)
+
+    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=params.work_id_hash)
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error q_sssfewh2"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    if _result[0][3] != "":
+        return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=True, success=True, reason="")
+
+    return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=False, success=True, reason="")
 
 
 @router.post("/config/set-state", response_model=EnrollmentConfigSetStateOut)
@@ -368,8 +461,8 @@ async def request_enrollment_list(
 ) -> EnrollmentListOut:
     """
     /list?service_management_hash=dasqdsdasqwe
-    Return users/work-id's/enrollments. If 'accepted' has something else than 'no', it has been accepted.
-    Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'no' } ]
+    Return users/work-id's/enrollments. If 'accepted' has something else than '', it has been accepted.
+    Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'' } ]
     """
 
     await check_management_hash_permissions(raise_exeption=True, management_hash=params.user_management_hash)
@@ -434,7 +527,7 @@ async def request_enrollment_init(
         work_id=request_in.work_id,
         work_id_hash=_work_id_hash,
         state="init",
-        accepted="no",
+        accepted="",
         cert_dl_link="na",
         cert_howto_dl_link="na",
         mtls_test_link="na",

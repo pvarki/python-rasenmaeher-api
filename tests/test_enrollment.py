@@ -62,7 +62,7 @@ async def test_post_enrollment_config_setstate_fail_both_missing(app_client: Tes
     """
     /config/set-state
     Result should fail
-    reason="Error. Both work_id and work_id_hash are undefined. At least one is required",
+    reason="Error. Both work_id and work_id_hash are undefined or empty. At least one is required",
     """
     json_dict: Dict[Any, Any] = {
         "state": "testing",
@@ -71,7 +71,9 @@ async def test_post_enrollment_config_setstate_fail_both_missing(app_client: Tes
     resp = await app_client.post("/api/v1/enrollment/config/set-state", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 400
-    assert resp_dict["detail"] == "Error. Both work_id and work_id_hash are undefined. At least one is required"
+    assert (
+        resp_dict["detail"] == "Error. Both work_id and work_id_hash are undefined or empty. At least one is required"
+    )
 
 
 @pytest.mark.asyncio
@@ -291,7 +293,7 @@ async def test_post_enrollment_config_setdl_fail_missing(app_client: TestClient)
     """
     /config/set-cert-dl-link
     Result should fail
-    reason="Error. Both work_id and work_id_hash are undefined. At least one is required"
+    reason="Error. Both work_id and work_id_hash are undefined or empty. At least one is required"
     """
     json_dict: Dict[Any, Any] = {
         "cert_download_link": "https://kuvaton.com",
@@ -300,7 +302,9 @@ async def test_post_enrollment_config_setdl_fail_missing(app_client: TestClient)
     resp = await app_client.post("/api/v1/enrollment/config/set-cert-dl-link", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 400
-    assert resp_dict["detail"] == "Error. Both work_id and work_id_hash are undefined. At least one is required"
+    assert (
+        resp_dict["detail"] == "Error. Both work_id and work_id_hash are undefined or empty. At least one is required"
+    )
 
 
 @pytest.mark.asyncio
@@ -742,14 +746,14 @@ async def test_get_enrollment_list(app_client: TestClient) -> None:
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_get_verification_code(app_client: TestClient) -> None:
     """
-    /config/generate-verification-code
+    /generate-verification-code
     Result should be successful
     """
     json_dict: Dict[Any, Any] = {
         "work_id": "koira",
         "service_management_hash": settings.sqlite_init_testing_management_hash,
     }
-    resp = await app_client.post("/api/v1/enrollment/config/generate-verification-code", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/generate-verification-code", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     # print("###########")
     # print(resp)
@@ -763,14 +767,14 @@ async def test_post_enrollment_get_verification_code(app_client: TestClient) -> 
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_enrollment_get_verification_code_fail(app_client: TestClient) -> None:
     """
-    /config/generate-verification-code
+    /generate-verification-code
     Result should fail
     """
     json_dict: Dict[Any, Any] = {
         "work_id": "koira",
         "service_management_hash": "wrong-management_hash",
     }
-    resp = await app_client.post("/api/v1/enrollment/config/generate-verification-code", json=json_dict)
+    resp = await app_client.post("/api/v1/enrollment/generate-verification-code", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     print(resp)
     print(resp_dict)
