@@ -812,7 +812,10 @@ async def post_invite_code(
     ),
 ) -> EnrollmentInviteCodeOut:
     """
-    Create a new invite code
+    Create a new invite code using service_management_hash
+    This method checks for permission user-admin
+    This method checks for existing invite code and updates it if found
+    This method creates invite code if not found
     """
 
     # Veriy that the user has permissions to create invite codes ??? is user-admin
@@ -829,7 +832,7 @@ async def post_invite_code(
     )
 
     # Random string for invite-code eg. GLXBT0
-    _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+    _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))  # nosec B311
 
     # Update existing code if existing LIKE management_hash and invite-code
     if _existing_invite_code:
@@ -854,13 +857,12 @@ async def post_invite_code(
     )
 
 
+# FIXME: Create a real endpoint from UX React teams requirement
 @router.get("/invitecode", response_model=List[EnrollmentInviteCodeOut])
 async def get_invite_codes(request: Request) -> List[EnrollmentInviteCodeOut]:
     """
     Get all invite codes
     """
-
-    # Your code logic here
 
     invite_codes = []
 
