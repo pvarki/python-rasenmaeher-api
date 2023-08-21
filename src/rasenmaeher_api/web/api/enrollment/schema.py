@@ -697,3 +697,22 @@ class EnrollmentListOut(BaseModel):  # pylint: disable=too-few-public-methods
     success: bool
     reason: Optional[str]
     work_id_list: List[Dict[Any, Any]]
+
+
+class EnrollmentInviteCodeOut(BaseModel):  # pylint: disable=too-few-public-methods
+    invite_code: str
+    success: bool
+    reason: Optional[str]
+
+
+class EnrollmentInviteCodeIn(BaseModel):
+    service_management_hash: str
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {"service_management_hash": "[str] - Hash string having permissions to accept this query"},
+            ]
+        }

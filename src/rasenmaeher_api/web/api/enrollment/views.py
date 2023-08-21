@@ -35,29 +35,36 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentDemoteOut,
     EnrollmentLockIn,
     EnrollmentLockOut,
+    EnrollmentInviteCodeOut,
+    EnrollmentInviteCodeIn,
 )
 
 from ....settings import settings
 from ....sqlitedatabase import sqlite
 
-
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
+
 
 # TODO ERROR LOGGAUS if _success is False, varmaankin riittaa etta se
 #      on ihan ok tuolla sqlite.run_command() funkkarissa
 
 
 async def check_management_hash_permissions(
-    raise_exeption: bool = True, management_hash: str = "", special_rule: str = "enrollment"
+    raise_exeption: bool = True, management_hash: str = "", special_rule: str = "enrollment", hash_like: bool = False
 ) -> bool:
     """
-    Simple function to check if management_hash is found and has permissions.
+    Simple function to check if management_hash is found and has permissions. Use hash_like to use LIKE instead of =.
     """
     # Get special_rules='first-user from managment
-    _q = settings.sqlite_sel_from_management_where_hash_and_special_rule_like.format(
-        special_rules=special_rule, management_hash=management_hash
-    )
+    if hash_like is True:
+        _q = settings.sqlite_sel_from_management_where_hash_like_and_special_rule.format(
+            special_rules=special_rule, management_hash=management_hash
+        )
+    else:
+        _q = settings.sqlite_sel_from_management_where_hash_and_special_rule_like.format(
+            special_rules=special_rule, management_hash=management_hash
+        )
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
@@ -794,3 +801,69 @@ async def post_enrollment_accept(
         success=_success,
         reason="",
     )
+
+
+@router.post("/invitecode/create", response_model=EnrollmentInviteCodeOut)
+async def post_invite_code(
+    request: Request,
+    request_in: EnrollmentInviteCodeIn = Body(
+        None,
+        examples=EnrollmentInviteCodeIn.Config.schema_extra["examples"],
+    ),
+) -> EnrollmentInviteCodeOut:
+    """
+    Create a new invite code
+    """
+
+    # Veriy that the user has permissions to create invite codes ??? is user-admin
+    await check_management_hash_permissions(
+        raise_exeption=True, management_hash=request_in.service_management_hash, special_rule="user-admin"
+    )
+
+    # Check does the user have existing invite code that matches their management hash
+    _existing_invite_code = await check_management_hash_permissions(
+        raise_exeption=False,
+        management_hash=request_in.service_management_hash,
+        special_rule="invite-code",
+        hash_like=True,
+    )
+
+    # Random string for invite-code eg. GLXBT0
+    _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
+
+    # Update existing code if existing LIKE management_hash and invite-code
+    if _existing_invite_code:
+        _q = settings.sqlite_update_from_management_where_management_like.format(
+            special_rules="invite-code",
+            new_management_hash=f"{request_in.service_management_hash}_{_invite_code}",
+            management_hash=request_in.service_management_hash,
+        )
+        _success, _result = sqlite.run_command(_q)
+
+    else:
+        # Create a new invite code for management_hash_GLXBT0
+        _q = settings.sqlite_insert_into_management.format(
+            management_hash=f"{request_in.service_management_hash}_{_invite_code}", special_rules="invite-code"
+        )
+        _success, _result = sqlite.run_command(_q)
+
+    return EnrollmentInviteCodeOut(
+        invite_code=f"{request_in.service_management_hash}_{_invite_code}",
+        success=True,
+        reason="",
+    )
+
+
+@router.get("/invitecode", response_model=List[EnrollmentInviteCodeOut])
+async def get_invite_codes(request: Request) -> List[EnrollmentInviteCodeOut]:
+    """
+    Get all invite codes
+    """
+
+    # Your code logic here
+
+    invite_codes = []
+
+    # Your code logic here
+
+    return invite_codes

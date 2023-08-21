@@ -204,6 +204,12 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         AND management_hash='{management_hash}'
                                     ;"""
 
+    sqlite_sel_from_management_where_hash_like_and_special_rule = """
+                                        SELECT management_hash, special_rules FROM management
+                                        WHERE special_rules='{special_rules}'
+                                        AND management_hash LIKE '%{management_hash}%'
+                                    ;"""
+
     sqlite_sel_from_management_where_special_rule_like = """
                                         SELECT management_hash, special_rules FROM management
                                         WHERE special_rules LIKE '%{special_rules}%'
@@ -225,6 +231,13 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE special_rules LIKE '{special_rules}'
                                     ;"""
 
+    sqlite_update_from_management_where_management_like = """
+                                        UPDATE management
+                                        SET management_hash='{new_management_hash}'
+                                        WHERE special_rules='{special_rules}'
+                                        AND management_hash LIKE '{management_hash}_%'
+                                    ;"""
+
     sqlite_del_from_management_where_hash = """
                                         DELETE FROM management
                                         WHERE management_hash='{management_hash}'
@@ -234,6 +247,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
+    # FIXME: Does not reflect table schema
     sqlite_update_management_rules = """UPDATE management
                                         SET special_rules='{special_rules}'
                                         WHERE work_id_hash='{management_hash}'
