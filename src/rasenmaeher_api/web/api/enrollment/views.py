@@ -37,6 +37,7 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentLockOut,
     EnrollmentInviteCodeOut,
     EnrollmentInviteCodeIn,
+    EnrollmentWithInviteCodeIn,
 )
 
 from ....settings import settings
@@ -869,3 +870,65 @@ async def get_invite_codes(request: Request) -> List[EnrollmentInviteCodeOut]:
     # Your code logic here
 
     return invite_codes
+
+
+@router.post("/invitecode/enroll", response_model=EnrollmentInitOut)
+async def post_enroll_invite_code(
+    request: Request,
+    request_in: EnrollmentWithInviteCodeIn = Body(
+        None,
+        examples=EnrollmentWithInviteCodeIn.Config.schema_extra["examples"],
+    ),
+) -> EnrollmentInitOut:
+    """
+    Enroll with an invite code
+    """
+
+    # Check does the user have existing invite code that matches their management hash
+    _existing_invite_code = await check_management_hash_permissions(
+        raise_exeption=True, management_hash=request_in.service_management_hash, special_rule="invite-code"
+    )
+
+    # First check if there is already enrollment for requested workid
+    _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error sssfe1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    # Skip enrollment if work_id already used
+    if len(_result) > 0:
+        _reason = "Error. work_id has already active enrollment"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    _work_id_hash = "".join(
+        # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
+        [
+            random.choice(string.ascii_lowercase + string.digits)  # nosec B311 - pseudo-random is good enough
+            for n in range(64)
+        ]
+    )
+
+    _q = settings.sqlite_insert_into_enrollment.format(
+        work_id=request_in.work_id,
+        work_id_hash=_work_id_hash,
+        state="init",
+        accepted="",
+        cert_dl_link="na",
+        cert_howto_dl_link="na",
+        mtls_test_link="na",
+        verification_code="na",
+        locked="",
+    )
+
+    _success, _result = sqlite.run_command(_q)
+
+    if _success is False:
+        _reason = "Error. Undefined backend error ssiie1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash, success=_success, reason="")

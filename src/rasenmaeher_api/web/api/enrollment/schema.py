@@ -716,3 +716,20 @@ class EnrollmentInviteCodeIn(BaseModel):
                 {"service_management_hash": "[str] - Hash string having permissions to accept this query"},
             ]
         }
+
+
+class EnrollmentWithInviteCodeIn(BaseModel):
+    service_management_hash: str
+    work_id: str
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {
+                    "service_management_hash": "[str] - Hash string having permissions to accept this query",
+                    "work_id": "[str] User defined username/id/workname",
+                },
+            ]
+        }
