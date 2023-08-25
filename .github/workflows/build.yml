@@ -11,4 +11,4 @@ jobs:
         with:
           submodules: recursive
       - run: docker compose -p rmlocal -f docker-compose-local.yml build
-      - run: docker-compose -p rmlocal -f docker-compose-local.yml up
+      - run: docker compose -p rmlocal -f docker-compose-local.yml up
