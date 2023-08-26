@@ -1,10 +1,13 @@
 """Product registeration API views."""
-from typing import cast
-import json
+from typing import cast, Mapping, Union, Dict, Any
 
 
-from fastapi import APIRouter
-import requests  # FIXME: switch to aiohttp
+from fastapi import APIRouter, Depends, HTTPException, Request
+from libadvian.binpackers import ensure_utf8, ensure_str
+from libpvarki.mtlshelp import get_session
+from libpvarki.middleware.mtlsheader import MTLSHeader
+from multikeyjwt.middleware import JWTBearer
+from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM
 
 
 from .schema import CertificatesResponse, CertificatesRequest, ReadyRequest, GenericResponse
@@ -19,15 +22,21 @@ async def get_ca() -> str:
     Quick and dirty method to get CA from CFSSL
     returns: CA certificate
     """
-    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/info"
+    async with get_session() as session:
+        session.headers.add("Content-Type", "application/json")
+        url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/info"
+        payload: Dict[str, Any] = {}
 
-    payload = json.dumps({})
-    headers = {"Content-Type": "application/json"}
-
-    response = requests.request("POST", url, headers=headers, data=payload, timeout=5)  # FIXME: switch to aiohttp
-    data = response.json().get("result").get("certificate")
-
-    return cast(str, data)
+        # FIXME: Why does this need to be a POST ??
+        async with session.post(url, json=payload, timeout=2.0) as response:
+            data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
+            result = data.get("result")
+            if not result:
+                raise ValueError("CFSSL did not return result")
+            cert = result.get("certificate")
+            if not cert:
+                raise ValueError("CFSSL did not return certificate")
+            return cast(str, cert)
 
 
 async def sign_csr(csr: str) -> str:
@@ -36,25 +45,44 @@ async def sign_csr(csr: str) -> str:
     params: csr
     returns: certificate
     """
-    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/sign"
+    async with get_session() as session:
+        session.headers.add("Content-Type", "application/json")
+        url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/sign"
+        payload = {"certificate_request": csr}
+        async with session.post(url, json=payload, timeout=2.0) as response:
+            data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
+            result = data.get("result")
+            if not result:
+                raise ValueError("CFSSL did not return result")
+            cert = result.get("certificate")
+            if not cert:
+                raise ValueError("CFSSL did not return certificate")
+            return cast(str, cert)
 
-    payload = json.dumps({"certificate_request": csr})
-    headers = {"Content-Type": "application/json"}
 
-    response = requests.request("POST", url, headers=headers, data=payload, timeout=5)  # FIXME: switch to aiohttp
-    data = response.json().get("result").get("certificate")
-
-    return cast(str, data)
-
-
-# FIXME: Require JWT auth
-@router.post("/sign_csr")
+@router.post("/sign_csr", dependencies=[Depends(JWTBearer(auto_error=True))])
 async def return_ca_and_sign_csr(
+    request: Request,
     certs: CertificatesRequest,
 ) -> CertificatesResponse:
     """Used by product integration API to request signing of their mTLS client cert"""
+    jwtpayload = request.state.jwt
+    if "csr" not in jwtpayload or not jwtpayload["csr"]:
+        raise HTTPException(403, "JWT does not authorize signing")
+    if "nonce" not in jwtpayload or not jwtpayload["nonce"]:
+        raise HTTPException(403, "JWT does not provide nonce")
+
+    # TODO: **Actually** check that the nonce has not been used yet
+    nonce_used = False
+    if nonce_used:
+        raise HTTPException(403, "This token was already used to sign a cert")
+
+    # PONDER: Should we check jwtpayload["sub"] is among the products in KRAFTWERK manifest ??
+
     cachain = await get_ca()
     certificate = await sign_csr(certs.csr)
+
+    # TODO: mark the nonce as used
 
     return CertificatesResponse(
         ca=cachain,
@@ -62,12 +90,19 @@ async def return_ca_and_sign_csr(
     )
 
 
-# FIXME: Require mTLS auth
-@router.post("/renew_csr")
+@router.post("/renew_csr", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def renew_csr(
+    request: Request,
     certs: CertificatesRequest,
 ) -> CertificatesResponse:
     """Used by product integration API to request renew of their mTLS client cert"""
+    req = load_certificate_request(FILETYPE_PEM, ensure_utf8(certs.csr))
+    req_dn = dict(req.get_subject().get_components())
+    peer_dn = request.state.mtlsdn
+    # Make sure the renew is for same name
+    if ensure_str(req_dn[b"CN"]) != ensure_str(peer_dn["CN"]):
+        raise HTTPException(403, "Renewal must be for same name")
+
     cachain = await get_ca()
     certificate = await sign_csr(certs.csr)
 
@@ -77,8 +112,7 @@ async def renew_csr(
     )
 
 
-# FIXME: Require mTLS auth
-@router.post("/ready")
+@router.post("/ready", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def signal_ready(
     meta: ReadyRequest,
 ) -> GenericResponse:
