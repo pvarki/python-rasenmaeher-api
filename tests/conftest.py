@@ -13,6 +13,7 @@ from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from pr
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod  # pylint: disable=unused-import
+from pytest_docker.plugin import Services
 
 from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.settings import settings
@@ -43,10 +44,17 @@ def verifier() -> Verifier:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def jwtauth_env_config(monkeysession: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def session_env_config(
+    monkeysession: pytest.MonkeyPatch, docker_ip: str, docker_services: Services
+) -> Generator[None, None, None]:
     """set the JWT auth config"""
     with monkeysession.context() as mpatch:
         mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
+        mpatch.setenv("RM_CFSSL_PORT", str(docker_services.port_for("cfssl", 7777)))
+        mpatch.setenv("RM_CFSSL_HOST", f"http://{docker_ip}")
+        # Apparently we are too late in setting the env for settings to take effect
+        mpatch.setattr(settings, "cfssl_port", docker_services.port_for("cfssl", 7777))
+        mpatch.setattr(settings, "cfssl_host", f"http://{docker_ip}")
         yield None
 
 

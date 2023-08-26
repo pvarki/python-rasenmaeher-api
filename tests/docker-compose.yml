@@ -1,0 +1,23 @@
+version: '3.4'
+
+services:
+  cfssl:
+    image: pvarki/cfssl:latest
+    build:
+      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
+      dockerfile: Dockerfile
+    environment:
+      INT_SHARED_CERT_FOLDER: /ca_public
+      CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+      CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
+    ports:
+      - '7777:7777'
+    volumes:
+      - ./data/cfssl:/data/persistent
+      - ./data/ca_public:/ca_public
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

@@ -101,6 +101,7 @@ httpx = ">=0.23,<1.0" # caret behaviour on 0.x is to lock to 0.x.*
 types-requests = "^2.31"
 types-pyopenssl = "^23.1"
 async-asgi-testclient = "^1.4"
+pytest-docker = "^2.0"
 
 
 [build-system]

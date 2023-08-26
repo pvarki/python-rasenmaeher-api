@@ -253,6 +253,9 @@ the "tox" target in the Dockerfile::
     docker build --ssh default --target tox -t rasenmaeher_api:tox .
     docker run --rm -it -v `pwd`":/app" `echo $DOCKER_SSHAGENT` rasenmaeher_api:tox
 
+NOTE: This will not work from the git submodule directory in the integration repo, docker tests
+must be run from the original repo.
+
 Production docker
 ^^^^^^^^^^^^^^^^^
 
