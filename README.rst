@@ -1,3 +1,5 @@
+![Build Status](https://github.com/pvarki/docker-rasenmaeher-integration/actions/workflows/build.yml/badge.svg)
+
 ========================
 RASENMAEHER integrations
 ========================
