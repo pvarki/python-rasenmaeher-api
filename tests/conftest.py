@@ -21,6 +21,7 @@ LOGGER = logging.getLogger(__name__)
 DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
+
 # pylint: disable=redefined-outer-name
 @pytest.fixture(scope="session")
 def issuer_cl() -> Issuer:
