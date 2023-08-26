@@ -821,7 +821,7 @@ async def post_invite_code(
 
     # Veriy that the user has permissions to create invite codes ??? is user-admin
     await check_management_hash_permissions(
-        raise_exeption=True, management_hash=request_in.service_management_hash, special_rule="user-admin"
+        raise_exeption=True, management_hash=request_in.service_management_hash, special_rule="enrollment"
     )
 
     # Check does the user have existing invite code that matches their management hash
