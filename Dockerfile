@@ -28,6 +28,13 @@ RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && git config --global --add safe.directory /app \
     && true
 
+COPY . /app
+WORKDIR /app
+RUN poetry install --no-interaction --no-ansi \
+    && poetry run docker/pre_commit_init.sh \
+    && true
+
+
 ######################
 # Base builder image #
 ######################
