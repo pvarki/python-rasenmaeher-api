@@ -1,12 +1,14 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "0.3.4"
+version = "0.4.0"
 description = "python-rasenmaeher-api"
-authors = ["Aciid <703382+Aciid@users.noreply.github.com>"]
-# FIXME: Doublecheck these values
-#homepage = "https://gitlab.com/advian-oss/python-rasenmaeher-api/"
-#repository = "https://gitlab.com/advian-oss/python-rasenmaeher-api/"
-#license = "FIXME"
+authors = [
+    "Aciid <703382+Aciid@users.noreply.github.com>",
+    "Eero 'rambo' af Heurlin <eero.afheurlin@iki.fi>",
+]
+homepage = "https://github.com/pvarki/python-rasenmaeher-api"
+repository = "https://github.com/pvarki/python-rasenmaeher-api"
+license = "MIT"
 readme = "README.rst"
 
 [tool.poetry.scripts]
