@@ -11,4 +11,6 @@ jobs:
         with:
           submodules: recursive
       - run: docker compose -p rmlocal -f docker-compose-local.yml build
-      - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2 && docker compose -p rmlocal -f docker-compose-local.yml up
+      - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2
+      - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2
+      - run: docker start rmlocal-rmapi-1 && curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
