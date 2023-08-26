@@ -9,8 +9,9 @@ from multikeyjwt import Issuer, Verifier
 from multikeyjwt.config import Secret
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 import pytest_asyncio  # pylint: disable=import-error
-from _pytest.fixtures import SubRequest
+from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
 from libadvian.logging import init_logging
+from libadvian.binpackers import uuid_to_b64
 from libadvian.testhelpers import monkeysession  # pylint: disable=unused-import
 
 from rasenmaeher_api.web.application import get_app
@@ -61,6 +62,21 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
 
 
 @pytest_asyncio.fixture()
+async def kraftwerk_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
+    """Client with KRAFTWERK style JWT"""
+    async with TestClient(get_app()) as instance:
+        token = issuer_cl.issue(
+            {
+                "sub": "productname",
+                "csr": True,
+                "nonce": uuid_to_b64(uuid.uuid4()),
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
+@pytest_asyncio.fixture()
 async def mtls_client() -> AsyncGenerator[TestClient, None]:
     """Client with mocked NGinx mTLS headers"""
     # TODO: make sure this user is in db, should it be admin too ??
@@ -81,9 +97,6 @@ async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
     """Create default client"""
     _request_params: Dict[Any, Any] = request.param
     async with TestClient(get_app()) as instance:
-        # print("DEBUG FIXTURE PARAMS")
-        # print(request.param)
-        # print("DONE DEBUG FIXTURE PARAMS")
         if "xclientcert" in _request_params.keys() and _request_params["xclientcert"] is True:
             LOGGER.debug(
                 "set header '{}:'{}'".format(
