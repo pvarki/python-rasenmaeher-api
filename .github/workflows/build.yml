@@ -16,8 +16,9 @@ jobs:
     - name: docker compose up first attempt
       id: compose_up_first
       run: docker compose -p rmlocal -f docker-compose-local.yml up
+      continue-on-error: true
     - name: docker compose up second attempt
-      if: ${{ failure() && steps.compose_up_first.conclusion == 'failure' }}
+      if: ${{ steps.compose_up_first.outcome == 'failure' }}
       id: compose_up_second
       run: docker compose -p rmlocal -f docker-compose-local.yml up
       continue-on-error: true
