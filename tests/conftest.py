@@ -12,7 +12,7 @@ import pytest_asyncio  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
-from libadvian.testhelpers import monkeysession  # pylint: disable=unused-import
+from libadvian.testhelpers import monkeysession, nice_tmpdir_mod  # pylint: disable=unused-import
 
 from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.settings import settings
@@ -21,6 +21,9 @@ init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
+
+
+# FIXME: Set environment so the mTLS client loads certs from a temp dir
 
 
 # pylint: disable=redefined-outer-name

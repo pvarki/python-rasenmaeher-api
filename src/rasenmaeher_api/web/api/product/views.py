@@ -2,12 +2,12 @@
 from typing import cast, Mapping, Union, Dict, Any
 
 
+import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
 from libadvian.binpackers import ensure_utf8, ensure_str
-from libpvarki.mtlshelp import get_session
 from libpvarki.middleware.mtlsheader import MTLSHeader
 from multikeyjwt.middleware import JWTBearer
-from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM
+from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
 
 
 from .schema import CertificatesResponse, CertificatesRequest, ReadyRequest, GenericResponse
@@ -22,7 +22,7 @@ async def get_ca() -> str:
     Quick and dirty method to get CA from CFSSL
     returns: CA certificate
     """
-    async with get_session() as session:
+    async with aiohttp.ClientSession() as session:
         session.headers.add("Content-Type", "application/json")
         url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/info"
         payload: Dict[str, Any] = {}
@@ -45,7 +45,7 @@ async def sign_csr(csr: str) -> str:
     params: csr
     returns: certificate
     """
-    async with get_session() as session:
+    async with aiohttp.ClientSession() as session:
         session.headers.add("Content-Type", "application/json")
         url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/sign"
         payload = {"certificate_request": csr}

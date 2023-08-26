@@ -11,6 +11,9 @@ from pydantic import BaseSettings
 TEMP_DIR = Path(gettempdir())
 LOGGER = logging.getLogger(__name__)
 
+# FIXME: RASENMAEHER needs to create it's own mTLS client cert and get is signed by CFSSL in some init process
+#        said cert is used for communication with the product integration APIs
+
 
 class LogLevel(str, enum.Enum):  # noqa: WPS600
     """Possible log levels."""
