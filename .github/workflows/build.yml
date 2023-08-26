@@ -4,14 +4,26 @@ on:
       branches-ignore:
         - main
 jobs:
-    rmlocal:
-      runs-on: ubuntu-latest
-      steps:
-      - uses: actions/checkout@v3
-        with:
-          submodules: recursive
-      - run: docker compose -p rmlocal -f docker-compose-local.yml build
-      - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2
-      - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2
-      - run: docker start rmlocal-rmapi-1; sleep 30; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
-      - run: docker start rmlocal-rmnginx-1; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
+  rmlocal:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - run: docker compose -p rmlocal -f docker-compose-local.yml build
+    - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2
+    - run: docker compose -p rmlocal -f docker-compose-local.yml up || >&2
+    - run: docker start rmlocal-rmapi-1; sleep 30; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
+    - run: docker start rmlocal-rmnginx-1; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
+
+  rmdev:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: recursive
+    - run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
+    - run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up || >&2
+    - run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up || >&2
+    - run: docker start rmdev-rmapi-1; sleep 30; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
+    - run: docker start rmdev-rmnginx-1; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
