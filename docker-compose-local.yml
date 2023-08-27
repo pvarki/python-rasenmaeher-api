@@ -56,12 +56,11 @@ services:
     networks:
       - canet
     environment:
-      # This does not seem to work correctly, I had to manually mount the volume and copy a chain there
       INT_SHARED_CERT_FOLDER: /ca_public
       CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
       CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
     volumes:
-      - cfssl_data:/opt/cfssl/persistent
+      - cfssl_data:/data/persistent
       - ca_public:/ca_public
     healthcheck:
       test: 'true'  # FIXME
@@ -146,7 +145,7 @@ services:
       start_period: 15s
 
   keycloak:
-    image: bitnami/keycloak:latest
+    image: bitnami/keycloak:21.0.2
     environment:
       <<: [*kcdbconfig_env, *keycloak_users_env]
       KC_HEALTH_ENABLED: true
