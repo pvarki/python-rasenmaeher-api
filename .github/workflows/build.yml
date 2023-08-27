@@ -5,18 +5,33 @@ on:
         - main
 
 jobs:
-    tox:
-      runs-on: ubuntu-latest
-      steps:
-      - uses: pvarki/ci@main
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
-          dockerfile-target: tox
-          image-tag: rasenmaeher_api:tox
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install
+      - name: Do pre-commit checks (black, lint, mypy)
+        run: |
+          poetry run docker/pre_commit_init.sh
+      - name: Test with pytest
+        run: |
+          poetry run py.test -v
 
-    devel_shell:
-      runs-on: ubuntu-latest
-      steps:
-      - uses: pvarki/ci@main
-        with:
-          dockerfile-target: devel_shell
-          image-tag: rasenmaeher_api:devel_shell
+  devel_shell:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: pvarki/ci@main
+      with:
+        dockerfile-target: devel_shell
+        image-tag: rasenmaeher_api:devel_shell
