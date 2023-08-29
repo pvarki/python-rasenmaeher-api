@@ -5,18 +5,15 @@ import logging
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from rasenmaeher_api.web.api.enrollment.schema import (
+    EnrollmentConfigTaskDone,
     EnrollmentStatusIn,
     EnrollmentStatusOut,
     EnrollmentAcceptIn,
     EnrollmentAcceptOut,
-    EnrollmentAddServiceManagementOut,
     EnrollmentAddServiceManagementIn,
-    EnrollmentConfigSetDLCertOut,
     EnrollmentConfigSetDLCertIn,
-    EnrollmentConfigSetStateOut,
     EnrollmentConfigSetStateIn,
     EnrollmentConfigSetMtlsIn,
-    EnrollmentConfigSetMtlsOut,
     EnrollmentGenVerifiIn,
     EnrollmentGenVerifiOut,
     EnrollmentShowVerificationCodeIn,
@@ -26,18 +23,17 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentListIn,
     EnrollmentListOut,
     EnrollmentPromoteIn,
-    EnrollmentPromoteOut,
     EnrollmentInitIn,
     EnrollmentInitOut,
     EnrollmentDeliverIn,
     EnrollmentDeliverOut,
     EnrollmentDemoteIn,
-    EnrollmentDemoteOut,
     EnrollmentLockIn,
-    EnrollmentLockOut,
-    EnrollmentInviteCodeOut,
-    EnrollmentInviteCodeIn,
-    EnrollmentWithInviteCodeIn,
+    EnrollmentIsInvitecodeActiveIn,
+    EnrollmentIsInvitecodeActiveOut,
+    EnrollmentInviteCodeCreateIn,
+    EnrollmentInviteCodeCreateOut,
+    EnrollmentInviteCodeEnrollIn,
 )
 
 from ....settings import settings
@@ -45,10 +41,6 @@ from ....sqlitedatabase import sqlite
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
-
-
-# TODO ERROR LOGGAUS if _success is False, varmaankin riittaa etta se
-#      on ihan ok tuolla sqlite.run_command() funkkarissa
 
 
 async def check_management_hash_permissions(
@@ -158,7 +150,6 @@ async def post_generate_verification_code(
     Update/Generate verification_code on database for given work_id or work_id_hash
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
@@ -185,11 +176,7 @@ async def post_generate_verification_code(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentGenVerifiOut(
-        verification_code=f"{_verification_code}",
-        success=True,
-        reason="",
-    )
+    return EnrollmentGenVerifiOut(verification_code=f"{_verification_code}")
 
 
 @router.get("/show-verification-code-info", response_model=EnrollmentShowVerificationCodeOut)
@@ -236,8 +223,6 @@ async def request_show_verification_code(
         state=_result[0][2],
         accepted=_result[0][3],
         locked=_result[0][8],
-        success=True,
-        reason="",
     )
 
 
@@ -247,11 +232,9 @@ async def request_have_i_been_accepted(
     params: EnrollmentHaveIBeenAcceptedIn = Depends(),
 ) -> EnrollmentHaveIBeenAcceptedOut:
     """
-    /have-i-been-accepted?service_management_hash=dasqdsdasqwe&work_id_hash=jaddajaa
+    /have-i-been-accepted?work_id_hash=jaddajaa
     Return's True/False in 'have_i_been_accepted'
     """
-
-    await check_management_hash_permissions(raise_exeption=True, management_hash=params.service_management_hash)
 
     await is_workid_or_workidhash_given(raise_exeption=True, work_id=None, work_id_hash=params.work_id_hash)
 
@@ -264,24 +247,23 @@ async def request_have_i_been_accepted(
         raise HTTPException(status_code=500, detail=_reason)
 
     if _result[0][3] != "":
-        return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=True, success=True, reason="")
+        return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=True)
 
-    return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=False, success=True, reason="")
+    return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=False)
 
 
-@router.post("/config/set-state", response_model=EnrollmentConfigSetStateOut)
+@router.post("/config/set-state", response_model=EnrollmentConfigTaskDone)
 async def post_config_set_state(
     request: Request,
     request_in: EnrollmentConfigSetStateIn = Body(
         None,
         examples=[EnrollmentConfigSetStateIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigSetStateOut:
+) -> EnrollmentConfigTaskDone:
     """
     Update/Set state/status for work_id/user/enrollment using either work_id_hash or work_id.
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
@@ -295,18 +277,18 @@ async def post_config_set_state(
         _reason = "Error. Undefined backend error q_ssues1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
-    return EnrollmentConfigSetStateOut(success=True, reason="")
+    return EnrollmentConfigTaskDone(success_message="State was set")
 
 
 # mtls_test_link
-@router.post("/config/set-mtls-test-link", response_model=EnrollmentConfigSetMtlsOut)
+@router.post("/config/set-mtls-test-link", response_model=EnrollmentConfigTaskDone)
 async def post_config_set_mtls_test_link(
     request: Request,
     request_in: EnrollmentConfigSetMtlsIn = Body(
         None,
         examples=[EnrollmentConfigSetMtlsIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigSetMtlsOut:
+) -> EnrollmentConfigTaskDone:
     """
     Set MTLS test link for one or all work_id's
     """
@@ -314,12 +296,7 @@ async def post_config_set_mtls_test_link(
         _reason = "Error. Both work_id and work_id_hash are undefined. At least one is required when \
 'set_for_all' is set to False"
         LOGGER.error("{} : {}".format(request.url, _reason))
-        return EnrollmentConfigSetMtlsOut(
-            success=False,
-            reason=_reason,
-        )
-
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
+        raise HTTPException(status_code=400, detail=_reason)
 
     if request_in.set_for_all is True:
         _q = settings.sqlite_update_enrollment_mtls_test_link_all.format(mtls_test_link=request_in.mtls_test_link)
@@ -339,22 +316,21 @@ async def post_config_set_mtls_test_link(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentConfigSetMtlsOut(success=True, reason="")
+    return EnrollmentConfigTaskDone(success_message="Test link was set")
 
 
-@router.post("/config/set-cert-dl-link", response_model=EnrollmentConfigSetDLCertOut)
+@router.post("/config/set-cert-dl-link", response_model=EnrollmentConfigTaskDone)
 async def post_config_set_cert_dl_link(
     request: Request,
     request_in: EnrollmentConfigSetDLCertIn = Body(
         None,
         examples=[EnrollmentConfigSetDLCertIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigSetDLCertOut:
+) -> EnrollmentConfigTaskDone:
     """
     Store certificate or howto download link url for work_id (enrollment) using either work_id or work_id_hash
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
@@ -389,17 +365,17 @@ async def post_config_set_cert_dl_link(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentConfigSetDLCertOut(success=True, reason="")
+    return EnrollmentConfigTaskDone(success_message="Cert DL link was set")
 
 
-@router.post("/config/add-service-management-hash", response_model=EnrollmentAddServiceManagementOut)
+@router.post("/config/add-service-management-hash", response_model=EnrollmentConfigTaskDone)
 async def post_config_add_manager(
     request: Request,
     request_in: EnrollmentAddServiceManagementIn = Body(
         None,
         examples=[EnrollmentAddServiceManagementIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentAddServiceManagementOut:
+) -> EnrollmentConfigTaskDone:
     """
     Add new "management hash" with certain permissions. This is not same as users/work-id's promotion to admin.
     You should think this as of adding "machine admin permissions". User related admin promotions should
@@ -411,8 +387,6 @@ async def post_config_add_manager(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.service_management_hash)
-
     _q = settings.sqlite_insert_into_management.format(
         management_hash=request_in.new_service_management_hash, special_rules=request_in.permissions_str
     )
@@ -423,7 +397,7 @@ async def post_config_add_manager(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentAddServiceManagementOut(success=_success, reason="")
+    return EnrollmentConfigTaskDone(success_message="Service management hash added")
 
 
 @router.get("/status", response_model=EnrollmentStatusOut)
@@ -434,8 +408,6 @@ async def request_enrolment_status(
     """
     Check the status for given work_id (enrollment). status=None means that there is no enrollment with given work_id
     """
-
-    await check_management_hash_permissions(raise_exeption=True, management_hash=params.service_management_hash)
 
     _q = settings.sqlite_sel_from_enrollment.format(work_id=params.work_id)
     _success, _result = sqlite.run_command(_q)
@@ -457,9 +429,7 @@ async def request_enrolment_status(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentStatusOut(
-        work_id=params.work_id, work_id_hash=_work_id_hash, status=_status, success=_success, reason=""
-    )
+    return EnrollmentStatusOut(work_id=params.work_id, work_id_hash=_work_id_hash, status=_status)
 
 
 @router.get("/list", response_model=EnrollmentListOut)
@@ -468,7 +438,7 @@ async def request_enrollment_list(
     params: EnrollmentListIn = Depends(),
 ) -> EnrollmentListOut:
     """
-    /list?service_management_hash=dasqdsdasqwe
+    /list?user_management_hash=dasqdsdasqwe
     Return users/work-id's/enrollments. If 'accepted' has something else than '', it has been accepted.
     Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'' } ]
     """
@@ -491,7 +461,7 @@ async def request_enrollment_list(
     for _id in _result:
         _work_id_list.append({"work_id": _id[0], "work_id_hash": _id[1], "state": _id[2], "accepted": _id[3]})
 
-    return EnrollmentListOut(work_id_list=_work_id_list, success=True, reason="")
+    return EnrollmentListOut(work_id_list=_work_id_list)
 
 
 @router.post("/init", response_model=EnrollmentInitOut)
@@ -550,17 +520,17 @@ async def request_enrollment_init(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash, success=_success, reason="")
+    return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash)
 
 
-@router.post("/promote", response_model=EnrollmentPromoteOut)
+@router.post("/promote", response_model=EnrollmentConfigTaskDone)
 async def request_enrollment_promote(
     request: Request,
     request_in: EnrollmentPromoteIn = Body(
         None,
         examples=[EnrollmentPromoteIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentPromoteOut:
+) -> EnrollmentConfigTaskDone:
     """
     "Promote" work_id/user/enrollment to have 'admin' rights
     """
@@ -606,17 +576,17 @@ async def request_enrollment_promote(
             LOGGER.error("{} : {}".format(request.url, _reason))
             raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentPromoteOut(success=True, reason="")
+    return EnrollmentConfigTaskDone(success_message="Promote done")
 
 
-@router.post("/demote", response_model=EnrollmentDemoteOut)
+@router.post("/demote", response_model=EnrollmentConfigTaskDone)
 async def request_enrollment_demote(
     request: Request,
     request_in: EnrollmentDemoteIn = Body(
         None,
         examples=[EnrollmentDemoteIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentDemoteOut:
+) -> EnrollmentConfigTaskDone:
     """
     "Demote" work_id/user/enrollment from having 'admin' rights. work_id_hash can be used too.
     """
@@ -667,17 +637,17 @@ async def request_enrollment_demote(
             LOGGER.error("{} : {}".format(request.url, _reason))
             raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentDemoteOut(success=True, reason="")
+    return EnrollmentConfigTaskDone(success_message="Demote done")
 
 
-@router.post("/lock", response_model=EnrollmentLockOut)
+@router.post("/lock", response_model=EnrollmentConfigTaskDone)
 async def request_enrollment_lock(
     request: Request,
     request_in: EnrollmentLockIn = Body(
         None,
         examples=[EnrollmentLockIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentLockOut:
+) -> EnrollmentConfigTaskDone:
     """
     Lock work_id/user/enrollment so it cannot be used anymore.
     """
@@ -705,7 +675,7 @@ async def request_enrollment_lock(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentLockOut(success=True, reason="")
+    return EnrollmentConfigTaskDone(success_message="Lock task done")
 
 
 @router.get("/deliver", response_model=EnrollmentDeliverOut)
@@ -716,8 +686,6 @@ async def request_enrollment_status(
     """
     Deliver download url link using work_id_hash
     """
-
-    await check_management_hash_permissions(raise_exeption=True, management_hash=params.service_management_hash)
 
     _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=params.work_id_hash)
     _success, _result = sqlite.run_command(_q)
@@ -734,27 +702,15 @@ async def request_enrollment_status(
 
     if _result[0][2] != "ReadyForDelivery":
         _reason = "Enrollment is still in progress or it hasn't been accepted."
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        return EnrollmentDeliverOut(
-            work_id="",
-            work_id_hash=params.work_id_hash,
-            state=_result[0][2],
-            cert_download_link="",
-            howto_download_link="",
-            mtls_test_link="",
-            success=False,
-            reason=_reason,
-        )
+        LOGGER.info("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=202, detail=_reason)
 
     return EnrollmentDeliverOut(
         work_id=_result[0][0],
         work_id_hash=params.work_id_hash,
-        success=True,
         cert_download_link=_result[0][4],
         howto_download_link=_result[0][5],
         mtls_test_link=_result[0][6],
-        reason="",
-        state=_result[0][2],
     )
 
 
@@ -796,24 +752,19 @@ async def post_enrollment_accept(
         raise HTTPException(status_code=500, detail=_reason)
 
     return EnrollmentAcceptOut(
-        work_id="",
-        work_id_hash=request_in.work_id_hash,
-        management_hash=request_in.user_management_hash,
-        success=_success,
-        reason="",
+        work_id="", work_id_hash=request_in.work_id_hash, management_hash=request_in.user_management_hash
     )
 
 
-@router.post("/invitecode/create", response_model=EnrollmentInviteCodeOut)
+@router.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
 async def post_invite_code(
-    request: Request,
-    request_in: EnrollmentInviteCodeIn = Body(
+    request_in: EnrollmentInviteCodeCreateIn = Body(
         None,
-        examples=EnrollmentInviteCodeIn.Config.schema_extra["examples"],
+        examples=EnrollmentInviteCodeCreateIn.Config.schema_extra["examples"],
     ),
-) -> EnrollmentInviteCodeOut:
+) -> EnrollmentInviteCodeCreateOut:
     """
-    Create a new invite code using service_management_hash
+    Create a new invite code using user_management_hash
     This method checks for permission user-admin
     This method checks for existing invite code and updates it if found
     This method creates invite code if not found
@@ -821,73 +772,80 @@ async def post_invite_code(
 
     # Veriy that the user has permissions to create invite codes ??? is user-admin
     await check_management_hash_permissions(
-        raise_exeption=True, management_hash=request_in.service_management_hash, special_rule="enrollment"
+        raise_exeption=True, management_hash=request_in.user_management_hash, special_rule="enrollment"
     )
 
     # Check does the user have existing invite code that matches their management hash
     _existing_invite_code = await check_management_hash_permissions(
         raise_exeption=False,
-        management_hash=request_in.service_management_hash,
+        management_hash=request_in.user_management_hash,
         special_rule="invite-code",
         hash_like=True,
     )
 
     # Random string for invite-code eg. GLXBT0
-    _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))  # nosec B311
+    _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))  # nosec B311
 
     # Update existing code if existing LIKE management_hash and invite-code
     if _existing_invite_code:
         _q = settings.sqlite_update_from_management_where_management_like.format(
             special_rules="invite-code",
-            new_management_hash=f"{request_in.service_management_hash}_{_invite_code}",
-            management_hash=request_in.service_management_hash,
+            new_management_hash=f"{request_in.user_management_hash}_{_invite_code}",
+            management_hash=request_in.user_management_hash,
         )
         _success, _result = sqlite.run_command(_q)
 
     else:
         # Create a new invite code for management_hash_GLXBT0
         _q = settings.sqlite_insert_into_management.format(
-            management_hash=f"{request_in.service_management_hash}_{_invite_code}", special_rules="invite-code"
+            management_hash=f"{request_in.user_management_hash}_{_invite_code}", special_rules="invite-code"
         )
         _success, _result = sqlite.run_command(_q)
 
-    return EnrollmentInviteCodeOut(
-        invite_code=f"{request_in.service_management_hash}_{_invite_code}",
-        success=True,
-        reason="",
+    return EnrollmentInviteCodeCreateOut(invite_code=f"{_invite_code}")
+
+
+@router.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
+async def get_invite_codes(
+    params: EnrollmentIsInvitecodeActiveIn = Depends(),
+) -> EnrollmentIsInvitecodeActiveOut:
+    """
+    /invitecode?code=xxx
+    Returns true/false if the code is usable or not
+    """
+
+    # Check if there is a invite code matching the one in request
+    _existing_invite_code = await check_management_hash_permissions(
+        raise_exeption=False, management_hash=params.invitecode, special_rule="invite-code", hash_like=True
     )
 
+    if _existing_invite_code is False:
+        return EnrollmentIsInvitecodeActiveOut(invitecode_is_active=False)
 
-# FIXME: Create a real endpoint from UX React teams requirement
-@router.get("/invitecode", response_model=List[EnrollmentInviteCodeOut])
-async def get_invite_codes(request: Request) -> List[EnrollmentInviteCodeOut]:
-    """
-    Get all invite codes
-    """
-
-    invite_codes = []
-
-    # Your code logic here
-
-    return invite_codes
+    return EnrollmentIsInvitecodeActiveOut(invitecode_is_active=True)
 
 
 @router.post("/invitecode/enroll", response_model=EnrollmentInitOut)
 async def post_enroll_invite_code(
     request: Request,
-    request_in: EnrollmentWithInviteCodeIn = Body(
+    request_in: EnrollmentInviteCodeEnrollIn = Body(
         None,
-        examples=EnrollmentWithInviteCodeIn.Config.schema_extra["examples"],
+        examples=EnrollmentInviteCodeEnrollIn.Config.schema_extra["examples"],
     ),
 ) -> EnrollmentInitOut:
     """
     Enroll with an invite code
     """
 
-    # Check does the user have existing invite code that matches their management hash
+    # Check if there is a invite code matching the one in request
     _existing_invite_code = await check_management_hash_permissions(
-        raise_exeption=True, management_hash=request_in.service_management_hash, special_rule="invite-code"
+        raise_exeption=False, management_hash=request_in.invitecode, special_rule="invite-code", hash_like=True
     )
+
+    if _existing_invite_code is False:
+        _reason = "Error. invitecode not valid."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
 
     # First check if there is already enrollment for requested workid
     _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
@@ -931,4 +889,4 @@ async def post_enroll_invite_code(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash, success=_success, reason="")
+    return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash)

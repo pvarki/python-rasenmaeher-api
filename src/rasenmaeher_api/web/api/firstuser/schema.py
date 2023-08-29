@@ -1,5 +1,5 @@
 """Schema for enrollment."""
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 from pydantic import BaseModel
 
 
@@ -7,8 +7,6 @@ class FirstuserIsActiveOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
     api_is_active: bool
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -16,8 +14,6 @@ class FirstuserIsActiveOut(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "example": {
                 "api_is_active": "[bool] - True = this api (/firstuser) can still be used",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
 
@@ -52,8 +48,6 @@ class FirstuserCheckCodeOut(BaseModel):  # pylint: disable=too-few-public-method
     """Enrollment config add manager schema out"""
 
     code_ok: bool
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -61,8 +55,6 @@ class FirstuserCheckCodeOut(BaseModel):  # pylint: disable=too-few-public-method
         schema_extra = {
             "example": {
                 "code_ok": "[bool] - True = Requested 'first use admin code' was found and can be used.",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
 
@@ -97,8 +89,6 @@ class FirstuserDisableOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
     api_disabled: bool
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -106,8 +96,6 @@ class FirstuserDisableOut(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "example": {
                 "api_disabled": "[bool] - True = this api (/firstuser) should be disabled now.",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
 
@@ -142,8 +130,6 @@ class FirstuserEnableOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
     api_enabled: bool
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -151,8 +137,6 @@ class FirstuserEnableOut(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "example": {
                 "api_enabled": "[bool] - True = this api (/firstuser) should be enabled now.",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
 
@@ -191,8 +175,6 @@ class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
     admin_added: bool
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -200,8 +182,6 @@ class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "example": {
                 "admin_added": "[bool] - True = admin user were added",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
 
@@ -240,8 +220,6 @@ class FirstuserDeleteAdminOut(BaseModel):  # pylint: disable=too-few-public-meth
     """Enrollment config add manager schema out"""
 
     admin_removed: bool
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -249,8 +227,6 @@ class FirstuserDeleteAdminOut(BaseModel):  # pylint: disable=too-few-public-meth
         schema_extra = {
             "example": {
                 "admin_removed": "[bool] - True = admin user were removed",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }
 
@@ -285,8 +261,6 @@ class FirstuserListAdminOut(BaseModel):  # pylint: disable=too-few-public-method
     """Enrollment config add manager schema out"""
 
     admin_list: List[Dict[Any, Any]]
-    success: bool
-    reason: Optional[str]
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -294,7 +268,5 @@ class FirstuserListAdminOut(BaseModel):  # pylint: disable=too-few-public-method
         schema_extra = {
             "example": {
                 "admin_list": "list[str] - list of 'admin id's' found...",
-                "success": "[bool] - Task completed succesfully/failed",
-                "reason": "[opt][str] - Usually contiains some info why task might have failed",
             }
         }

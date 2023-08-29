@@ -58,9 +58,9 @@ async def get_is_active() -> FirstuserIsActiveOut:
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active:
-        return FirstuserIsActiveOut(api_is_active=True, success=_success, reason="")
+        return FirstuserIsActiveOut(api_is_active=True)
 
-    return FirstuserIsActiveOut(api_is_active=False, success=_success, reason="/firstuser API is disabled")
+    return FirstuserIsActiveOut(api_is_active=False)
 
 
 # /check-code
@@ -90,9 +90,9 @@ async def get_check_code(
 
     for _first_user in _result:
         if _first_user[0] == params.temp_admin_code:
-            return FirstuserCheckCodeOut(code_ok=True, success=True, reason="")
+            return FirstuserCheckCodeOut(code_ok=True)
 
-    return FirstuserCheckCodeOut(code_ok=False, success=True, reason="")
+    return FirstuserCheckCodeOut(code_ok=False)
 
 
 # /disable
@@ -112,7 +112,7 @@ async def post_disable(
     _api_active = await check_if_api_is_active()
 
     if _api_active is False:
-        _reason = "/firstuser API is disabled"
+        _reason = "/firstuser API is already disabled"
         raise HTTPException(status_code=410, detail=_reason)
 
     # Check that the permit_str is found from management table
@@ -146,7 +146,7 @@ async def post_disable(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return FirstuserDisableOut(api_disabled=True, success=True, reason="")
+    return FirstuserDisableOut(api_disabled=True)
 
 
 # /enable
@@ -167,7 +167,7 @@ async def post_enable(
 
     if _api_active is True:
         _reason = "/firstuser API already enabled"
-        return FirstuserEnableOut(api_enabled=True, success=False, reason="API already enabled")
+        raise HTTPException(status_code=410, detail=_reason)
 
     # Check that the permit_str is found from management table
     _q = settings.sqlite_sel_from_management.format(management_hash=request_in.permit_str)
@@ -201,7 +201,7 @@ async def post_enable(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return FirstuserEnableOut(api_enabled=True, success=True, reason="")
+    return FirstuserEnableOut(api_enabled=True)
 
 
 # /add-admin
@@ -268,7 +268,7 @@ async def post_admin_add(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return FirstuserAddAdminOut(admin_added=True, success=True, reason="")
+    return FirstuserAddAdminOut(admin_added=True)
 
 
 # /delete-admin
@@ -339,7 +339,7 @@ async def post_delete_admin(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return FirstuserDeleteAdminOut(admin_removed=True, success=True, reason="")
+    return FirstuserDeleteAdminOut(admin_removed=True)
 
 
 # /list-admin
@@ -393,4 +393,4 @@ async def get_list_admin(
 
         _return_list.append({"work_id": _result2[0][0], "work_id_hash": _result2[0][1]})
 
-    return FirstuserListAdminOut(admin_list=_return_list, success=True, reason="")
+    return FirstuserListAdminOut(admin_list=_return_list)
