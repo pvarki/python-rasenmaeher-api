@@ -1,4 +1,4 @@
-"""Test the CA routes"""
+"""mTLS fixtures"""
 from typing import Tuple, Generator
 from pathlib import Path
 import logging
@@ -7,7 +7,6 @@ import asyncio
 import pytest
 import pytest_asyncio
 from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
-from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
 from rasenmaeher_api.web.api.product.views import sign_csr, get_ca
 
@@ -73,11 +72,6 @@ def csrfile(datadir: Path, keypair: crypto.PKey) -> Path:
     return csrpath
 
 
-def test_have_csrfile(csrfile: Path) -> None:
-    """Check that csr generation works"""
-    assert csrfile.exists()
-
-
 @pytest_asyncio.fixture(scope="module")
 async def mtlsfiles(csrfile: Path) -> Tuple[Path, Path, Path]:
     """Return cert, key and ca cert paths, this will sign the CSR again every time due to fixture scoping issues"""
@@ -92,57 +86,3 @@ async def mtlsfiles(csrfile: Path) -> Tuple[Path, Path, Path]:
     capath.write_text(capem)
     certpath.write_text(certpem)
     return certpath, privkeypath, capath
-
-
-@pytest.mark.asyncio
-async def test_have_mtlscert(mtlsfiles: Tuple[Path, Path, Path]) -> None:
-    """Test that we got the files"""
-    certpath, privkeypath, capath = mtlsfiles
-    assert certpath.exists()
-    assert privkeypath.exists()
-    assert capath.exists()
-
-
-@pytest.mark.asyncio
-async def test_sign(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
-    """Test signing"""
-    client = kraftwerk_jwt_client
-    resp = await client.post(
-        "/api/v1/product/sign_csr",
-        json={
-            "csr": csrfile.read_text(),
-        },
-    )
-    LOGGER.debug("Got response {}".format(resp))
-    resp.raise_for_status()
-    payload = resp.json()
-    assert "certificate" in payload
-    assert "ca" in payload
-
-
-@pytest.mark.xfail(reason="Nonce checking not implemented yet")
-@pytest.mark.asyncio
-async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
-    """Test using same nonce twice, should fail"""
-    # First signing, should work fine
-    client = kraftwerk_jwt_client
-    resp = await client.post(
-        "/api/v1/product/sign_csr",
-        json={
-            "csr": csrfile.read_text(),
-        },
-    )
-    LOGGER.debug("Got response {}".format(resp))
-    resp.raise_for_status()
-    payload = resp.json()
-    assert "certificate" in payload
-
-    # Second signing, should return 401
-    resp2 = await client.post(
-        "/api/v1/product/sign_csr",
-        json={
-            "csr": csrfile.read_text(),
-        },
-    )
-    LOGGER.debug("Got second response {}".format(resp2))
-    assert resp2.status_code == 401
