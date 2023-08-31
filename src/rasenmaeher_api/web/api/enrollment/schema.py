@@ -1,6 +1,6 @@
 """Schema for enrollment."""
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from ....settings import settings
 
 
@@ -595,6 +595,8 @@ class EnrollmentListOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment list out response schema"""
 
     work_id_list: List[Dict[Any, Any]]
+    success: bool = Field(default=True)
+    reason: str = Field(default="")
 
 
 class EnrollmentInviteCodeCreateIn(BaseModel):
