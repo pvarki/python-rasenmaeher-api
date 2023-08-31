@@ -100,10 +100,17 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     ldap_username: Optional[str] = None
     ldap_client_secret: Optional[str] = None
 
+    # Initial shared secret between services (provided by kraftwerk)
+    sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
+    # TestingCredentials - admin hash and name
+    sqlite_init_testing_management_hash: str = "TestikalukalukalukaulinJotainAsdJotainJotainJotain"
+    sqlite_init_testing_management_username: str = "pyteststuff"
+    # Initial 'One time' code used to create first admin accounts (provided by kraftwerk)
+    sqlite_first_time_user_hash: str = "PerPerPerjantaiPulloParisee"
+
     # Sqlite configurations
     sqlite_filepath_prod: str = "/data/persistent/sqlite/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
     sqlite_filepath_dev: str = "/tmp/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
-    sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
 
     sqlite_enrollement_table_schema = """ CREATE TABLE IF NOT EXISTS enrollment (
                                         id integer PRIMARY KEY AUTOINCREMENT,
@@ -111,7 +118,12 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         work_id_hash text NOT NULL,
                                         state text NOT NULL,
                                         accepted text NOT NULL,
-                                        dl_link text NOT NULL
+                                        cert_dl_link text NOT NULL,
+                                        cert_howto_dl_link text NOT NULL,
+                                        mtls_test_link text NOT NULL,
+                                        verification_code text NOT NULL,
+                                        locked text NOT NULL,
+                                        UNIQUE(work_id)
                                     ); """
 
     sqlite_management_table_schema = """ CREATE TABLE IF NOT EXISTS management (
@@ -153,8 +165,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                 ;"""
 
     sqlite_insert_into_enrollment = """ INSERT INTO enrollment
-                                        (work_id, work_id_hash, state, accepted, dl_link)
-                                        VALUES('{work_id}','{work_id_hash}','{state}', '{accepted}', '{dl_link}')
+                                        (work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked)
+                                        VALUES(
+                                        '{work_id}','{work_id_hash}','{state}', '{accepted}', '{cert_dl_link}',
+                                        '{cert_howto_dl_link}', '{mtls_test_link}', '{verification_code}','{locked}'
+                                        )
                                     ;"""
 
     sqlite_insert_into_management = """ INSERT OR REPLACE INTO management
@@ -162,12 +177,19 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         VALUES('{management_hash}','{special_rules}')
                                     ;"""
 
-    sqlite_sel_from_enrollment = """SELECT work_id, work_id_hash, state, accepted, dl_link
+    sqlite_sel_from_enrollment = """SELECT
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked
                                         FROM enrollment
                                         WHERE work_id='{work_id}'
                                     ;"""
 
-    sqlite_sel_from_enrollment_where_hash = """SELECT work_id, work_id_hash, state, accepted, dl_link
+    sqlite_sel_from_enrollment_all = """SELECT
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked
+                                        FROM enrollment
+                                    ;"""
+
+    sqlite_sel_from_enrollment_where_hash = """SELECT
+    work_id, work_id_hash, state, accepted, cert_dl_link, cert_howto_dl_link, mtls_test_link, verification_code, locked
                                         FROM enrollment
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
@@ -176,19 +198,96 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         WHERE management_hash='{management_hash}'
                                     ;"""
 
-    sqlite_update_accept_enrollment = """UPDATE enrollment
-                                        SET accepted='{enroll_str}'
+    sqlite_sel_from_management_where_hash_and_special_rule_like = """
+                                        SELECT management_hash, special_rules FROM management
+                                        WHERE special_rules LIKE '%{special_rules}%'
+                                        AND management_hash='{management_hash}'
+                                    ;"""
+
+    sqlite_sel_from_management_where_hash_like_and_special_rule = """
+                                        SELECT management_hash, special_rules FROM management
+                                        WHERE special_rules='{special_rules}'
+                                        AND management_hash LIKE '%{management_hash}%'
+                                    ;"""
+
+    sqlite_sel_from_management_where_special_rule_like = """
+                                        SELECT management_hash, special_rules FROM management
+                                        WHERE special_rules LIKE '%{special_rules}%'
+                                    ;"""
+
+    sqlite_sel_from_enrollment_where_verification_code = """SELECT work_id_hash
+                                        FROM enrollment
+                                        WHERE verification_code='{verification_code}'
+                                    ;"""
+
+    sqlite_del_from_management_where_special_rule_like = """
+                                        DELETE FROM management
+                                        WHERE special_rules LIKE '%{special_rules}%'
+                                    ;"""
+
+    sqlite_update_from_management_where_special_rule_like = """
+                                        UPDATE management
+                                        SET special_rules='{new_special_rules}'
+                                        WHERE special_rules LIKE '{special_rules}'
+                                    ;"""
+
+    sqlite_update_from_management_where_management_like = """
+                                        UPDATE management
+                                        SET management_hash='{new_management_hash}'
+                                        WHERE special_rules='{special_rules}'
+                                        AND management_hash LIKE '{management_hash}_%'
+                                    ;"""
+
+    sqlite_del_from_management_where_hash = """
+                                        DELETE FROM management
+                                        WHERE management_hash='{management_hash}'
+                                    ;"""
+
+    sqlite_del_from_enrollment_where_hash = """DELETE FROM enrollment
                                         WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
-    sqlite_update_enrollment_dl_link = """UPDATE enrollment
-                                        SET dl_link='{download_link}'
-                                        WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+    # FIXME: Does not reflect table schema
+    sqlite_update_management_rules = """UPDATE management
+                                        SET special_rules='{special_rules}'
+                                        WHERE work_id_hash='{management_hash}'
+                                    ;"""
+
+    sqlite_update_accept_enrollment = """UPDATE enrollment
+                                        SET accepted='{management_hash}'
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+
+    sqlite_update_enrollment_cert_dl_link = """UPDATE enrollment
+                                        SET cert_dl_link='{cert_download_link}'
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+    sqlite_update_enrollment_cert_howto_dl_link = """UPDATE enrollment
+                                        SET cert_howto_dl_link='{howto_download_link}'
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+    sqlite_update_enrollment_mtls_test_link = """UPDATE enrollment
+                                        SET mtls_test_link='{mtls_test_link}'
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+    sqlite_update_enrollment_mtls_test_link_all = """UPDATE enrollment
+                                        SET mtls_test_link='{mtls_test_link}'
+                                        WHERE work_id_hash IS NOT NULL
                                     ;"""
 
     sqlite_update_enrollment_state = """UPDATE enrollment
                                         SET state='{state}'
                                         WHERE work_id_hash='{work_id_hash}' OR work_id='{work_id}'
+                                    ;"""
+
+    sqlite_update_enrollment_verification_code = """UPDATE enrollment
+                                        SET verification_code='{verification_code}'
+                                        WHERE work_id_hash='{work_id_hash}'
+                                    ;"""
+
+    sqlite_update_enrollment_locked_state = """UPDATE enrollment
+                                        SET locked='{locked}'
+                                        WHERE work_id_hash='{work_id_hash}'
                                     ;"""
 
     sqlite_healtcheck_query = """SELECT id

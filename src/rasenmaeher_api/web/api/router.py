@@ -8,6 +8,7 @@ from rasenmaeher_api.web.api import (
     enduserpfx,
     utils,
     enrollment,
+    firstuser,
 )
 
 
@@ -18,3 +19,4 @@ api_router.include_router(checkauth.router, prefix="/check-auth", tags=["info"])
 api_router.include_router(enduserpfx.router, prefix="/enduserpfx", tags=["enduserpfx"])
 api_router.include_router(utils.router, prefix="/utils", tags=["utils"])
 api_router.include_router(enrollment.router, prefix="/enrollment", tags=["enrollment"])
+api_router.include_router(firstuser.router, prefix="/firstuser", tags=["firstuser"])
