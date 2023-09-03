@@ -11,9 +11,6 @@ from pydantic import BaseSettings
 TEMP_DIR = Path(gettempdir())
 LOGGER = logging.getLogger(__name__)
 
-# FIXME: RASENMAEHER needs to create it's own mTLS client cert and get is signed by CFSSL in some init process
-#        said cert is used for communication with the product integration APIs
-
 
 class LogLevel(str, enum.Enum):  # noqa: WPS600
     """Possible log levels."""
@@ -91,6 +88,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Cfssl configuration
     cfssl_host: str = "http://127.0.0.1"
     cfssl_port: str = "8888"
+
+    # mtls
+    mtls_client_cert_path = "/data/persistent/rmmtlsclient.pem"
+    mtls_client_key_path = "/data/persistent/rmmtlsclient.key"
+    mtls_client_cert_cn = "rasenmaeher"
 
     # Keycloak configuration.
     keycloak_server_url: Optional[str] = None

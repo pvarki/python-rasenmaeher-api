@@ -18,7 +18,7 @@ from rasenmaeher_api.web.api.product.views import sign_csr, get_ca
 
 LOGGER = logging.getLogger(__name__)
 
-# pylint: disable=W0621
+# pylint: disable=W0621,R0801
 
 
 @pytest.fixture(scope="module")

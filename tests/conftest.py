@@ -3,6 +3,8 @@ from typing import Dict, Any, AsyncGenerator, Generator
 import logging
 from pathlib import Path
 import uuid
+import shutil
+import glob
 
 import pytest
 from multikeyjwt import Issuer, Verifier
@@ -12,7 +14,7 @@ import pytest_asyncio  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
-from libadvian.testhelpers import monkeysession, nice_tmpdir_mod  # pylint: disable=unused-import
+from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
 from pytest_docker.plugin import Services
 
 from rasenmaeher_api.web.application import get_app
@@ -45,16 +47,34 @@ def verifier() -> Verifier:
 
 @pytest.fixture(scope="session", autouse=True)
 def session_env_config(
-    monkeysession: pytest.MonkeyPatch, docker_ip: str, docker_services: Services
+    monkeysession: pytest.MonkeyPatch, docker_ip: str, docker_services: Services, nice_tmpdir_ses: str
 ) -> Generator[None, None, None]:
     """set the JWT auth config"""
+    sessionfiles = Path(nice_tmpdir_ses)
+
+    # Ref https://github.com/pvarki/python-libpvarki/issues/11
+    cfssl_capath = DATA_PATH / "ca_public"
+    capath = sessionfiles / "ca_public"
+    capath.mkdir()
+    for srcfile in glob.glob(str(cfssl_capath / "*.pem")):
+        tgtfile = str(capath / Path(srcfile).name)
+        LOGGER.debug("shutil.copy({}, {})".format(srcfile, tgtfile))
+        shutil.copy(srcfile, tgtfile)
+
     with monkeysession.context() as mpatch:
         mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
-        mpatch.setenv("RM_CFSSL_PORT", str(docker_services.port_for("cfssl", 7777)))
-        mpatch.setenv("RM_CFSSL_HOST", f"http://{docker_ip}")
         # Apparently we are too late in setting the env for settings to take effect
         mpatch.setattr(settings, "cfssl_port", docker_services.port_for("cfssl", 7777))
+        mpatch.setenv("RM_CFSSL_PORT", str(settings.cfssl_port))
         mpatch.setattr(settings, "cfssl_host", f"http://{docker_ip}")
+        mpatch.setenv("RM_CFSSL_HOST", settings.cfssl_host)
+
+        mpatch.setenv("LOCAL_CA_CERTS_PATH", str(capath))
+        mpatch.setattr(settings, "mtls_client_cert_path", str(sessionfiles / "rmmtlsclient.pem"))
+        mpatch.setenv("RM_MTLS_CLIENT_CERT_PATH", settings.mtls_client_cert_path)
+        mpatch.setattr(settings, "mtls_client_key_path", str(sessionfiles / "rmmtlsclient.key"))
+        mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", settings.mtls_client_key_path)
+
         yield None
 
 
