@@ -61,7 +61,7 @@ jobs:
         cache: 'pip' # caching pip dependencies
     - name: install dependencies
       id: install_dependencies
-      run: pip install pytest pytest-md pytest-emoji
+      run: pip install requests pytest pytest-md pytest-emoji
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
