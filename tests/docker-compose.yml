@@ -12,6 +12,8 @@ services:
       CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
     ports:
       - '7777:7777'
+    networks:
+      - canet
     volumes:
       - ./data/cfssl:/data/persistent
       - ./data/ca_public:/ca_public
@@ -21,3 +23,77 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+  fpapi_init:
+    image: pytestfpapi:init
+    build:
+      context: ptfpapi
+      dockerfile: Dockerfile
+      target: init
+    environment:
+      LOCAL_CA_CERTS_PATH: /ca_public
+      CFSSL_PORT: ${CFSSL_BIND_PORT:-7777}  # must match above
+      CFSSL_HOST: "http://cfssl"
+      FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"
+    volumes:
+      - fpinit_data:/data/persistent
+      - ./data/ca_public:/ca_public
+    networks:
+      - canet
+    depends_on:
+      cfssl:
+        condition: service_healthy
+
+  fpapi_run:
+    image: pytestfpapi:run
+    build:
+      context: ptfpapi
+      dockerfile: Dockerfile
+      target: run
+    environment:
+      PERSISTENT_DATA_PATH: /data/persistent
+      LOCAL_CA_CERTS_PATH: /data/persistent/ca_public
+      FPAPI_BIND_ADDRESS: ${FPAPI_BIND_ADDRESS:-0.0.0.0}
+      FPAPI_BIND_PORT: ${FPAPI_BIND_PORT:-7788}
+      FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
+    ports:
+      - '7788:7788'
+    volumes:
+      - fpinit_data:/data/persistent
+    networks:
+      - canet
+    depends_on:
+      fpapi_init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+
+  fpapi_client:
+    image: pytestfpapi:client
+    build:
+      context: ptfpapi
+      dockerfile: Dockerfile
+      target: client
+    environment:
+      PERSISTENT_DATA_PATH: /data/persistent
+      LOCAL_CA_CERTS_PATH: /data/persistent/ca_public
+      FPAPI_PORT: ${FPAPI_BIND_PORT:-7788}
+      FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
+    volumes:
+      - fpinit_data:/data/persistent
+    depends_on:
+      fpapi_init:
+        condition: service_completed_successfully
+      fpapi_run:
+        condition: service_healthy
+
+networks:
+  canet:
+
+volumes:
+  fpinit_data:

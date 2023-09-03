@@ -1,4 +1,5 @@
 """Init mTLS client cert for RASENMAEHER itself"""
+import asyncio
 from pathlib import Path
 import logging
 
@@ -65,8 +66,8 @@ async def mtls_init() -> None:
     if check_mtls_init():
         return
     LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
-    keypair = create_keypair()
-    csr_path = create_csr(keypair)
+    keypair = await asyncio.get_event_loop().run_in_executor(None, create_keypair)
+    csr_path = await asyncio.get_event_loop().run_in_executor(None, create_csr, keypair)
     certpem = (await sign_csr(csr_path.read_text())).replace("\\n", "\n")
     cert_path = Path(settings.mtls_client_cert_path)
     cert_path.write_text(certpem, encoding="ascii")

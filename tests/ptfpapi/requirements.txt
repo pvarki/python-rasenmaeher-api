@@ -1,0 +1,7 @@
+aiohttp==3.8.5
+cryptography==41.0.3
+fastapi==0.103.0
+libadvian==1.4.0
+pyOpenSSL==23.2.0
+Brotli==1.0.9
+libpvarki @ git+https://github.com/pvarki/python-libpvarki.git@23163a79a64876a5f746aace3c217a77dc7d3968
