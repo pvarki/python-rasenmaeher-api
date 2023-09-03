@@ -8,3 +8,7 @@
 *.pem
 *.crt
 *.key
+
+# VSCode and pytest settings
+tests/__pycache__/*
+.vscode/*
