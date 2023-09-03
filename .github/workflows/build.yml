@@ -24,10 +24,29 @@ jobs:
       continue-on-error: true
     - name: docker start rmlocal-rmapi-1
       id: start_rmapi
-      run: docker start rmlocal-rmapi-1; sleep 30; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
+      run: docker start rmlocal-rmapi-1; sleep 30; docker ps -a
     - name: docker start rmlocal-rmnginx-1
       id: start_rmnginx
-      run: docker start rmlocal-rmnginx-1; sleep 10; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
+      run: docker start rmlocal-rmnginx-1; sleep 10; docker ps -a
+    - name: install python
+      id: install_python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip' # caching pip dependencies
+    - name: install dependencies
+      id: install_dependencies
+      run: pip install requests pytest pytest-md pytest-emoji
+    - name: run pytest
+      id: run_pytest
+      uses: pavelzw/pytest-action@v2
+      with:
+        verbose: true
+        emoji: true
+        job-summary: true
+        custom-arguments: 'tests'
+        click-to-expand: true
+        report-title: 'Test Report'
 
   rmdev:
     runs-on: ubuntu-latest
@@ -49,8 +68,26 @@ jobs:
       continue-on-error: true
     - name: docker start rmdev-rmapi-1
       id: start_rmapi
-      run: docker start rmdev-rmapi-1; sleep 30; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
+      run: docker start rmdev-rmapi-1; sleep 30; docker ps -a
     - name: docker start rmdev-rmnginx-1
       id: start_rmnginx
-      run: docker start rmdev-rmnginx-1; sleep 10; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
-    
+      run: docker start rmdev-rmnginx-1; sleep 10; docker ps -a
+    - name: install python
+      id: install_python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip' # caching pip dependencies
+    - name: install dependencies
+      id: install_dependencies
+      run: pip install requests pytest pytest-md pytest-emoji
+    - name: run pytest
+      id: run_pytest
+      uses: pavelzw/pytest-action@v2
+      with:
+        verbose: true
+        emoji: true
+        job-summary: true
+        custom-arguments: 'tests'
+        click-to-expand: true
+        report-title: 'Test Report'
