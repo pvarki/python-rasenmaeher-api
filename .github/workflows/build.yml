@@ -28,9 +28,6 @@ jobs:
     - name: docker start rmlocal-rmnginx-1
       id: start_rmnginx
       run: docker start rmlocal-rmnginx-1; sleep 10; docker ps -a
-    - name: run pytest
-      id: run_pytest
-      run: cd ./tests; pytest
 
   rmdev:
     runs-on: ubuntu-latest
@@ -56,6 +53,22 @@ jobs:
     - name: docker start rmdev-rmnginx-1
       id: start_rmnginx
       run: docker start rmdev-rmnginx-1; sleep 10; docker ps -a
+    - name: install python
+      id: install_python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        cache: 'pip' # caching pip dependencies
+    - name: install dependencies
+      id: install_dependencies
+      run: pip install pytest pytest-md pytest-emoji
     - name: run pytest
       id: run_pytest
-      run: cd ./tests; pytest
+      uses: pavelzw/pytest-action@v2
+      with:
+        verbose: true
+        emoji: true
+        job-summary: true
+        custom-arguments: 'tests'
+        click-to-expand: true
+        report-title: 'Test Report'
