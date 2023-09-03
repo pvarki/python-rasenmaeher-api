@@ -5,6 +5,7 @@ from pathlib import Path
 import uuid
 import shutil
 import glob
+import json
 
 import pytest
 from multikeyjwt import Issuer, Verifier
@@ -19,6 +20,7 @@ from pytest_docker.plugin import Services
 
 from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.settings import settings
+from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -51,6 +53,17 @@ def session_env_config(
 ) -> Generator[None, None, None]:
     """set the JWT auth config"""
     sessionfiles = Path(nice_tmpdir_ses)
+    kfmanifest = sessionfiles / "kraftwerk-rasenmaeher-init.json"
+    kfmanifest.write_text(
+        json.dumps(
+            {
+                "dns": "localmaeher.pvarki.fi",
+                "products": {
+                    # FIXME: when we have a fake api running in pytest-docker add it here
+                },
+            }
+        )
+    )
 
     # Ref https://github.com/pvarki/python-libpvarki/issues/11
     cfssl_capath = DATA_PATH / "ca_public"
@@ -74,6 +87,12 @@ def session_env_config(
         mpatch.setenv("RM_MTLS_CLIENT_CERT_PATH", settings.mtls_client_cert_path)
         mpatch.setattr(settings, "mtls_client_key_path", str(sessionfiles / "rmmtlsclient.key"))
         mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", settings.mtls_client_key_path)
+
+        mpatch.setattr(settings, "kraftwerk_manifest_path", str(kfmanifest))
+        mpatch.setenv("RM_KRAFTWERK_MANIFEST_PATH", settings.kraftwerk_manifest_path)
+        # force manifest reload
+        mpatch.setattr(settings, "kraftwerk_manifest_bool", False)
+        check_kraftwerk_manifest()
 
         yield None
 
