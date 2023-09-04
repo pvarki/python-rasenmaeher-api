@@ -137,7 +137,7 @@ async def servertlsfiles(datadir: Path) -> Tuple[Path, Path]:
 @pytest.fixture(scope="module")
 def httpserver_ssl_context(servertlsfiles: Tuple[Path, Path], cafile: Path) -> ssl.SSLContext:
     """Create SSL context for pytest-httpserver"""
-    ssl_ctx = get_ssl_context(servertlsfiles, cafile.parent)
+    ssl_ctx = get_ssl_context(ssl.Purpose.CLIENT_AUTH, servertlsfiles, cafile.parent)
     ssl_ctx.verify_mode = ssl.CERT_REQUIRED
     return ssl_ctx
 

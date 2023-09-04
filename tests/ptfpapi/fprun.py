@@ -37,7 +37,7 @@ def main() -> int:
     bind_port = int(environ.get("FPAPI_BIND_PORT", 7788))
     _bind_address = environ.get("FPAPI_BIND_ADDRESS", "0.0.0.0")  # nosec
     server_cert = (persistentdir / "public" / "server_chain.pem", persistentdir / "private" / "server.key")
-    ssl_ctx = get_ssl_context(server_cert, extra_ca_certs_path)
+    ssl_ctx = get_ssl_context(ssl.Purpose.CLIENT_AUTH, server_cert, extra_ca_certs_path)
     # Enable client cert as required
     ssl_ctx.verify_mode = ssl.CERT_REQUIRED
 
