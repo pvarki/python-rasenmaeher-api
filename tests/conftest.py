@@ -63,6 +63,7 @@ def session_env_config(
         )
     )
     capath = DATA_PATH / "ca_public"
+    sqlitepath = sessionfiles / "test.db"
     with monkeysession.context() as mpatch:
         mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
         # Apparently we are too late in setting the env for settings to take effect
@@ -82,6 +83,11 @@ def session_env_config(
         # force manifest reload
         mpatch.setattr(settings, "kraftwerk_manifest_bool", False)
         check_kraftwerk_manifest()
+
+        mpatch.setattr(settings, "sqlite_filepath_prod", str(sqlitepath))
+        mpatch.setenv("RM_SQLITE_FILEPATH_PROD", settings.sqlite_filepath_prod)
+        mpatch.setattr(settings, "sqlite_filepath_dev", str(sqlitepath))
+        mpatch.setenv("RM_SQLITE_FILEPATH_DEV", settings.sqlite_filepath_prod)
 
         yield None
 
