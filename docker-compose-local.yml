@@ -310,7 +310,7 @@ services:
   fpnginx:
     image: nginx
     volumes:
-      - ./nginx/templates:/etc/nginx/templates_onlymtls
+      - ./nginx/templates_onlymtls:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
       - ca_public:/ca_public
       - le_certs:/le_certs
