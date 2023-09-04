@@ -3,8 +3,6 @@ from typing import Dict, Any, AsyncGenerator, Generator
 import logging
 from pathlib import Path
 import uuid
-import shutil
-import glob
 import json
 
 import pytest
@@ -64,16 +62,7 @@ def session_env_config(
             }
         )
     )
-
-    # Ref https://github.com/pvarki/python-libpvarki/issues/11
-    cfssl_capath = DATA_PATH / "ca_public"
-    capath = sessionfiles / "ca_public"
-    capath.mkdir()
-    for srcfile in glob.glob(str(cfssl_capath / "*.pem")):
-        tgtfile = str(capath / Path(srcfile).name)
-        LOGGER.debug("shutil.copy({}, {})".format(srcfile, tgtfile))
-        shutil.copy(srcfile, tgtfile)
-
+    capath = DATA_PATH / "ca_public"
     with monkeysession.context() as mpatch:
         mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
         # Apparently we are too late in setting the env for settings to take effect
