@@ -5,8 +5,6 @@ import logging
 from os import environ
 import sys
 from pathlib import Path
-import glob
-import shutil
 
 import aiohttp
 from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
@@ -47,12 +45,16 @@ def create_csr(keypair: crypto.PKey, certname: str, cnstr: str, client: bool = F
     csrpath = cert_path.parent / cert_path.name.replace(".pem", ".csr")
 
     req = crypto.X509Req()
+    sanbytes = ", ".join([f"DNS:{cnstr}", "IP:127.0.0.1", "DNS:localhost"]).encode("utf-8")
     req.get_subject().CN = cnstr
     extensions = [
         crypto.X509Extension(b"keyUsage", True, b"digitalSignature,nonRepudiation,keyEncipherment"),
     ]
     if client:
         extensions.append(crypto.X509Extension(b"extendedKeyUsage", True, b"clientAuth"))
+    else:
+        extensions.append(crypto.X509Extension(b"extendedKeyUsage", True, b"serverAuth"))
+        extensions.append(crypto.X509Extension(b"subjectAltName", False, sanbytes))
     req.add_extensions(extensions)
     req.set_pubkey(keypair)
     req.sign(keypair, "sha256")
@@ -137,16 +139,6 @@ async def main() -> int:
     certpem2 = (await sign_csr(csr_path2.read_text())).replace("\\n", "\n")
     cert_path2 = DATAPATH / "public" / "client.pem"
     cert_path2.write_text(certpem2, encoding="ascii")
-
-    # Ref https://github.com/pvarki/python-libpvarki/issues/11
-    cfssl_capath = Path(environ.get("LOCAL_CA_CERTS_PATH", "/ca_public"))
-    capath = DATAPATH / "ca_public"
-    if not capath.exists():
-        capath.mkdir(parents=True)
-    for srcfile in glob.glob(str(cfssl_capath / "*.pem")):
-        tgtfile = str(capath / Path(srcfile).name)
-        LOGGER.debug("shutil.copy({}, {})".format(srcfile, tgtfile))
-        shutil.copy(srcfile, tgtfile)
 
     return 0
 

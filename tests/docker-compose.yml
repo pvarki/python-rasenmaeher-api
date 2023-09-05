@@ -52,7 +52,7 @@ services:
       target: run
     environment:
       PERSISTENT_DATA_PATH: /data/persistent
-      LOCAL_CA_CERTS_PATH: /data/persistent/ca_public
+      LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_BIND_ADDRESS: ${FPAPI_BIND_ADDRESS:-0.0.0.0}
       FPAPI_BIND_PORT: ${FPAPI_BIND_PORT:-7788}
       FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
@@ -60,6 +60,7 @@ services:
       - '7788:7788'
     volumes:
       - fpinit_data:/data/persistent
+      - ./data/ca_public:/ca_public
     networks:
       - canet
     depends_on:
@@ -70,7 +71,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 2s
 
 
   fpapi_client:
@@ -81,11 +82,12 @@ services:
       target: client
     environment:
       PERSISTENT_DATA_PATH: /data/persistent
-      LOCAL_CA_CERTS_PATH: /data/persistent/ca_public
+      LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_PORT: ${FPAPI_BIND_PORT:-7788}
       FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
     volumes:
       - fpinit_data:/data/persistent
+      - ./data/ca_public:/ca_public
     depends_on:
       fpapi_init:
         condition: service_completed_successfully

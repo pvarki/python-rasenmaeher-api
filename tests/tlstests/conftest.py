@@ -118,10 +118,13 @@ async def servertlsfiles(datadir: Path) -> Tuple[Path, Path]:
         fpntr.write(crypto.dump_publickey(crypto.FILETYPE_PEM, ckp))
     csrpath = datadir / "public" / "mtlsserver.csr"
     req = crypto.X509Req()
-    req.get_subject().CN = "fake.localmaeher.pvarki.fi"
+    cnstr = "fake.localmaeher.pvarki.fi"
+    req.get_subject().CN = cnstr
     req.add_extensions(
         [
             crypto.X509Extension(b"keyUsage", True, b"digitalSignature,nonRepudiation,keyEncipherment"),
+            crypto.X509Extension(b"extendedKeyUsage", True, b"serverAuth"),
+            crypto.X509Extension(b"subjectAltName", False, f"DNS:{cnstr}".encode("utf-8")),
         ]
     )
     req.set_pubkey(ckp)
