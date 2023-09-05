@@ -52,12 +52,16 @@ def session_env_config(
     """set the JWT auth config"""
     sessionfiles = Path(nice_tmpdir_ses)
     kfmanifest = sessionfiles / "kraftwerk-rasenmaeher-init.json"
+    fakeproduct_port = docker_services.port_for("fpapi_run", 7788)
     kfmanifest.write_text(
         json.dumps(
             {
                 "dns": "localmaeher.pvarki.fi",
                 "products": {
-                    # FIXME: when we have a fake api running in pytest-docker add it here
+                    "fake": {
+                        "api": f"https://fake.localmaeher.pvarki.fi:{fakeproduct_port}/",
+                        "uri": "https://fake.localmaeher.pvarki.fi:844/",  # Not actually there
+                    }
                 },
             }
         )

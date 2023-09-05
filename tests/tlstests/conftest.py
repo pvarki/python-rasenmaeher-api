@@ -11,7 +11,7 @@ from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 from libpvarki.mtlshelp import get_session
 
 
-from rasenmaeher_api.web.api.product.views import sign_csr, get_ca
+from rasenmaeher_api.web.api.product.views import sign_csr
 
 LOGGER = logging.getLogger(__name__)
 
@@ -76,19 +76,7 @@ def csrfile(datadir: Path, keypair: crypto.PKey) -> Path:
 
 
 @pytest_asyncio.fixture(scope="module")
-async def cafile(datadir: Path) -> Path:
-    """Get the CA chain from CFSSL and save"""
-    capath = datadir / "ca_public" / "mtlsca.pem"
-    cadir = capath.parent
-    cadir.mkdir(parents=True)
-    capem = (await get_ca()).replace("\\n", "\n")
-    LOGGER.debug("capem={}".format(capem))
-    capath.write_text(capem)
-    return capath
-
-
-@pytest_asyncio.fixture(scope="module")
-async def mtlsfiles(csrfile: Path, cafile: Path) -> Tuple[Path, Path, Path]:
+async def mtlsfiles(csrfile: Path) -> Tuple[Path, Path]:
     """Return cert, key and ca cert paths, this will sign the CSR again every time due to fixture scoping issues"""
     privkeypath = csrfile.parent.parent / "private" / "mtlsclient.key"
     assert privkeypath.exists()
@@ -96,12 +84,11 @@ async def mtlsfiles(csrfile: Path, cafile: Path) -> Tuple[Path, Path, Path]:
     certpem = (await sign_csr(csrfile.read_text())).replace("\\n", "\n")
     LOGGER.debug("certpem={}".format(certpem))
     certpath.write_text(certpem)
-    return certpath, privkeypath, cafile
+    return certpath, privkeypath
 
 
 @pytest.fixture()
-def mtlsclient(mtlsfiles: Tuple[Path, Path, Path]) -> aiohttp.ClientSession:
+def mtlsclient(mtlsfiles: Tuple[Path, Path]) -> aiohttp.ClientSession:
     """fixture for client session with correct ssl context"""
-    certpath, privkeypath, capath = mtlsfiles
-    client = get_session((certpath, privkeypath), capath.parent)
+    client = get_session(mtlsfiles)
     return client

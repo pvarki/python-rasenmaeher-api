@@ -17,12 +17,11 @@ def test_have_csrfile(csrfile: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_have_mtlscert(mtlsfiles: Tuple[Path, Path, Path]) -> None:
+async def test_have_mtlscert(mtlsfiles: Tuple[Path, Path]) -> None:
     """Test that we got the files"""
-    certpath, privkeypath, capath = mtlsfiles
+    certpath, privkeypath = mtlsfiles
     assert certpath.exists()
     assert privkeypath.exists()
-    assert capath.exists()
 
 
 @pytest.mark.asyncio
