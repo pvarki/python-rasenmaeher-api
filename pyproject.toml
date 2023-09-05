@@ -107,7 +107,6 @@ types-requests = "^2.31"
 types-pyopenssl = "^23.1"
 async-asgi-testclient = "^1.4"
 pytest-docker = "^2.0"
-pytest-httpserver = "^1.0"
 
 
 [build-system]
