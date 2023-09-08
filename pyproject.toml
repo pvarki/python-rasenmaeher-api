@@ -80,9 +80,7 @@ multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
 pyopenssl = "^23.1"
-# FIXME: change when https://github.com/pvarki/python-libpvarki/pull/12 is merged and tagged
-libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", rev="1ba413f"}
-#libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.4.0"}
+libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.4.0"}
 openapi-readme = "^0.2"
 python-multipart = "^0.0.6"
 aiohttp = "^3.8"

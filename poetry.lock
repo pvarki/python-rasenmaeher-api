@@ -1212,8 +1212,8 @@ libadvian = "^1.4"
 [package.source]
 type = "git"
 url = "https://github.com/pvarki/python-libpvarki.git"
-reference = "1ba413f"
-resolved_reference = "1ba413f8c2bac384ec395df6e80a00ec22422717"
+reference = "1.4.0"
+resolved_reference = "f88e3bb91864221cc00566793d6dbaa3c684a252"
 
 [[package]]
 name = "markdown-it-py"
@@ -2588,4 +2588,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8.1,<4.0"
-content-hash = "b1d3f958887abc6fa31c4afd1fc542834adc66b8df58058503370aa5f25d6446"
+content-hash = "31e7f924ef79c48cc67e7ccda37182d291eae467a9d7d3da9b724cd45aeb07e3"
