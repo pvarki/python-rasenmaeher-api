@@ -10,5 +10,9 @@
 *.key
 
 # VSCode and pytest settings
-tests/__pycache__/*
 .vscode/*
+
+# caches, artefacts
+.pytest_cache
+__pycache__
+pytest*.xml
