@@ -1,3 +1,5 @@
+pylint==2.13.4
+mypy==1.5.1
 libadvian==1.4.0
 multikeyjwt==1.2.0
 requests==2.31.0
