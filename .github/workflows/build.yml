@@ -27,6 +27,12 @@ jobs:
         shopt -s expand_aliases
         alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
         dcloc build
+    - name: docker compose cleanup
+      id: compose_clean_1
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc down -v || true
     - name: docker compose up first attempt
       id: compose_up_first
       run: |
@@ -51,6 +57,12 @@ jobs:
         custom-arguments: 'tests'
         click-to-expand: true
         report-title: 'Test Report'
+    - name: docker compose cleanup
+      id: compose_clean_2
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc down -v || true
 
   rmdev:
     runs-on: ubuntu-latest
@@ -72,6 +84,12 @@ jobs:
         shopt -s expand_aliases
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
         dcdev build
+    - name: docker compose cleanup
+      id: compose_clean_1
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev down -v || true
     - name: docker compose up first attempt
       id: compose_up_first
       run: |
@@ -96,3 +114,9 @@ jobs:
         custom-arguments: 'tests'
         click-to-expand: true
         report-title: 'Test Report'
+    - name: docker compose cleanup
+      id: compose_clean_2
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev down -v || true
