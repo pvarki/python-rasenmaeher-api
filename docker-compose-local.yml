@@ -18,7 +18,7 @@ x-ldap_admin_env: &ldap_admin_env
   LDAP_ADMIN_USERNAME: &ldapadminuser admin
 
 x-keycloak_users_env: &keycloak_users_env
-  KEYCLOAK_CREATE_ADMIN_USER: true
+  KEYCLOAK_CREATE_ADMIN_USER: "true"
   KEYCLOAK_ADMIN_USER: &lcadminuser admin
   KEYCLOAK_MANAGEMENT_USER: damager
   # FIXME: take from env (which should be set to random)
@@ -115,12 +115,12 @@ services:
       - '1636:1636'  # LDAPs
     environment:
       <<: *ldap_admin_env
-      LDAP_SKIP_DEFAULT_TREE: yes
-      LDAP_ALLOW_ANON_BINDING: no
+      LDAP_SKIP_DEFAULT_TREE: "yes"
+      LDAP_ALLOW_ANON_BINDING: "no"
       # FIXME: get from env ??
       LDAP_ROOT: "dc=example,dc=org"  # Probably needs to match the custom ldfis
       LDAP_LOGLEVEL: 0
-      LDAP_ENABLE_TLS: yes
+      LDAP_ENABLE_TLS: "yes"
       LDAP_TLS_CERT_FILE: /le_certs/${SERVER_DOMAIN:-localmaeher.pvarki.fi}/fullchain.pem
       LDAP_TLS_KEY_FILE: /le_certs/${SERVER_DOMAIN:-localmaeher.pvarki.fi}/privkey.pem
       LDAP_TLS_CA_FILE: /ca_public/ca_chain.pem
@@ -148,7 +148,7 @@ services:
     image: bitnami/keycloak:21.0.2
     environment:
       <<: [*kcdbconfig_env, *keycloak_users_env]
-      KC_HEALTH_ENABLED: true
+      KC_HEALTH_ENABLED: "true"
     networks:
       - kcnet
       - dbnet
@@ -177,10 +177,10 @@ services:
     environment:
       <<: [*keycloak_profile_env, *ldap_admin_env, *keycloakinit_users_env]
       KEYCLOAK_URL: http://keycloak:8080
-      KEYCLOAK_SSL-VERIFY: false  # We are using the internal port
-      KEYCLOAK_AVAILABILITYCHECK_ENABLED: true
+      KEYCLOAK_SSL-VERIFY: "false"  # We are using the internal port
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
       KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 30s
-      IMPORT_VAR_SUBSTITUTION_ENABLED: true
+      IMPORT_VAR_SUBSTITUTION_ENABLED: "true"
       LDAP_CONNECTION_URL: ldap://openldap:1389
     depends_on:
       keycloak:
@@ -310,7 +310,7 @@ services:
   fpnginx:
     image: nginx
     volumes:
-      - ./nginx/templates:/etc/nginx/templates_onlymtls
+      - ./nginx/templates_onlymtls:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
       - ca_public:/ca_public
       - le_certs:/le_certs
