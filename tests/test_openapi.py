@@ -7,7 +7,6 @@ import requests
 LOGGER = logging.getLogger(__name__)
 
 
-
 def test_get_openapi_json(localmaeher_api, openapi_version):
     url = f"{localmaeher_api[0]}/openapi.json"
     response = requests.get(url, json=None, headers=None, verify=False)
