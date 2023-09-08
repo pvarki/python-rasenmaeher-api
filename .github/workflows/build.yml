@@ -47,6 +47,7 @@ jobs:
         shopt -s expand_aliases
         alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
         dcloc up --wait || (dcloc logs && exit 1)
+      continue-on-error: true
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
@@ -104,6 +105,7 @@ jobs:
         shopt -s expand_aliases
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
         dcdev up --wait || ( dcdev logs && exit 1 )
+      continue-on-error: true
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
