@@ -21,22 +21,41 @@ jobs:
         pre-commit run --all-files
     - name: docker compose build
       id: compose_build
-      run: docker compose -p rmlocal -f docker-compose-local.yml build
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc build
     - name: docker compose up first attempt
       id: compose_up_first
-      run: docker compose -p rmlocal -f docker-compose-local.yml up --wait
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc up --wait || dcloc logs
       continue-on-error: true
     - name: docker compose up second attempt
       if: ${{ steps.compose_up_first.outcome == 'failure' }}
       id: compose_up_second
-      run: docker compose -p rmlocal -f docker-compose-local.yml up --wait
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc up --wait || dcloc logs
       continue-on-error: true
     - name: Test rmapi direct
       id: test_rmapi
-      run: docker compose -p rmlocal -f docker-compose-local.yml up rmapi --wait; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc up rmapi --wait || dcloc logs rmapi
+        docker ps -a
+        curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
     - name: Test rmapi NGinx
       id: test_rmnginx
-      run: docker compose -p rmlocal -f docker-compose-local.yml up rmnginx --wait; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
+      run: |
+        shopt -s expand_aliases
+        alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
+        dcloc up rmnginx --wait || dcloc logs
+        docker ps -a
+        curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
 
   rmdev:
     runs-on: ubuntu-latest
@@ -52,19 +71,38 @@ jobs:
         pre-commit run --all-files
     - name: docker compose build
       id: compose_build
-      run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev build
     - name: docker compose up first attempt
       id: compose_up_first
-      run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up --wait
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev up --wait || dcdev logs
       continue-on-error: true
     - name: docker compose up second attempt
       if: ${{ steps.compose_up_first.outcome == 'failure' }}
       id: compose_up_second
-      run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up --wait
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev up --wait || dcdev logs
       continue-on-error: true
     - name: Test rmapi direct
       id: test_rmapi
-      run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up rmapi --wait; docker ps -a; curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev up rmapi --wait || dcdev logs rmapi
+        docker ps -a
+        curl http://127.0.0.1:8000/api/v1/enrollment/status/koira
     - name: Test rmapi NGinx
       id: test_rmnginx
-      run: docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up rmnginx --wait; docker ps -a; curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
+      run: |
+        shopt -s expand_aliases
+        alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+        dcdev up rmnginx --wait || dcdev logs
+        docker ps -a
+        curl -k https://localmaeher.pvarki.fi:4439/api/v1/enrollment/status/koira
