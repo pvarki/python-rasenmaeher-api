@@ -32,7 +32,7 @@ jobs:
       run: |
         shopt -s expand_aliases
         alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
-        dcloc up --wait || dcloc logs
+        dcloc up --wait || (dcloc logs && exit 1)
       continue-on-error: true
     - name: docker compose up second attempt
       if: ${{ steps.compose_up_first.outcome == 'failure' }}
@@ -77,7 +77,7 @@ jobs:
       run: |
         shopt -s expand_aliases
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
-        dcdev up --wait || dcdev logs
+        dcdev up --wait || ( dcdev logs && exit 1 )
       continue-on-error: true
     - name: docker compose up second attempt
       if: ${{ steps.compose_up_first.outcome == 'failure' }}
@@ -85,7 +85,7 @@ jobs:
       run: |
         shopt -s expand_aliases
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
-        dcdev up --wait || ( dcdev logs && exit 1)
+        dcdev up --wait || ( dcdev logs && exit 1 )
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
