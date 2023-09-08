@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "0.3.3"
+version = "0.3.4"
 description = "python-rasenmaeher-api"
 authors = ["Aciid <703382+Aciid@users.noreply.github.com>"]
 # FIXME: Doublecheck these values
@@ -71,6 +71,8 @@ python = ">=3.8.1,<4.0"
 libadvian = "^1.4"
 click = "^8.0"
 fastapi = ">=0.89,<1.0"  # caret behaviour on 0.x is to lock to 0.x.*
+# FIXME: Migrate to v2, see https://docs.pydantic.dev/2.3/migration/#basesettings-has-moved-to-pydantic-settings
+pydantic= ">=1.10,<2.0"
 requests = "^2.31"
 multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
