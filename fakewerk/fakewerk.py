@@ -5,7 +5,6 @@ import uuid
 import shutil
 import json
 import os
-import uuid
 
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64

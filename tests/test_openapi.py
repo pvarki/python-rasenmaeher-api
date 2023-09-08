@@ -1,4 +1,5 @@
 """Get the openapi.json from the API container via NGinx proxy"""
+from typing import Tuple
 import logging
 
 import requests
@@ -7,9 +8,12 @@ import requests
 LOGGER = logging.getLogger(__name__)
 
 
-def test_get_openapi_json(localmaeher_api, openapi_version):
+def test_get_openapi_json(
+    localmaeher_api: Tuple[str, str], openapi_version: Tuple[str, str]
+) -> None:
+    """Fetch openapi spec and check certain things exist"""
     url = f"{localmaeher_api[0]}/openapi.json"
-    response = requests.get(url, json=None, headers=None, verify=False)
+    response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     assert response.status_code == 200
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
