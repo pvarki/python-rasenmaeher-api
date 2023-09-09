@@ -1,11 +1,14 @@
 """Test product API/mTLS client things"""
 import logging
+import uuid
 
 import pytest
 import aiohttp
+from libpvarki.schemas.product import OperationResultResponse, UserCRUDRequest
 
 
 from rasenmaeher_api.settings import settings
+from rasenmaeher_api.prodcutapihelpers import post_to_all_products
 
 LOGGER = logging.getLogger(__name__)
 
@@ -20,3 +23,26 @@ async def test_hello(mtlsclient: aiohttp.ClientSession) -> None:
         resp.raise_for_status()
         body = await resp.text()
         assert "Hello" in body
+
+
+# NOTE: update is missing on purpose since it uses PUT not POST
+@pytest.mark.parametrize("endpoint_suffix", ["created", "revoked", "promoted", "demoted"])
+@pytest.mark.asyncio
+async def test_user_crud(endpoint_suffix: str) -> None:
+    """Test calling the user-created endpoint"""
+    endpoint = f"api/v1/users/{endpoint_suffix}"
+
+    responses = await post_to_all_products(
+        endpoint,
+        UserCRUDRequest(
+            uuid=str(uuid.uuid4()),
+            callsign="TEST22a",
+            x509cert="FIXME: needs cert",
+        ).dict(),
+        OperationResultResponse,
+    )
+
+    assert responses
+    assert "fake" in responses
+    assert isinstance(responses["fake"], OperationResultResponse)
+    assert responses["fake"].success
