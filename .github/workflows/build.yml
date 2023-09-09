@@ -20,7 +20,9 @@ jobs:
         pip install -r tests/requirements.txt
     - name: pre-commit
       id: pre_commit
-      run: pre-commit run --all-files
+      run: |
+        export SKIP=no-commit-to-branch
+        pre-commit run --all-files
     - name: docker compose build
       id: compose_build
       run: |
@@ -80,7 +82,9 @@ jobs:
         pip install -r tests/requirements.txt
     - name: pre-commit
       id: pre_commit
-      run: pre-commit run --all-files
+      run: |
+        export SKIP=no-commit-to-branch
+        pre-commit run --all-files
     - name: docker compose build
       id: compose_build
       run: |
