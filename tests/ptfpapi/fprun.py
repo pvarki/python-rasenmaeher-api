@@ -9,12 +9,13 @@ from pathlib import Path
 from aiohttp import web
 from libadvian.logging import init_logging
 from libpvarki.mtlshelp import get_ssl_context
+from libpvarki.schemas.product import OperationResultResponse, UserInstructionFragment, UserCRUDRequest
 
 LOGGER = logging.getLogger(__name__)
 
 
-async def handle_get_hello(request: web.Request) -> web.Response:
-    """Hello world but check mTLS"""
+def check_peer_cert(request: web.Request) -> None:
+    """Check the transport for peer cert, raise error if missing"""
     LOGGER.debug("request={}".format(request))
     LOGGER.debug("transport={}".format(request.transport))
     if not request.transport:
@@ -23,9 +24,32 @@ async def handle_get_hello(request: web.Request) -> web.Response:
     LOGGER.debug("peer_cert={}".format(peer_cert))
     if not peer_cert:
         raise web.HTTPError(reason="No peer cert")
+
+
+async def handle_get_hello(request: web.Request) -> web.Response:
+    """Hello world but check mTLS"""
+    check_peer_cert(request)
     name = request.match_info.get("name", "Anonymous")
     text = "Hello, " + name
     return web.Response(text=text)
+
+
+async def handle_user_crud(request: web.Request) -> web.Response:
+    """Respond with success to all CRUD operations"""
+    check_peer_cert(request)
+    # Just to make sure the request itself uses valid schema
+    _req = UserCRUDRequest.parse_raw(await request.text())
+    resp = OperationResultResponse(success=True, extra="Nothing was actually done, this is a fake endpoint for testing")
+    return web.json_response(resp.dict())
+
+
+async def handle_fragment(request: web.Request) -> web.Response:
+    """Respond with success to all CRUD operations"""
+    check_peer_cert(request)
+    # Just to make sure the request itself uses valid schema
+    _req = UserCRUDRequest.parse_raw(await request.text())
+    resp = UserInstructionFragment(html="<p>Hello world!</p>")
+    return web.json_response(resp.dict())
 
 
 def main() -> int:
@@ -42,7 +66,18 @@ def main() -> int:
     ssl_ctx.verify_mode = ssl.CERT_REQUIRED
 
     app = web.Application()
-    app.add_routes([web.get("/", handle_get_hello), web.get("/{name}", handle_get_hello)])
+    app.add_routes(
+        [
+            web.get("/", handle_get_hello),
+            web.get("/{name}", handle_get_hello),
+            web.post("/api/v1/users/created", handle_user_crud),
+            web.post("/api/v1/users/revoked", handle_user_crud),
+            web.post("/api/v1/users/promoted", handle_user_crud),
+            web.post("/api/v1/users/demoted", handle_user_crud),
+            web.put("/api/v1/users/updated", handle_user_crud),
+            web.post("/api/v1/clients/fragment", handle_fragment),
+        ]
+    )
 
     LOGGER.info("Starting runner on port {}".format(bind_port))
     web.run_app(app, host=bind_address, port=bind_port, ssl_context=ssl_ctx)
