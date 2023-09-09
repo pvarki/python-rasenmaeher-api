@@ -63,6 +63,7 @@ services:
       - ./data/ca_public:/ca_public
     networks:
       - canet
+      - intranet
     depends_on:
       fpapi_init:
         condition: service_completed_successfully
@@ -85,6 +86,8 @@ services:
       LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_PORT: ${FPAPI_BIND_PORT:-7788}
       FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
+    networks:
+      - intranet
     volumes:
       - fpinit_data:/data/persistent
       - ./data/ca_public:/ca_public
@@ -96,6 +99,7 @@ services:
 
 networks:
   canet:
+  intranet:
 
 volumes:
   fpinit_data:

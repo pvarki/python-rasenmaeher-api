@@ -14,5 +14,5 @@ COPY fprun.py /app/
 ENTRYPOINT ["python3", "/app/fprun.py" ]
 
 FROM base as client
-COPY fpclient.py muck_magic_hosts.sh /app/
-ENTRYPOINT ["/app/muck_magic_hosts.sh"]
+COPY fpclient.py fpclient_entrypoint.sh /app/
+ENTRYPOINT ["/app/fpclient_entrypoint.sh"]
