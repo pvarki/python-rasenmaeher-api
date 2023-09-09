@@ -1,4 +1,5 @@
-![Build Status](https://github.com/pvarki/docker-rasenmaeher-integration/actions/workflows/build.yml/badge.svg)
+.. image:: https://github.com/pvarki/docker-rasenmaeher-integration/actions/workflows/build.yml/badge.svg
+   :alt: Build Status
 
 ========================
 RASENMAEHER integrations
@@ -25,6 +26,18 @@ And if you forgot to --recurse-submodules run git submodule init to fix things.
 The submodules are repos in their own right, if you plan to make changes into them change
 to the directory and create new branch, commit and push changes as usual under that directory.
 
+Directories that are submodules
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+  - api https://github.com/pvarki/python-rasenmaeher-api
+  - cfssl https://github.com/pvarki/docker-rasenmaeher-cfssl
+  - fpintegration https://github.com/pvarki/python-rasenmaeher-rmfpapi
+  - keycloak https://github.com/pvarki/docker-keycloak
+  - kw_product_init https://github.com/pvarki/golang-kraftwerk-init-helper-cli
+  - openldap https://github.com/pvarki/docker-openldap
+  - mkcert https://github.com/pvarki/docker-mkcert
+
+
 Running in local development mode
 _________________________________
 
@@ -48,14 +61,9 @@ Remember to run "down -v" if you want to reset the persistent volumes.
 The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
 
+Integration tests
+-----------------
 
-Directories that are submodules
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-  - api https://github.com/pvarki/python-rasenmaeher-api
-  - cfssl https://github.com/pvarki/docker-rasenmaeher-cfssl
-  - fpintegration https://github.com/pvarki/python-rasenmaeher-rmfpapi
-  - keycloak https://github.com/pvarki/docker-keycloak
-  - kw_product_init https://github.com/pvarki/golang-kraftwerk-init-helper-cli
-  - openldap https://github.com/pvarki/docker-openldap
-  - mkcert https://github.com/pvarki/docker-mkcert
+Pytest is used to handle the integration tests, the requirements are in tests/requirements.txt.
+NOTE: The tests have side-effects and expect a clean database to start with so always make sure
+to run "down -v" for the composition first, then bring it back up before running integration tests.
