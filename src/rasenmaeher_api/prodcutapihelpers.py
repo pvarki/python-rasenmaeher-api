@@ -31,6 +31,20 @@ async def post_to_all_products(
     url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
+    return await _method_to_all_products("post", url_suffix, data, respose_schema)
+
+
+async def put_to_all_products(
+    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
+    """Call given PUT endpoint on call products in the manifest"""
+    return await _method_to_all_products("put", url_suffix, data, respose_schema)
+
+
+async def _method_to_all_products(
+    methodname: str, url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
+    """Call given POST endpoint on call products in the manifest"""
     if not check_kraftwerk_manifest():
         return None
     manifest = settings.kraftwerk_manifest_dict
@@ -43,11 +57,13 @@ async def post_to_all_products(
     async with session as client:
         for name, conf in manifest["products"].items():
             url = f"{conf['api']}{url_suffix}"
-            LOGGER.debug("calling {}".format(url))
-            resp = await client.post(url, json=data)
+            LOGGER.debug("calling {}({})".format(methodname, url))
+
+            resp = await getattr(client, methodname)(url, json=data)
             try:
                 resp.raise_for_status()
                 payload = await resp.json()
+                LOGGER.debug("payload={}".format(payload))
                 ret[name] = respose_schema.parse_obj(payload)
                 # Log a commong error case here for DRY
                 if isinstance(ret[name], OperationResultResponse):
@@ -56,7 +72,9 @@ async def post_to_all_products(
             except aiohttp.ClientError:
                 LOGGER.exception("Failure to call {}".format(url))
                 ret[name] = None
+                continue
             except pydantic.ValidationError:
                 LOGGER.exception("Invalid response from {}".format(url))
                 ret[name] = None
+                continue
     return ret
