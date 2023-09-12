@@ -19,6 +19,7 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handle lifespan management things, like mTLS client init"""
     # init
     _ = app
+    # TODO: We need to init our JWT issuer too
     await mtls_init()
     # App runs
     yield

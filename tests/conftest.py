@@ -70,6 +70,7 @@ def session_env_config(
     capath = DATA_PATH / "ca_public"
     sqlitepath = sessionfiles / "test.db"
     with monkeysession.context() as mpatch:
+        mpatch.setenv("LOG_CONSOLE_FORMATTER", "utc")
         mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
         # Apparently we are too late in setting the env for settings to take effect
         mpatch.setattr(settings, "cfssl_port", docker_services.port_for("cfssl", 7777))
@@ -104,6 +105,7 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
         token = issuer_cl.issue(
             {
                 "sub": "tpadminsession",
+                "anon_admin_session": True,
                 "nonce": str(uuid.uuid4()),
             }
         )
@@ -133,6 +135,13 @@ async def mtls_client() -> AsyncGenerator[TestClient, None]:
     user_uuid = str(uuid.uuid4())
     async with TestClient(get_app()) as instance:
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
+        yield instance
+
+
+@pytest_asyncio.fixture()
+async def unauth_client() -> AsyncGenerator[TestClient, None]:
+    """Client with no auth headers"""
+    async with TestClient(get_app()) as instance:
         yield instance
 
 
