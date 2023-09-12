@@ -61,6 +61,7 @@ def session_env_config(
                     "fake": {
                         "api": f"https://fake.localmaeher.pvarki.fi:{fakeproduct_port}/",
                         "uri": "https://fake.localmaeher.pvarki.fi:844/",  # Not actually there
+                        "certcn": "fake.localmaeher.pvarki.fi",
                     }
                 },
             }
