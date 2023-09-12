@@ -76,7 +76,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
-    test_api_client_cert_header_value: str = "TODO_CREATE_PKI_THAT_CAN_BE_PARSED_WITH__from_rfc4514_string"
+    test_api_client_cert_header_value: str = "CN=fake.localmaeher.pvarki.fi,O=N/A"
     api_healthcheck_proto: str = "http://"
     api_healthcheck_url: str = "/api/v1/healthcheck"
     api_healthcheck_headers: str = '{"propably":"not_needed"}'
@@ -88,6 +88,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Cfssl configuration
     cfssl_host: str = "http://127.0.0.1"
     cfssl_port: str = "8888"
+
+    # mtls
+    mtls_client_cert_path = "/data/persistent/rmmtlsclient.pem"
+    mtls_client_key_path = "/data/persistent/rmmtlsclient.key"
+    mtls_client_cert_cn = "rasenmaeher"
 
     # Keycloak configuration.
     keycloak_server_url: Optional[str] = None
