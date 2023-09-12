@@ -43,20 +43,23 @@ _________________________________
 
 TLDR::
 
-    docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
-    docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up
+    alias rmdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+    rmdev build
+    rmdev up
 
 or::
 
-    docker compose -p rmlocal -f docker-compose-local.yml build
-    docker compose -p rmlocal -f docker-compose-local.yml up
+    alias rmlocal="docker compose -p rmlocal -f docker-compose-local.yml"
+    rmlocal build
+    rmlocal up
 
 OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
 
 IMPORTANT: Only keep either rmlocal or rmdev created at one time or you may have weird network issues
-run "docker compose ... down" for one env before starting the other.
+run "down" for one env before starting the other.
 
-Remember to run "down -v" if you want to reset the persistent volumes.
+Remember to run "down -v" if you want to reset the persistent volumes, or if you have weird issues when
+switching between environments.
 
 The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
