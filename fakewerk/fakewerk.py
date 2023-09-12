@@ -5,7 +5,6 @@ import uuid
 import shutil
 import json
 import os
-import uuid
 
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
@@ -68,7 +67,10 @@ def create_fakeproduct_manifest() -> None:
         rm_uri = f"https://{rm_host}/"
     mtls_uri = rm_uri.replace("https://", "https://mtls.")  # FIXME: Use env etc
     manifest = {
-        "rasenmaeher": { "init": {"base_uri": rm_uri, "csr_jwt": token}, "mtls": {"base_uri": mtls_uri}},
+        "rasenmaeher": {
+            "init": {"base_uri": rm_uri, "csr_jwt": token},
+            "mtls": {"base_uri": mtls_uri},
+        },
         "product": {"dns": "fake.localmaeher.pvarki.fi"},
     }
     with FP_MANIFEST_PATH.open("wt", encoding="utf-8") as fpntr:

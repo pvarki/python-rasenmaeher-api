@@ -1,4 +1,5 @@
-![Build Status](https://github.com/pvarki/docker-rasenmaeher-integration/actions/workflows/build.yml/badge.svg)
+.. image:: https://github.com/pvarki/docker-rasenmaeher-integration/actions/workflows/build.yml/badge.svg
+   :alt: Build Status
 
 ========================
 RASENMAEHER integrations
@@ -25,30 +26,6 @@ And if you forgot to --recurse-submodules run git submodule init to fix things.
 The submodules are repos in their own right, if you plan to make changes into them change
 to the directory and create new branch, commit and push changes as usual under that directory.
 
-Running in local development mode
-_________________________________
-
-TLDR::
-
-    docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml build
-    docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml up
-
-or::
-
-    docker compose -p rmlocal -f docker-compose-local.yml build
-    docker compose -p rmlocal -f docker-compose-local.yml up
-
-OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
-
-IMPORTANT: Only keep either rmlocal or rmdev created at one time or you may have weird network issues
-run "docker compose ... down" for one env before starting the other.
-
-Remember to run "down -v" if you want to reset the persistent volumes.
-
-The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
-you make under /api will soon be reflected in the running instance.
-
-
 Directories that are submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -59,3 +36,37 @@ Directories that are submodules
   - kw_product_init https://github.com/pvarki/golang-kraftwerk-init-helper-cli
   - openldap https://github.com/pvarki/docker-openldap
   - mkcert https://github.com/pvarki/docker-mkcert
+
+
+Running in local development mode
+_________________________________
+
+TLDR::
+
+    alias rmdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+    rmdev build
+    rmdev up
+
+or::
+
+    alias rmlocal="docker compose -p rmlocal -f docker-compose-local.yml"
+    rmlocal build
+    rmlocal up
+
+OpenLDAP and keycloak-init sometimes fail on first start, just run up again.
+
+IMPORTANT: Only keep either rmlocal or rmdev created at one time or you may have weird network issues
+run "down" for one env before starting the other.
+
+Remember to run "down -v" if you want to reset the persistent volumes, or if you have weird issues when
+switching between environments.
+
+The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
+you make under /api will soon be reflected in the running instance.
+
+Integration tests
+-----------------
+
+Pytest is used to handle the integration tests, the requirements are in tests/requirements.txt.
+NOTE: The tests have side-effects and expect a clean database to start with so always make sure
+to run "down -v" for the composition first, then bring it back up before running integration tests.

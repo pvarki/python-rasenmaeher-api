@@ -204,6 +204,7 @@ services:
       - apinet
       - kcnet
       - canet
+      - intranet
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
@@ -240,6 +241,7 @@ services:
     networks:
       - apinet
       - kcnet
+      - intranet
     ports:
       - "${NGINX_HTTP_PORT:-8015}:${NGINX_HTTP_PORT:-8015}"
       - "${NGINX_HTTPS_PORT:-4439}:${NGINX_HTTPS_PORT:-4439}"
@@ -280,6 +282,7 @@ services:
       - "8001:8001"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
     networks:
       - productnet
+      - intranet
     volumes:
       - ca_public:/ca_public
       - kraftwerk_shared:/pvarki
@@ -322,6 +325,7 @@ services:
       NGINX_UPSTREAM_PORT: "8001"
     networks:
       - productnet
+      - intranet
     ports:
       - "${NGINX_HTTP_PRODUCT_PORT:-8016}:${NGINX_HTTP_PRODUCT_PORT:-8016}"
       - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
@@ -343,6 +347,7 @@ networks:
   kcnet:
   canet:
   dbnet:
+  intranet:
 
 volumes:
   kraftwerk_data:
