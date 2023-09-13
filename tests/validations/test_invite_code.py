@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 
 # FIXME: openapi.json 2023-09-10: invalid doc: '.../invitecode?code=xxx...': '?code' -> '?invitecode'
 def test_not_used_invite_code(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str], error_messages: Dict[str, str]
+        localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can check invite_code is usable"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/invitecode?invitecode={testdata['invite_code']}"

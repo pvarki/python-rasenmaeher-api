@@ -18,7 +18,7 @@ def test_check_valid_code(
     assert payload['code_ok'] is True
 
 def test_check_invalid_code(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
+        localmaeher_api: Tuple[str, str]
 ) -> None:
     """Tests that we can check invalid temp_admin_code"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/check-code?temp_admin_code=asdfökj34342242ääasdfa35r"
@@ -80,7 +80,7 @@ def test_one_item_admin_list(
     assert payload['admin_list'][0]['work_id_hash'] != ""
 
 def test_firstuser_is_active(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
+        localmaeher_api: Tuple[str, str]
 ) -> None:
     """Tests firstuser is active"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/is-active"
@@ -105,7 +105,7 @@ def test_disable_firstuser(
     assert payload['api_disabled'] is True
 
 def test_firstuser_is_not_active(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
+        localmaeher_api: Tuple[str, str]
 ) -> None:
     """Tests firstuser is not active"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/is-active"
