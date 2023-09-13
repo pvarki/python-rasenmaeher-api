@@ -32,9 +32,26 @@ def openapi_version() -> Tuple[str, str]:
 # FIXME: rename this, or if only needed in one test file=module, move it there
 @pytest.fixture
 def testdata() -> Dict[str, str]:
-    """Return values needed for status tests"""
+    """Return values needed for tests"""
     return {
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
-        "work_id1": "koira",
-        "work_id2": "kissa",
+        "first_time_user_hash": "PerPerPerjantaiPulloParisee",
+        "first_time_user_work_id1": "kukko",
+        "first_time_user_work_id2": "kana",
+        "invite_code_user_hash": "PerPerPerjantaiPulloParisee",
+        "invite_code_invalid_user_hash": "asdfaj3433423420342230942394",
+        "invite_code_work_id1": "roosteri",
+        "invite_code": "asdölfjasfrei33424äxcxc",
+    }
+
+# FIXME: if duplicate firstuser, it returns only HTTP Error 500
+@pytest.fixture
+def error_messages() -> Dict[str, str]:
+    """Return values needed for verifying error messages in tests"""
+    return {
+        "NO_USERS_FOUND": "No users found...",
+        "FIRSTUSER_API_IS_DISABLED": "/firstuser API is disabled",
+        "NOT_FOUND": "Not Found",
+        "INVITECODE_NOT_VALID": "Error. invitecode not valid.",
+        "NO_ENROLLMENT_PERMISSIONS": "Error. Given management hash doesn't have 'enrollment' permissions."
     }
