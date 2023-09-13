@@ -10,7 +10,7 @@ def test_check_valid_code(
         localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can check valid temp_admin_code"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/check-code?temp_admin_code={testdata['first_time_user_hash']}"
+    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/check-code?temp_admin_code={testdata['user_hash']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -32,7 +32,7 @@ def test_empty_admin_list(
         localmaeher_api: Tuple[str, str], testdata: Dict[str, str], error_messages: Dict[str, str]
 ) -> None:
     """Tests that we can have an empty list without any id's and hashes"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['first_time_user_hash']}"
+    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['user_hash']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -45,7 +45,7 @@ def test_firstuser_add_admin(
     """Tests that we can add firstuser admin"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/add-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id1']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
@@ -59,7 +59,7 @@ def test_duplicate_firstuser_admin(
     """Tests failure if firstuser admin already exists"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/add-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id1']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
@@ -71,7 +71,7 @@ def test_one_item_admin_list(
         localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can have one item in the admin list"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['first_time_user_hash']}"
+    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['user_hash']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -87,7 +87,7 @@ def test_firstuser_is_active(
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert response.status_code == 200        
+    assert response.status_code == 200
     assert payload['api_is_active'] is True
 
 def test_disable_firstuser(
@@ -112,7 +112,7 @@ def test_firstuser_is_not_active(
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert response.status_code == 200        
+    assert response.status_code == 200
     assert payload['api_is_active'] is False
 
 def test_delete_disabled_firstuser(
@@ -121,7 +121,7 @@ def test_delete_disabled_firstuser(
     """Tests that we cannot delete disabled firstuser"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/delete-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id1']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
@@ -134,7 +134,7 @@ def test_disabled_admin_list(
         localmaeher_api: Tuple[str, str], testdata: Dict[str, str], error_messages: Dict[str, str]
 ) -> None:
     """Tests that we cannot list disabled admin"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['first_time_user_hash']}"
+    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['user_hash']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -147,7 +147,7 @@ def test_disabled_add_admin(
     """Tests that we cannot add firstuser if admin is disabled"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/add-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id2']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
@@ -167,14 +167,14 @@ def test_enable_firstuser(
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert response.status_code == 200        
+    assert response.status_code == 200
     assert payload['api_enabled'] is True
 
 def test_enabled_admin_list(
         localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can have admin list after firstuser activation"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['first_time_user_hash']}"
+    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['user_hash']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -188,7 +188,7 @@ def test_another_firstuser_add_admin(
     """Tests that we can add firstuser admin"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/add-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id2']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
@@ -200,7 +200,7 @@ def test_two_firstusers_admin_list(
         localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can have admin list after firstuser activation"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['first_time_user_hash']}"
+    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/list-admin?temp_admin_code={testdata['user_hash']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -216,7 +216,7 @@ def test_delete_enabled_firstuser(
     """Tests that we delete enabled firstuser"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/delete-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id1']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
@@ -231,7 +231,7 @@ def test_delete_another_enabled_firstuser(
     """Tests that we delete another enabled firstuser"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/firstuser/delete-admin"
     data = {
-        "temp_admin_code": f"{testdata['first_time_user_hash']}",
+        "temp_admin_code": f"{testdata['user_hash']}",
         "work_id": f"{testdata['first_time_user_work_id2']}",
     }
     response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)

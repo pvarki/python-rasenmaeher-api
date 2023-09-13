@@ -35,10 +35,9 @@ def testdata() -> Dict[str, str]:
     """Return values needed for tests"""
     return {
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
-        "first_time_user_hash": "PerPerPerjantaiPulloParisee",
+        "user_hash": "PerPerPerjantaiPulloParisee",
         "first_time_user_work_id1": "kukko",
         "first_time_user_work_id2": "kana",
-        "invite_code_user_hash": "PerPerPerjantaiPulloParisee",
         "invite_code_invalid_user_hash": "asdfaj3433423420342230942394",
         "invite_code_work_id1": "roosteri",
         "invite_code": "asdölfjasfrei33424äxcxc",
