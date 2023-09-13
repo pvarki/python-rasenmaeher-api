@@ -6,9 +6,10 @@ import requests
 
 LOGGER = logging.getLogger(__name__)
 
+
 # FIXME: openapi.json 2023-09-10: invalid doc: '.../invitecode?code=xxx...': '?code' -> '?invitecode'
 def test_not_used_invite_code(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
+    localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can check invite_code is usable"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/invitecode?invitecode={testdata['invite_code']}"
@@ -16,10 +17,13 @@ def test_not_used_invite_code(
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status_code == 200
-    assert payload['invitecode_is_active'] is False
+    assert payload["invitecode_is_active"] is False
+
 
 def test_invalid_invite_code_enroll(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str], error_messages: Dict[str, str]
+    localmaeher_api: Tuple[str, str],
+    testdata: Dict[str, str],
+    error_messages: Dict[str, str],
 ) -> None:
     """Tests that we cannot enroll non-existent work_id and invite_code"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/invitecode/enroll"
@@ -31,10 +35,13 @@ def test_invalid_invite_code_enroll(
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status_code == 400
-    assert payload['detail'] == error_messages['INVITECODE_NOT_VALID']
+    assert payload["detail"] == error_messages["INVITECODE_NOT_VALID"]
+
 
 def test_invalid_user_hash_invite_code_create(
-        localmaeher_api: Tuple[str, str], testdata: Dict[str, str], error_messages: Dict[str, str]
+    localmaeher_api: Tuple[str, str],
+    testdata: Dict[str, str],
+    error_messages: Dict[str, str],
 ) -> None:
     """Tests that we cannot create a new invite code using invalid user management hash"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/invitecode/create"
@@ -45,4 +52,4 @@ def test_invalid_user_hash_invite_code_create(
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status_code == 403
-    assert payload['detail'] == error_messages['NO_ENROLLMENT_PERMISSIONS']
+    assert payload["detail"] == error_messages["NO_ENROLLMENT_PERMISSIONS"]

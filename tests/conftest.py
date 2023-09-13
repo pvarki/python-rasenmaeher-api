@@ -43,6 +43,7 @@ def testdata() -> Dict[str, str]:
         "invite_code": "asdölfjasfrei33424äxcxc",
     }
 
+
 # FIXME: if duplicate firstuser, it returns only HTTP Error 500
 @pytest.fixture
 def error_messages() -> Dict[str, str]:
@@ -52,5 +53,5 @@ def error_messages() -> Dict[str, str]:
         "FIRSTUSER_API_IS_DISABLED": "/firstuser API is disabled",
         "NOT_FOUND": "Not Found",
         "INVITECODE_NOT_VALID": "Error. invitecode not valid.",
-        "NO_ENROLLMENT_PERMISSIONS": "Error. Given management hash doesn't have 'enrollment' permissions."
+        "NO_ENROLLMENT_PERMISSIONS": "Error. Given management hash doesn't have 'enrollment' permissions.",
     }
