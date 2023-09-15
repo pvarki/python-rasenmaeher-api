@@ -35,10 +35,11 @@ async def return_mtlsjwt_payload_permissive(request: Request) -> MTLSorJWTPayloa
     return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
 
 
-@router.get("/ldap/connection-string", dependencies=[Depends(JWTBearer())])
+@router.get("/ldap/connection-string", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def return_ldap_connectionstring() -> str:
     """
     Method for generating and returning ldap connection string
     """
+    # TODO: Check that the subject of the cert is one of the product integration APIs in manifest
 
     return cast(str, "Hello World")

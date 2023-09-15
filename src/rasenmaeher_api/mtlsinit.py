@@ -62,7 +62,7 @@ def create_csr(keypair: crypto.PKey) -> Path:
 
 
 async def mtls_init() -> None:
-    """Create keypair, CSR, and get it signed"""
+    """If needed: Create keypair, CSR, and get it signed"""
     if check_mtls_init():
         return
     LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")

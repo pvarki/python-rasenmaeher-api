@@ -51,6 +51,7 @@ def session_env_config(
 ) -> Generator[None, None, None]:
     """set the JWT auth config"""
     sessionfiles = Path(nice_tmpdir_ses)
+    sessionpersistent = sessionfiles / "data/persistent"
     kfmanifest = sessionfiles / "kraftwerk-rasenmaeher-init.json"
     fakeproduct_port = docker_services.port_for("fpapi_run", 7788)
     kfmanifest.write_text(
@@ -61,15 +62,38 @@ def session_env_config(
                     "fake": {
                         "api": f"https://fake.localmaeher.pvarki.fi:{fakeproduct_port}/",
                         "uri": "https://fake.localmaeher.pvarki.fi:844/",  # Not actually there
+                        "certcn": "fake.localmaeher.pvarki.fi",
                     }
                 },
             }
         )
     )
     capath = DATA_PATH / "ca_public"
-    sqlitepath = sessionfiles / "test.db"
+    pubkeydir = sessionpersistent / "public"
+    pubkeydir.mkdir(parents=True)
+    sqlitepath = sessionpersistent / "private" / "test.db"
+    sqlitepath.parent.mkdir(parents=True, mode=0o760)
+    privkeypath = sqlitepath.parent / "rm_jwtsign.key"
+
+    # Copy the datadir JWT keys to temp dir with test data
+    for fpath in JWT_PATH.iterdir():
+        if fpath.name.endswith(".key"):
+            # skip these keys from the copy
+            continue
+        if fpath.name.endswith(".pub"):
+            tgtpath = pubkeydir / fpath.name
+        else:
+            LOGGER.warning("Don't know what to do with {}".format(fpath))
+            continue
+        tgtpath.write_bytes(fpath.read_bytes())
+
     with monkeysession.context() as mpatch:
-        mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
+        mpatch.setenv("LOG_CONSOLE_FORMATTER", "utc")
+        # Reset the singletons
+        mpatch.setattr(Issuer, "_singleton", None)
+        mpatch.setattr(Verifier, "_singleton", None)
+        mpatch.setenv("JWT_PUBKEY_PATH", str(pubkeydir))
+        mpatch.setenv("JWT_PRIVKEY_PATH", str(privkeypath))
         # Apparently we are too late in setting the env for settings to take effect
         mpatch.setattr(settings, "cfssl_port", docker_services.port_for("cfssl", 7777))
         mpatch.setenv("RM_CFSSL_PORT", str(settings.cfssl_port))
@@ -103,6 +127,7 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
         token = issuer_cl.issue(
             {
                 "sub": "tpadminsession",
+                "anon_admin_session": True,
                 "nonce": str(uuid.uuid4()),
             }
         )
@@ -132,6 +157,27 @@ async def mtls_client() -> AsyncGenerator[TestClient, None]:
     user_uuid = str(uuid.uuid4())
     async with TestClient(get_app()) as instance:
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
+        yield instance
+
+
+@pytest_asyncio.fixture()
+async def unauth_client() -> AsyncGenerator[TestClient, None]:
+    """Client with no auth headers"""
+    async with TestClient(get_app()) as instance:
+        yield instance
+
+
+@pytest_asyncio.fixture()
+async def rm_jwt_client() -> AsyncGenerator[TestClient, None]:
+    """Client with no auth headers"""
+    async with TestClient(get_app()) as instance:
+        token = Issuer.singleton().issue(
+            {
+                "sub": "rmsession",
+                "anon_admin_session": True,
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
 
 
