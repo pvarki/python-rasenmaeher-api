@@ -1,13 +1,33 @@
 """The conftest.py provides fixtures for the entire directory.
 Fixtures defined can be used by any test in that package without needing to import them."""
-from typing import Tuple, Dict
+from typing import Tuple, Dict, AsyncGenerator
 import logging
+from pathlib import Path
+import ssl
 
+import aiohttp
 import pytest
+import pytest_asyncio
 from libadvian.logging import init_logging
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
+CA_PATH = Path(__file__).parent / "testcas"
+
+
+@pytest_asyncio.fixture
+async def session_with_testcas() -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """aiohttp session with the mkcert CA enabled"""
+    ssl_ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    LOGGER.info("Loading local CA certs from {}".format(CA_PATH))
+    for cafile in CA_PATH.glob("*ca*.pem"):
+        if not cafile.is_file():
+            continue
+        LOGGER.debug("Adding cert {}".format(cafile))
+        ssl_ctx.load_verify_locations(str(cafile))
+    conn = aiohttp.TCPConnector(ssl=ssl_ctx)
+    async with aiohttp.ClientSession(connector=conn) as session:
+        yield session
 
 
 @pytest.fixture

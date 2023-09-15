@@ -9,3 +9,5 @@ pytest-emoji==0.2.0
 pytest-md==0.2.0
 types-requests==2.31.0.2
 types-urllib3==1.26.25.14
+aiohttp==3.8.5
+pytest-asyncio==0.21.1
