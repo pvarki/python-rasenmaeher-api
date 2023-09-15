@@ -17,22 +17,29 @@ KRAFTWERK_KEYS_PATH = Path(os.environ.get("PVARKI_PUBLICKEYS_PATH", "/pvarki/pub
 def check_public_keys() -> bool:
     """Check public keys"""
     pubkeydir: Union[Path, Optional[str]] = os.environ.get("JWT_PUBKEY_PATH")
+    LOGGER.debug("initial pubkeydir={}".format(pubkeydir))
     if pubkeydir:
         pubkeydir = Path(pubkeydir)
-        if not pubkeydir.is_dir():
+        if pubkeydir.exists() and not pubkeydir.is_dir():
             pubkeydir = pubkeydir.parent
     else:
         pubkeydir = DEFAULT_PUB_PATH.parent
+    LOGGER.debug("final pubkeydir={}".format(pubkeydir))
     if not pubkeydir.exists():
         pubkeydir.mkdir(parents=True)
 
     if KRAFTWERK_KEYS_PATH.exists():
+        LOGGER.info("Making sure KRAFTWERK provided keys are in {}".format(pubkeydir))
         for fpath in KRAFTWERK_KEYS_PATH.iterdir():
             tgtpath = pubkeydir / fpath.name
+            LOGGER.debug("Checking {} vs {} (exists={})".format(fpath, tgtpath, tgtpath.exists()))
             if tgtpath.exists():
                 continue
             # Copy the pubkey
+            LOGGER.info("Copying {} to {}".format(fpath, tgtpath))
             tgtpath.write_bytes(fpath.read_bytes())
+    else:
+        LOGGER.warning("{} does not exist, not copying KRAFTWERK public keys".format(KRAFTWERK_KEYS_PATH))
     return True
 
 
@@ -90,14 +97,19 @@ async def jwt_init() -> None:
         raise RuntimeError("Returned private key does not exist!")
 
     pubkeypath: Union[Path, Optional[str]] = os.environ.get("JWT_PUBKEY_PATH")
+    LOGGER.debug("initial pubkeypath={}".format(pubkeypath))
     if pubkeypath:
         pubkeypath = Path(pubkeypath)
-        if pubkeypath.is_dir():
+        if pubkeypath.exists() and pubkeypath.is_dir():
             pubkeypath = pubkeypath / genpubpath.name
         LOGGER.info("JWT_PUBKEY_PATH defined, copying our key there")
     else:
         pubkeypath = DEFAULT_PUB_PATH
+    LOGGER.debug("final pubkeypath={}".format(pubkeypath))
+
     if not pubkeypath.parent.exists():
         pubkeypath.parent.mkdir(parents=True)
-    LOGGER.debug("Move generated pubkey to {}".format(pubkeypath))
-    genpubpath.rename(pubkeypath)
+    LOGGER.debug("Copy generated pubkey to {}".format(pubkeypath))
+    pubkeypath.write_bytes(genpubpath.read_bytes())
+    # Make sure KRAFTWERK public keys get copied
+    check_public_keys()
