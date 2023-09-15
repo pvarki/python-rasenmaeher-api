@@ -186,6 +186,16 @@ services:
       keycloak:
         condition: service_healthy
 
+  rmapipathsinit:
+    image: pvarki/mkcert:latest
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - rmapi_data:/data/persistent
+    command: ["/bin/bash", "-c", "mkdir -p /data/persistent/private"]
+
   rmapi:
     image: pvarki/rmapi:latest
     build:
@@ -212,6 +222,8 @@ services:
       - rmapi_data:/data/persistent
       - kraftwerk_shared:/pvarki
     depends_on:
+      rmapipathsinit:
+        condition: service_completed_successfully
       cfssl:
         condition: service_healthy
       keycloak:
