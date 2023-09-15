@@ -195,8 +195,8 @@ services:
     ports:
       - "8000:8000"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
     environment:
-      JWT_PUBKEY_PATH: "/pvarki/publickeys"
-      JWT_PRIVKEY_PATH: "/data/persistent/jwt.key"
+      JWT_PUBKEY_PATH: "/data/persistent/public"
+      JWT_PRIVKEY_PATH: "/data/persistent/private/rm_jwtsign.key"
       JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
       RM_CFSSL_HOST: "http://cfssl"
       RM_CFSSL_PORT: ${CFSSL_BIND_PORT:-8888}
@@ -309,6 +309,23 @@ services:
     volumes:
       - mkcert_ca:/caroot
       - le_certs:/certs
+
+  certscopy:
+    image: pvarki/mkcert:latest
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/certs
+      - ./tests/testcas:/testcas
+    command: ["/bin/bash", "-c", "cp -r /ca_public/* /testcas/"]
+    depends_on:
+      fpmkcert:
+        condition: service_completed_successfully
+      rmmkcert:
+        condition: service_completed_successfully
 
   fpnginx:
     image: nginx
