@@ -62,7 +62,6 @@ async def test_use_code_twice(tilauspalvelu_jwt_client: TestClient, unauth_clien
         await use_code(unauth_client, code)
 
 
-@pytest.mark.xfail(reason="Issuer keys are not created on init yet")
 @pytest.mark.asyncio
 async def test_refresh_jwt(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test that the refresh endpoint works"""

@@ -9,6 +9,7 @@ from libpvarki.logging import init_logging
 from rasenmaeher_api.settings import settings
 from rasenmaeher_api.web.api.router import api_router
 from rasenmaeher_api.mtlsinit import mtls_init
+from rasenmaeher_api.jwtinit import jwt_init
 
 
 LOGGER = logging.getLogger(__name__)
@@ -19,7 +20,8 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handle lifespan management things, like mTLS client init"""
     # init
     _ = app
-    # TODO: We need to init our JWT issuer too
+    # TODO: Should we do some sort of worker-safe locking here ??
+    await jwt_init()
     await mtls_init()
     # App runs
     yield

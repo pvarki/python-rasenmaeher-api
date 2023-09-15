@@ -7,6 +7,7 @@ import uuid
 import pytest
 from multikeyjwt import Issuer, Verifier
 from libadvian.testhelpers import nice_tmpdir  # pylint: disable=W0611
+from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
 from rasenmaeher_api.jwtinit import check_public_keys, check_private_key, check_jwt_init, jwt_init
 
@@ -65,3 +66,16 @@ async def test_create_password(empty_datadirs: Tuple[Path, Path], monkeypatch: p
         assert check_jwt_init()
         issuer = Issuer.singleton()
         assert issuer.keypasswd and str(issuer.keypasswd) == keypass
+
+
+@pytest.mark.asyncio
+async def test_rm_jwt_session(rm_jwt_client: TestClient) -> None:
+    """Test that we can use JWTs issued by RASENMAEHER itself"""
+    client = rm_jwt_client
+    resp = await client.get("/api/v1/check-auth/jwt")
+    LOGGER.debug("resp={}".format(resp))
+    payload = resp.json()
+    LOGGER.debug("payload={}".format(payload))
+    assert resp.status_code == 200
+    assert "sub" in payload
+    assert payload["sub"] == "rmsession"

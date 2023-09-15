@@ -167,6 +167,20 @@ async def unauth_client() -> AsyncGenerator[TestClient, None]:
         yield instance
 
 
+@pytest_asyncio.fixture()
+async def rm_jwt_client() -> AsyncGenerator[TestClient, None]:
+    """Client with no auth headers"""
+    async with TestClient(get_app()) as instance:
+        token = Issuer.singleton().issue(
+            {
+                "sub": "rmsession",
+                "anon_admin_session": True,
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
 # Issues in tests in ubuntu-latest
 # error: Untyped decorator makes function "app_client" untyped  [misc] # no-untyped-def
 # pyproject.toml
