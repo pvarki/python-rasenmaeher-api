@@ -1,4 +1,5 @@
 """Views dealing with login tokens issues by/via TILAUSPALVELU"""
+from typing import Dict, Any
 import logging
 import secrets
 import string
@@ -61,16 +62,8 @@ async def refresh_token(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -
     return resp
 
 
-@router.post("/code/generate", tags=["tokens"], response_model=LoginCodeRequestResponse)
-async def create_code(
-    req: LoginCodeCreateRequest, jwt: JWTPayload = Depends(JWTBearer(auto_error=True))
-) -> LoginCodeRequestResponse:
-    """Generate an alphanumeric code that can be exchanged for JWT with the given claims"""
-    LOGGER.debug("Called")
-    _claims = req.claims
-    if not jwt.get("anon_admin_session", False):
-        LOGGER.error("Requesting JWT must have admin session claim")
-        raise HTTPException(status_code=403, detail="Forbidden")
+async def create_code_backend(claims: Dict[str, Any]) -> str:
+    """Created the code to backend, used by console and REST endpoint"""
     code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
 
     # TODO: Save the code and req.claims in database
@@ -85,7 +78,7 @@ async def create_code(
         code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
 
     _q = settings.sqlite_insert_into_jwt.format(
-        claims=json.dumps(_claims), consumed="no", work_id_hash="NA", work_id="NA", exchange_code=code
+        claims=json.dumps(claims), consumed="no", work_id_hash="NA", work_id="NA", exchange_code=code
     )
     _success, _result = sqlite.run_command(_q)
     if _success is False:
@@ -93,6 +86,19 @@ async def create_code(
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=500, detail=_reason)
 
+    return code
+
+
+@router.post("/code/generate", tags=["tokens"], response_model=LoginCodeRequestResponse)
+async def create_code(
+    req: LoginCodeCreateRequest, jwt: JWTPayload = Depends(JWTBearer(auto_error=True))
+) -> LoginCodeRequestResponse:
+    """Generate an alphanumeric code that can be exchanged for JWT with the given claims"""
+    LOGGER.debug("Called")
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
+    code = await create_code_backend(req.claims)
     resp = LoginCodeRequestResponse(code=code)
     LOGGER.debug("returning {}".format(resp))
     return resp

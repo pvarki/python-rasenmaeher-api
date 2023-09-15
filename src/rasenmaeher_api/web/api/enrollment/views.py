@@ -441,8 +441,7 @@ async def post_config_add_manager(
         raise HTTPException(status_code=400, detail=_reason)
 
     _q = settings.sqlite_insert_into_management.format(
-        management_hash=request_in.new_service_management_hash, special_rules=request_in.permissions_str,
-        active=1
+        management_hash=request_in.new_service_management_hash, special_rules=request_in.permissions_str, active=1
     )
     _success, _result = sqlite.run_command(_q)
 
@@ -622,7 +621,9 @@ async def request_enrollment_promote(
             raise HTTPException(status_code=500, detail=_reason)
 
     else:
-        _q = settings.sqlite_insert_into_management.format(management_hash=_work_id_hash, special_rules="enrollment", active=1)
+        _q = settings.sqlite_insert_into_management.format(
+            management_hash=_work_id_hash, special_rules="enrollment", active=1
+        )
         _success, _result = sqlite.run_command(_q)
 
         if _success is False:
