@@ -186,6 +186,16 @@ services:
       keycloak:
         condition: service_healthy
 
+  rmapipathsinit:
+    image: pvarki/mkcert:latest
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - rmapi_data:/data/persistent
+    command: ["/bin/bash", "-c", "ls -R /data/persistent ; test -d /data/persistent/private || mkdir -p /data/persistent/private ; test -d /data/persistent/public || mkdir -p /data/persistent/public"]
+
   rmapi:
     image: pvarki/rmapi:latest
     build:
@@ -195,11 +205,13 @@ services:
     ports:
       - "8000:8000"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
     environment:
-      JWT_PUBKEY_PATH: "/pvarki/publickeys"
-      JWT_PRIVKEY_PATH: "/data/persistent/jwt.key"
+      JWT_PUBKEY_PATH: "/data/persistent/public"
+      JWT_PRIVKEY_PATH: "/data/persistent/private/rm_jwtsign.key"
       JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
       RM_CFSSL_HOST: "http://cfssl"
       RM_CFSSL_PORT: ${CFSSL_BIND_PORT:-8888}
+      RM_SQLITE_FILEPATH_PROD: "/data/persistent/private/data.db"
+      RM_SQLITE_FILEPATH_DEV: "/data/persistent/private/data.db"
     networks:
       - apinet
       - kcnet
@@ -210,6 +222,8 @@ services:
       - rmapi_data:/data/persistent
       - kraftwerk_shared:/pvarki
     depends_on:
+      rmapipathsinit:
+        condition: service_completed_successfully
       cfssl:
         condition: service_healthy
       keycloak:
@@ -309,6 +323,23 @@ services:
     volumes:
       - mkcert_ca:/caroot
       - le_certs:/certs
+
+  certscopy:
+    image: pvarki/mkcert:latest
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/certs
+      - ./tests/testcas:/testcas
+    command: ["/bin/bash", "-c", "cp -r /ca_public/* /testcas/"]
+    depends_on:
+      fpmkcert:
+        condition: service_completed_successfully
+      rmmkcert:
+        condition: service_completed_successfully
 
   fpnginx:
     image: nginx
