@@ -51,6 +51,7 @@ def session_env_config(
 ) -> Generator[None, None, None]:
     """set the JWT auth config"""
     sessionfiles = Path(nice_tmpdir_ses)
+    sessionpersistent = sessionfiles / "data/persistent"
     kfmanifest = sessionfiles / "kraftwerk-rasenmaeher-init.json"
     fakeproduct_port = docker_services.port_for("fpapi_run", 7788)
     kfmanifest.write_text(
@@ -68,10 +69,31 @@ def session_env_config(
         )
     )
     capath = DATA_PATH / "ca_public"
-    sqlitepath = sessionfiles / "test.db"
+    pubkeydir = sessionpersistent / "public"
+    pubkeydir.mkdir(parents=True)
+    sqlitepath = sessionpersistent / "private" / "test.db"
+    sqlitepath.parent.mkdir(parents=True, mode=0o760)
+    privkeypath = sqlitepath.parent / "rm_jwtsign.key"
+
+    # Copy the datadir JWT keys to temp dir with test data
+    for fpath in JWT_PATH.iterdir():
+        if fpath.name.endswith(".key"):
+            # skip these keys from the copy
+            continue
+        if fpath.name.endswith(".pub"):
+            tgtpath = pubkeydir / fpath.name
+        else:
+            LOGGER.warning("Don't know what to do with {}".format(fpath))
+            continue
+        tgtpath.write_bytes(fpath.read_bytes())
+
     with monkeysession.context() as mpatch:
         mpatch.setenv("LOG_CONSOLE_FORMATTER", "utc")
-        mpatch.setenv("JWT_PUBKEY_PATH", str(JWT_PATH))
+        # Reset the singletons
+        mpatch.setattr(Issuer, "_singleton", None)
+        mpatch.setattr(Verifier, "_singleton", None)
+        mpatch.setenv("JWT_PUBKEY_PATH", str(pubkeydir))
+        mpatch.setenv("JWT_PRIVKEY_PATH", str(privkeypath))
         # Apparently we are too late in setting the env for settings to take effect
         mpatch.setattr(settings, "cfssl_port", docker_services.port_for("cfssl", 7777))
         mpatch.setenv("RM_CFSSL_PORT", str(settings.cfssl_port))
