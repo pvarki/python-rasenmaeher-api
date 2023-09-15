@@ -31,15 +31,15 @@ async def session_with_testcas() -> AsyncGenerator[aiohttp.ClientSession, None]:
 
 
 @pytest.fixture
-def localmaeher_api() -> Tuple[str, str]:
-    """Return url and version for https API"""
-    return "https://localmaeher.pvarki.fi:4439/api", "v1"
+def localmaeher_api() -> Tuple[str, str, float]:
+    """Return url, version and max timeout for https API"""
+    return "https://localmaeher.pvarki.fi:4439/api", "v1", 3.0
 
 
 @pytest.fixture
-def localhost_api() -> Tuple[str, str]:
-    """Return url and version for http API"""
-    return "http://127.0.0.1:8000/api", "v1"
+def localhost_api() -> Tuple[str, str, float]:
+    """Return url, version and max timeout for http API"""
+    return "http://127.0.0.1:8000/api", "v1", 3.0
 
 
 @pytest.fixture

@@ -9,11 +9,13 @@ LOGGER = logging.getLogger(__name__)
 
 # FIXME: openapi.json 2023-09-10: invalid doc: '.../invitecode?code=xxx...': '?code' -> '?invitecode'
 def test_not_used_invite_code(
-    localmaeher_api: Tuple[str, str], testdata: Dict[str, str]
+    localmaeher_api: Tuple[str, str, float], testdata: Dict[str, str]
 ) -> None:
     """Tests that we can check invite_code is usable"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/invitecode?invitecode={testdata['invite_code']}"
-    response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
+    response = requests.get(
+        url, json=None, headers=None, verify=False, timeout=localmaeher_api[2]
+    )
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status_code == 200
@@ -21,7 +23,7 @@ def test_not_used_invite_code(
 
 
 def test_invalid_invite_code_enroll(
-    localmaeher_api: Tuple[str, str],
+    localmaeher_api: Tuple[str, str, float],
     testdata: Dict[str, str],
     error_messages: Dict[str, str],
 ) -> None:
@@ -31,7 +33,9 @@ def test_invalid_invite_code_enroll(
         "invitecode": f"{testdata['invite_code']}",
         "work_id": f"{testdata['invite_code_work_id1']}",
     }
-    response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
+    response = requests.post(
+        url, json=data, headers=None, verify=False, timeout=localmaeher_api[2]
+    )
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status_code == 400
@@ -39,7 +43,7 @@ def test_invalid_invite_code_enroll(
 
 
 def test_invalid_user_hash_invite_code_create(
-    localmaeher_api: Tuple[str, str],
+    localmaeher_api: Tuple[str, str, float],
     testdata: Dict[str, str],
     error_messages: Dict[str, str],
 ) -> None:
@@ -48,7 +52,9 @@ def test_invalid_user_hash_invite_code_create(
     data = {
         "user_management_hash": f"{testdata['invite_code_invalid_user_hash']}",
     }
-    response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
+    response = requests.post(
+        url, json=data, headers=None, verify=False, timeout=localmaeher_api[2]
+    )
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status_code == 403
