@@ -1,4 +1,5 @@
 """Views dealing with login tokens issues by/via TILAUSPALVELU"""
+from typing import Dict, Any
 import logging
 import secrets
 import string
@@ -58,18 +59,24 @@ async def refresh_token(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -
     return resp
 
 
+async def create_code_backend(claims: Dict[str, Any]) -> str:
+    """Created the code to backend, used by console and REST endpoint"""
+    code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
+    # TODO: Save the code and req.claims in database
+    _ = claims
+    return code
+
+
 @router.post("/code/generate", tags=["tokens"], response_model=LoginCodeRequestResponse)
 async def create_code(
     req: LoginCodeCreateRequest, jwt: JWTPayload = Depends(JWTBearer(auto_error=True))
 ) -> LoginCodeRequestResponse:
     """Generate an alphanumeric code that can be exchanged for JWT with the given claims"""
     LOGGER.debug("Called")
-    _ = req.claims
     if not jwt.get("anon_admin_session", False):
         LOGGER.error("Requesting JWT must have admin session claim")
         raise HTTPException(status_code=403, detail="Forbidden")
-    code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
-    # TODO: Save the code and req.claims in database
+    code = await create_code_backend(req.claims)
     resp = LoginCodeRequestResponse(code=code)
     LOGGER.debug("returning {}".format(resp))
     return resp
