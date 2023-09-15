@@ -194,7 +194,7 @@ services:
       target: production
     volumes:
       - rmapi_data:/data/persistent
-    command: ["/bin/bash", "-c", "mkdir -p /data/persistent/private"]
+    command: ["/bin/bash", "-c", "ls -R /data/persistent ; test -d /data/persistent/private || mkdir -p /data/persistent/private ; test -d /data/persistent/public || mkdir -p /data/persistent/public"]
 
   rmapi:
     image: pvarki/rmapi:latest
