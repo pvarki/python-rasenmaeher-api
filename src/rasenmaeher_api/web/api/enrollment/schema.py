@@ -607,6 +607,7 @@ class EnrollmentInviteCodeCreateIn(BaseModel):
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {"user_management_hash": "[str] - Admin hash string having permissions to create invite code"},
@@ -650,6 +651,7 @@ class EnrollmentInviteCodeActivateIn(BaseModel):
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
@@ -672,6 +674,7 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -690,6 +693,7 @@ class EnrollmentInviteCodeDeleteIn(BaseModel):
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
