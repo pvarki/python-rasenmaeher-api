@@ -32,14 +32,22 @@ def check_public_keys() -> bool:
 
     if KRAFTWERK_KEYS_PATH.exists():
         LOGGER.info("Making sure KRAFTWERK provided keys are in {}".format(pubkeydir))
-        for fpath in KRAFTWERK_KEYS_PATH.iterdir():
-            tgtpath = pubkeydir / fpath.name
-            LOGGER.debug("Checking {} vs {} (exists={})".format(fpath, tgtpath, tgtpath.exists()))
-            if tgtpath.exists():
-                continue
-            # Copy the pubkey
-            LOGGER.info("Copying {} to {}".format(fpath, tgtpath))
-            tgtpath.write_bytes(fpath.read_bytes())
+        lockpath = pubkeydir.parent / "pubkeycopy.lock"
+        lock = filelock.FileLock(lockpath)
+        try:
+            lock.acquire(timeout=0.0)
+            for fpath in KRAFTWERK_KEYS_PATH.iterdir():
+                tgtpath = pubkeydir / fpath.name
+                LOGGER.debug("Checking {} vs {} (exists={})".format(fpath, tgtpath, tgtpath.exists()))
+                if tgtpath.exists():
+                    continue
+                # Copy the pubkey
+                LOGGER.info("Copying {} to {}".format(fpath, tgtpath))
+                tgtpath.write_bytes(fpath.read_bytes())
+        except filelock.Timeout:
+            LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
+        finally:
+            lock.release()
     else:
         LOGGER.warning("{} does not exist, not copying KRAFTWERK public keys".format(KRAFTWERK_KEYS_PATH))
     return True
