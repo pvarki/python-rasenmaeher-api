@@ -14,6 +14,7 @@ from multikeyjwt import Issuer
 from multikeyjwt.config import Secret
 
 
+JWTS_COPY_PATH = Path("/test_jwts")
 TP_PUBKEY_PATH = Path("/pvarki/publickeys/tilauspalvelu.pub")
 TP_PRIVKEY_PATH = Path("/data/persistent/privkeys/tilauspalvelu.key")
 FP_MANIFEST_PATH = Path("/pvarki/kraftwerk-init.json")
@@ -43,8 +44,11 @@ def create_tilauspalvelu_keypair() -> None:
     if not pwdfile_path.exists():
         with pwdfile_path.open("wt", encoding="utf-8") as fpntr:
             fpntr.write(str(uuid.uuid4()))
-    _genkey, genpub = generate_keypair(TP_PRIVKEY_PATH, get_key_pass(TP_PRIVKEY_PATH))
+    genkey, genpub = generate_keypair(TP_PRIVKEY_PATH, get_key_pass(TP_PRIVKEY_PATH))
     shutil.copy(genpub, TP_PUBKEY_PATH)
+    shutil.copy(genkey, JWTS_COPY_PATH / genkey.name)
+    shutil.copy(genpub, JWTS_COPY_PATH / genpub.name)
+    shutil.copy(pwdfile_path, JWTS_COPY_PATH / pwdfile_path.name)
 
 
 def create_fakeproduct_manifest() -> None:
