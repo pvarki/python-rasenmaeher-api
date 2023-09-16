@@ -28,16 +28,17 @@ DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
 
-# FIXME: Set environment so the mTLS client loads certs from a temp dir
+# pylint: disable=W0621
 
 
 @pytest.fixture(scope="session")
-def test_user_secrets() -> Tuple[List[str], List[str]]:
+def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
     """Create a few test users and work ids returns
     list of work-ids and their corresponding "hashes"
 
     First one has "enrollment" special role
     """
+    _ = session_env_config
     return create_test_users()
 
 
