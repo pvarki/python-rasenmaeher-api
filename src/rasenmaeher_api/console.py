@@ -6,9 +6,11 @@ import asyncio
 
 import click
 from libadvian.logging import init_logging
+from multikeyjwt import Issuer
 
 from rasenmaeher_api import __version__
 from rasenmaeher_api.web.api.tokens.views import create_code_backend
+from rasenmaeher_api.jwtinit import jwt_init
 
 
 LOGGER = logging.getLogger(__name__)
@@ -47,6 +49,29 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
         """Call the backend"""
         code = await create_code_backend(claims)
         click.echo(code)
+        return 0
+
+    ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
+
+
+@cli_group.command(name="getjwt")
+@click.pass_context
+@click.argument("claims_json", required=False, default="""{"anon_admin_session": true}""", type=str)
+def get_jwt(ctx: click.Context, claims_json: str) -> None:
+    """
+    Get RASENMAEHER signed JWT
+    """
+    claims = json.loads(claims_json)
+    LOGGER.debug("Parsed claims={}".format(claims))
+    if not claims:
+        click.echo("Must specify claims", err=True)
+        ctx.exit(1)
+
+    async def call_backend(claims: Dict[str, Any]) -> int:
+        """Call the backend"""
+        await jwt_init()
+        token = Issuer.singleton().issue(claims)
+        click.echo(token)
         return 0
 
     ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
