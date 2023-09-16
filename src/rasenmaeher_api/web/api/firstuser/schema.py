@@ -175,6 +175,7 @@ class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
     admin_added: bool
+    jwt_exchange_code: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -182,6 +183,7 @@ class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "example": {
                 "admin_added": "[bool] - True = admin user were added",
+                "jwt_exchange_code": "[str] - Code that can be exchanged to jwt token",
             }
         }
 

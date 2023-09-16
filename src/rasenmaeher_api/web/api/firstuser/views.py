@@ -1,5 +1,6 @@
 """Firstuser API views."""
 import logging
+import secrets
 import string
 import random
 from typing import Dict, List, Any
@@ -29,6 +30,8 @@ from ....sqlitedatabase import sqlite
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
+CODE_CHAR_COUNT = 12  # TODO: Make configurable ??
+CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 async def check_if_api_is_active() -> bool:
@@ -291,7 +294,22 @@ async def post_admin_add(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return FirstuserAddAdminOut(admin_added=True)
+    code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
+    _tmp_claim = '{"work_id_hash":"%s"}' % (_work_id_hash)
+    _q = settings.sqlite_insert_into_jwt.format(
+        claims=_tmp_claim,
+        consumed="no",
+        work_id_hash=_work_id_hash,
+        work_id=request_in.work_id,
+        exchange_code=code,
+    )
+
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error ssiij1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+    return FirstuserAddAdminOut(admin_added=True, jwt_exchange_code=code)
 
 
 # /delete-admin
