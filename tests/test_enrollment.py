@@ -1,12 +1,12 @@
 """Test enrollment endpoint"""
+from typing import Tuple, List, Dict, Any
 import string
 import random
 import logging
-from typing import Dict, Any
-import pytest
 
-# from libadvian.binpackers import uuid_to_b64, b64_to_uuid
+import pytest
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
+
 from rasenmaeher_api.settings import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -334,14 +334,17 @@ async def test_post_enrollment_config_fail_mgr_bad_perm_str(app_client: TestClie
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
-async def test_post_enrollment_accept(app_client: TestClient) -> None:
+async def test_post_enrollment_accept(app_client: TestClient, test_user_secrets: Tuple[List[str], List[str]]) -> None:
     """
     /accept
     Enrollment accept should be successful
     """
+    _, workhashes = test_user_secrets
+    kissahash = workhashes[1]
+    usermgmnthash = workhashes[0]
     json_dict: Dict[Any, Any] = {
-        "work_id_hash": "kissa123",
-        "user_management_hash": settings.sqlite_init_testing_management_hash,
+        "work_id_hash": kissahash,
+        "user_management_hash": usermgmnthash,
     }
     resp = await app_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
