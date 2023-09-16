@@ -5,6 +5,8 @@ import random
 from typing import Dict, List, Any
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
+from multikeyjwt.middleware import JWTBearer, JWTPayload
+
 from rasenmaeher_api.web.api.firstuser.schema import (
     FirstuserIsActiveOut,
     FirstuserCheckCodeIn,
@@ -50,11 +52,14 @@ async def check_if_api_is_active() -> bool:
 
 # /is-active
 @router.get("/is-active", response_model=FirstuserIsActiveOut)
-async def get_is_active() -> FirstuserIsActiveOut:
+async def get_is_active(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -> FirstuserIsActiveOut:
     """
     /is-active, basically this one just checks if there is a row with special_rules='first-user' in management table.
     If not, then this API is deemed to be "disabled"...
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active:
@@ -109,11 +114,15 @@ async def post_disable(
         None,
         examples=[FirstuserDisableIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserDisableOut:
     """
     This one disables the /firstuser API route. permit_str aka "admin hash" is required.
     Cannot be done with temp_admin_code.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
 
@@ -163,11 +172,15 @@ async def post_enable(
         None,
         examples=[FirstuserEnableIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserEnableOut:
     """
     This one enables the /firstuser API route. permit_str aka "admin hash" is required.
     Cannot be done with temp_admin_code. This was mainly added because pytests kind a needs it.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
 
@@ -218,10 +231,14 @@ async def post_admin_add(
         None,
         examples=[FirstuserAddAdminIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserAddAdminOut:
     """
     Add work_id aka username/identity. This work_id is also elevated to have managing permissions.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active is False:
@@ -285,11 +302,14 @@ async def post_delete_admin(
         None,
         examples=[FirstuserDeleteAdminIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserDeleteAdminOut:
     """
     Remove work_id aka username/identity. The work_id's management hash is also removed from management table.
     """
-
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active is False:
@@ -351,12 +371,14 @@ async def post_delete_admin(
 # /list-admin
 @router.get("/list-admin", response_model=FirstuserListAdminOut)
 async def get_list_admin(
-    request: Request,
-    params: FirstuserListAdminIn = Depends(),
+    request: Request, params: FirstuserListAdminIn = Depends(), jwt: JWTPayload = Depends(JWTBearer(auto_error=True))
 ) -> FirstuserListAdminOut:
     """
     Return available 'admin' id's and hashes.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active is False:
