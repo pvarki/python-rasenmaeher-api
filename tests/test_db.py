@@ -62,7 +62,7 @@ async def ginosession() -> None:
 async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction"""
     _ = ginosession
-    obj = Person(callsign="DOGGO01a", pfxpath="/nosushcdir")
+    obj = Person(callsign="DOGGO01a", certspath="/nosushcdir")
     await obj.create()
     obj2 = await Person.by_callsign("DOGGO01a")
     assert obj2.callsign == "DOGGO01a"

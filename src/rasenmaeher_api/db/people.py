@@ -1,5 +1,5 @@
 """Abstractions for people"""
-from typing import Self, cast, Optional, AsyncGenerator
+from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
 import uuid
 import logging
 
@@ -20,8 +20,15 @@ class Person(BaseModel):  # pylint: disable=R0903
     __tablename__ = "users"
 
     callsign = sa.Column(sa.String(), nullable=False, index=True, unique=True)
-    pfxpath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
+    # Directory with the key, cert and pfx
+    certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
+
+    @classmethod
+    async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
+        """Create the cert etc and save the person"""
+        # TODO: Have some sort of transaction management so if things go wrong we can clean up
+        raise NotImplementedError()
 
     @classmethod
     async def by_role(cls, role: str) -> AsyncGenerator["Person", None]:

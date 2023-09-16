@@ -20,3 +20,20 @@ class NotFound(DBFetchError, HTTPException):
 
 class Deleted(NotFound):
     """Object was deleted"""
+
+
+class ForbiddenOperation(RuntimeError):
+    """Forbidden operation"""
+
+
+class EnrollmentError(Exception):
+    """Baseclass for issues with enrollments"""
+
+
+class CallsignReserved(ValueError, EnrollmentError, HTTPException):
+    """Callsign is already reserved"""
+
+    def __init__(self, *args: Sequence[Any]) -> None:
+        """make us also 403 HTTP error"""
+        new_args = [status.HTTP_403_FORBIDDEN] + list(args)
+        super(HTTPException, self).__init__(*new_args)
