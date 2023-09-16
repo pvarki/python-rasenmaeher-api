@@ -286,7 +286,9 @@ async def post_admin_add(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    _q = settings.sqlite_insert_into_management.format(management_hash=_work_id_hash, special_rules="user-admin", active=1)
+    _q = settings.sqlite_insert_into_management.format(
+        management_hash=_work_id_hash, special_rules="user-admin", active=1
+    )
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:

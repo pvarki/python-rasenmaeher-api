@@ -40,7 +40,6 @@ async def use_code(client: TestClient, code: str) -> str:
     return cast(str, payload2["jwt"])
 
 
-@pytest.mark.xfail(reason="Code exchange is not implemented")
 @pytest.mark.asyncio
 async def test_use_code(tilauspalvelu_jwt_client: TestClient, unauth_client: TestClient) -> None:
     """Test that we can get a new code and use one with fresh session"""
@@ -49,7 +48,6 @@ async def test_use_code(tilauspalvelu_jwt_client: TestClient, unauth_client: Tes
     assert token
 
 
-@pytest.mark.xfail(reason="Code exchange is not implemented")
 @pytest.mark.asyncio
 async def test_use_code_twice(tilauspalvelu_jwt_client: TestClient, unauth_client: TestClient) -> None:
     """Test that we can get a new code and re-using it fails"""

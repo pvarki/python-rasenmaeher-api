@@ -2,13 +2,16 @@
 import asyncio
 from pathlib import Path
 import logging
+import random
 
 
 from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 from libpvarki.mtlshelp.session import get_session as libsession
 import aiohttp
+import filelock
 
-from rasenmaeher_api.web.api.product.views import sign_csr
+
+from .web.api.product.views import sign_csr
 from .settings import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -65,10 +68,28 @@ async def mtls_init() -> None:
     """If needed: Create keypair, CSR, and get it signed"""
     if check_mtls_init():
         return
-    LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
-    keypair = await asyncio.get_event_loop().run_in_executor(None, create_keypair)
-    csr_path = await asyncio.get_event_loop().run_in_executor(None, create_csr, keypair)
-    certpem = (await sign_csr(csr_path.read_text())).replace("\\n", "\n")
+    privkeypath = Path(settings.mtls_client_key_path)
+    lockpath = privkeypath.with_suffix(".lock")
+    # Random sleep to avoid race conditions on these file accesses
+    await asyncio.sleep(random.random() * 3.0)  # nosec
+    lock = filelock.FileLock(lockpath)
+    try:
+        lock.acquire(timeout=0.0)
+        privkeypath = Path(settings.mtls_client_key_path)
+        # Check the privkey again to avoid overwriting.
+        if privkeypath.exists():
+            return None
+        LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
+        keypair = await asyncio.get_event_loop().run_in_executor(None, create_keypair)
+        csr_path = await asyncio.get_event_loop().run_in_executor(None, create_csr, keypair)
+        certpem = (await sign_csr(csr_path.read_text())).replace("\\n", "\n")
+    except filelock.Timeout:
+        LOGGER.warning("Someone has already locked {}".format(lockpath))
+        LOGGER.debug("Sleeping for ~5s and then recursing")
+        await asyncio.sleep(5.0 + random.random())  # nosec
+        return await mtls_init()
+    finally:
+        lock.release()
     cert_path = Path(settings.mtls_client_cert_path)
     cert_path.write_text(certpem, encoding="ascii")
 

@@ -49,7 +49,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                 return True, _rows
             return True, []
         except Exception as _e:  # pylint: disable=broad-exception-caught
-            LOGGER.error("SQLITE run command error : {}".format(_e))
+            LOGGER.exception("SQLITE run command error : {}".format(_e))
             LOGGER.error("SQLITE QUERY : {}".format(sql_cmd))
             return False, []
 
@@ -96,12 +96,11 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
 
             # Add services from manifest to known services list
             if settings.kraftwerk_manifest_bool is True:
-                for _k, _v in self.settings.kraftwerk_manifest_dict["products"].items():
-                    _e = f"https://{_v}:{self.settings.integration_api_port}"
+                for name, conf in self.settings.kraftwerk_manifest_dict["products"].items():
                     _q = self.settings.sqlite_insert_into_services.format(
-                        service_name=_k,
+                        service_name=name,
                         init_state="init",
-                        endpoint_proto_host_port=_e,
+                        endpoint_proto_host_port=conf["api"],
                         healthcheck_url="/healthcheck",
                         healthcheck_headers='{"propably":"not_needed"}',
                     )
