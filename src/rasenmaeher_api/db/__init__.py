@@ -1,11 +1,12 @@
 """Gino based database abstraction"""
 from .config import DBConfig
 from .base import db, bind_config
-from .people import Person
+from .people import Person, Role
 
 __all__ = [
     "DBConfig",
     "db",
     "Person",
     "bind_config",
+    "Role",
 ]
