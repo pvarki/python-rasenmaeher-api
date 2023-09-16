@@ -166,6 +166,44 @@ async def kraftwerk_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, 
 
 
 @pytest_asyncio.fixture()
+async def tilauspalvelu_jwt_admin_client(
+    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
+) -> AsyncGenerator[TestClient, None]:
+    """Client with admin JWT"""
+    async with TestClient(get_app()) as instance:
+        work_ids, _ = test_user_secrets
+        pyteststuff_id = work_ids[0]
+        token = issuer_cl.issue(
+            {
+                "sub": pyteststuff_id,
+                "anon_admin_session": True,
+                "nonce": str(uuid.uuid4()),
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
+@pytest_asyncio.fixture()
+async def tilauspalvelu_jwt_user_client(
+    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
+) -> AsyncGenerator[TestClient, None]:
+    """Client with normal user JWT"""
+    async with TestClient(get_app()) as instance:
+        work_ids, _ = test_user_secrets
+        koira_id = work_ids[2]
+        token = issuer_cl.issue(
+            {
+                "sub": koira_id,
+                "anon_admin_session": True,
+                "nonce": str(uuid.uuid4()),
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
+@pytest_asyncio.fixture()
 async def mtls_client() -> AsyncGenerator[TestClient, None]:
     """Client with mocked NGinx mTLS headers"""
     # TODO: make sure this user is in db, should it be admin too ??
