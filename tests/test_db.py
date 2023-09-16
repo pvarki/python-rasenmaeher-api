@@ -69,6 +69,12 @@ async def test_person_crud(ginosession: None) -> None:
     assert not await obj2.has_role("admin")
     assert await obj2.assign_role("admin")
     assert not await obj2.assign_role("admin")  # already assignee, no need to create
+
+    callsigns = []
+    async for user in Person.by_role("admin"):
+        callsigns.append(user.callsign)
+    assert "DOGGO01a" in callsigns
+
     assert await obj2.has_role("admin")
     assert await obj2.remove_role("admin")
     assert not await obj2.remove_role("admin")  # not assigned, no need to delete

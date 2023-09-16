@@ -1,14 +1,17 @@
 """Abstractions for people"""
-from typing import Self, cast, Optional
+from typing import Self, cast, Optional, AsyncGenerator
 import uuid
+import logging
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
 
-from .base import BaseModel, DBModel, utcnow
+from .base import BaseModel, DBModel, utcnow, db
 from ..web.api.middleware import MTLSorJWTPayload
 from .errors import NotFound, Deleted
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Person(BaseModel):  # pylint: disable=R0903
@@ -19,6 +22,16 @@ class Person(BaseModel):  # pylint: disable=R0903
     callsign = sa.Column(sa.String(), nullable=False, index=True, unique=True)
     pfxpath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
+
+    @classmethod
+    async def by_role(cls, role: str) -> AsyncGenerator["Person", None]:
+        """List people that have given role"""
+        async with db.acquire() as conn:  # Cursors need transaction
+            async with conn.transaction():
+                async for lnk in Role.load(user=Person).query.where(Role.role == role).where(
+                    Person.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
+                ).order_by(Person.callsign).gino.iterate():
+                    yield lnk.user
 
     @classmethod
     async def by_callsign(cls, callsign: str, allow_deleted: bool = False) -> Self:
