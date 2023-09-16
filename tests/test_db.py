@@ -9,6 +9,7 @@ import pytest_asyncio
 import sqlalchemy
 
 from rasenmaeher_api.db import DBConfig, bind_config, db, Person
+from rasenmaeher_api.db.errors import NotFound, Deleted
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ async def ginosession() -> None:
 
 
 @pytest.mark.asyncio
-async def test_create_person_crud(ginosession: None) -> None:
+async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction"""
     _ = ginosession
     obj = Person(callsign="DOGGO01a", pfxpath="/nosushcdir")
@@ -67,3 +68,14 @@ async def test_create_person_crud(ginosession: None) -> None:
     assert obj2.callsign == "DOGGO01a"
     obj3 = await Person.by_pk(str(obj.pk))
     assert obj3.callsign == "DOGGO01a"
+    await obj3.delete()
+
+    with pytest.raises(NotFound):
+        await Person.by_callsign("PORA22b")
+
+    with pytest.raises(Deleted):
+        await Person.by_callsign("DOGGO01a")
+
+    obj4 = await Person.by_callsign("DOGGO01a", allow_deleted=True)
+    assert obj4.callsign == "DOGGO01a"
+    assert obj4.deleted

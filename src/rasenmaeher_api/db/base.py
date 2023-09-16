@@ -39,6 +39,11 @@ class BaseModel(DBModel):  # type: ignore[misc] # pylint: disable=R0903
             raise Deleted()
         return cast(Self, obj)
 
+    async def delete(self) -> bool:
+        """override delete method to set the deleted timestamp instead of removing the row"""
+        await self.update(deleted=utcnow).apply()
+        return True
+
 
 async def bind_config() -> None:
     """Set bind from config and return"""
