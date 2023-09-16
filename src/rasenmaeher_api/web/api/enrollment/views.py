@@ -76,16 +76,16 @@ async def check_management_hash_permissions(
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    if special_rule == "invite-code" and _success is True:
+    if special_rule == "invite-code" and len(_result) >= 1:
         return True
-        
+
+    if len(_result) > 0:
+        return True
+   
     if raise_exeption is True:
         _reason = f"Error. Given management hash doesn't have {special_rule} permissions."
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=403, detail=_reason)
-
-    if len(_result) > 0:
-        return True
 
     return False
 
@@ -827,7 +827,7 @@ async def post_invite_code(
     """
 
     # Veriy that the user has permissions to create invite codes ??? is user-admin
-    await check_management_hash_permissions(
+    d = await check_management_hash_permissions(
         raise_exeption=True, management_hash=request_in.user_management_hash, special_rule="enrollment"
     )
 
@@ -918,6 +918,9 @@ async def put_deactivate_invite_code(
 
     return EnrollmentInviteCodeDeactivateOut(invite_code=request_in.invite_code)
 
+@router.get("/hello")
+async def hello_world():
+    return {"message": "Hello, World!"}
 
 @router.delete("/invitecode/{invite_code}", response_model=EnrollmentInviteCodeDeleteOut)
 async def delete_invite_code(
@@ -964,13 +967,13 @@ async def get_invite_codes(
     params: EnrollmentIsInvitecodeActiveIn = Depends(),
 ) -> EnrollmentIsInvitecodeActiveOut:
     """
-    /invitecode?code=xxx
+    /invitecode?invitecode=xxx
     Returns true/false if the code is usable or not
     """
 
     # Check if there is a invite code matching the one in request
     _existing_invite_code = await check_management_hash_permissions(
-        raise_exeption=False, management_hash=params.invitecode, special_rule="invite-code", hash_like=True
+        raise_exeption=True, management_hash=params.invitecode, special_rule="invite-code", hash_like=True
     )
 
     if _existing_invite_code is False:
