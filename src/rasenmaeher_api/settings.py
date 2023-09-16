@@ -111,7 +111,10 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     sqlite_init_testing_management_hash: str = "TestikalukalukalukaulinJotainAsdJotainJotainJotain"
     sqlite_init_testing_management_username: str = "pyteststuff"
     # Initial 'One time' code used to create first admin accounts (provided by kraftwerk)
+    # TODO REMOVE sqlite_first_time_user_hash
     sqlite_first_time_user_hash: str = "PerPerPerjantaiPulloParisee"
+    # Initial 'One time' code used to get temporary jwt token for admin account
+    one_time_admin_code: str = "HackHackHacatoneillaOnPorakoiraNukkumassa"
 
     # Sqlite configurations
     sqlite_filepath_prod: str = "/data/persistent/sqlite/rm_db.sql"  # nosec B108 - "hardcoded_tmp_directory"
@@ -148,6 +151,16 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         UNIQUE(service_name)
                                     ); """
 
+    sqlite_jwt_table_schema = """CREATE TABLE IF NOT EXISTS jwt (
+                                    id integer PRIMARY KEY AUTOINCREMENT,
+                                    claims text NOT NULL,
+                                    consumed text NOT NULL,
+                                    work_id_hash text NOT NULL,
+                                    work_id text NOT NULL,
+                                    exchange_code text NOT NULL,
+                                    UNIQUE(work_id_hash)
+                                ); """
+
     sqlite_insert_into_services = """ INSERT OR REPLACE INTO services
                                         (service_name,
                                         init_state,
@@ -180,6 +193,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     sqlite_insert_into_management = """ INSERT OR REPLACE INTO management
                                         (management_hash, special_rules)
                                         VALUES('{management_hash}','{special_rules}')
+                                    ;"""
+
+    sqlite_insert_into_jwt = """ INSERT OR REPLACE INTO jwt
+                                    (claims, consumed, work_id_hash, work_id, exchange_code)
+                                    VALUES('{claims}','{consumed}','{work_id_hash}','{work_id}','{exchange_code}')
                                     ;"""
 
     sqlite_sel_from_enrollment = """SELECT
@@ -299,6 +317,15 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         FROM management
                                         LIMIT 2
                                     ;"""
+
+    sqlite_jwt_sel_from_jwt_where_exchange = """SELECT id, claims, consumed, work_id_hash, work_id, exchange_code
+                                        FROM jwt
+                                        WHERE exchange_code='{exchange_code}'
+                                    """
+    sqlite_jwt_update_consumed_where_exchange = """UPDATE jwt
+                                        SET consumed='{new_consumed_state}'
+                                        WHERE exchange_code='{exchange_code}'
+                                    """
 
 
 settings = Settings()

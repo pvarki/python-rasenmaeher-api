@@ -1,9 +1,12 @@
 """Firstuser API views."""
 import logging
+import secrets
 import string
 import random
 from typing import Dict, List, Any
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
+
+from multikeyjwt.middleware import JWTBearer, JWTPayload
 
 from rasenmaeher_api.web.api.firstuser.schema import (
     FirstuserIsActiveOut,
@@ -27,6 +30,8 @@ from ....sqlitedatabase import sqlite
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
+CODE_CHAR_COUNT = 12  # TODO: Make configurable ??
+CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 async def check_if_api_is_active() -> bool:
@@ -50,11 +55,14 @@ async def check_if_api_is_active() -> bool:
 
 # /is-active
 @router.get("/is-active", response_model=FirstuserIsActiveOut)
-async def get_is_active() -> FirstuserIsActiveOut:
+async def get_is_active(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -> FirstuserIsActiveOut:
     """
     /is-active, basically this one just checks if there is a row with special_rules='first-user' in management table.
     If not, then this API is deemed to be "disabled"...
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active:
@@ -80,17 +88,23 @@ async def get_check_code(
         _reason = "/firstuser API is disabled"
         raise HTTPException(status_code=410, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    _q = settings.sqlite_jwt_sel_from_jwt_where_exchange.format(exchange_code=params.temp_admin_code)
     _success, _result = sqlite.run_command(_q)
 
+    # _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    # _success, _result = sqlite.run_command(_q)
+
     if _success is False:
-        _reason = "Error. Undefined backend error q_sssfmwsrl2"
+        _reason = "Error. Undefined backend error q_ssjsfjwe1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    for _first_user in _result:
-        if _first_user[0] == params.temp_admin_code:
-            return FirstuserCheckCodeOut(code_ok=True)
+    if len(_result) > 0 and _result[0][2].lower() == "no":
+        return FirstuserCheckCodeOut(code_ok=True)
+
+    # for _first_user in _result:
+    #    if _first_user[0] == params.temp_admin_code:
+    #        return FirstuserCheckCodeOut(code_ok=True)
 
     return FirstuserCheckCodeOut(code_ok=False)
 
@@ -103,11 +117,15 @@ async def post_disable(
         None,
         examples=[FirstuserDisableIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserDisableOut:
     """
     This one disables the /firstuser API route. permit_str aka "admin hash" is required.
     Cannot be done with temp_admin_code.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
 
@@ -157,11 +175,15 @@ async def post_enable(
         None,
         examples=[FirstuserEnableIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserEnableOut:
     """
     This one enables the /firstuser API route. permit_str aka "admin hash" is required.
     Cannot be done with temp_admin_code. This was mainly added because pytests kind a needs it.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
 
@@ -212,27 +234,31 @@ async def post_admin_add(
         None,
         examples=[FirstuserAddAdminIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserAddAdminOut:
     """
     Add work_id aka username/identity. This work_id is also elevated to have managing permissions.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active is False:
         _reason = "/firstuser API is disabled"
         raise HTTPException(status_code=410, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
-    _success, _result = sqlite.run_command(_q)
+    # _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    # _success, _result = sqlite.run_command(_q)
 
-    _admin_found: bool = False
-    for _first_user in _result:
-        if _first_user[0] == request_in.temp_admin_code:
-            _admin_found = True
+    # _admin_found: bool = False
+    # for _first_user in _result:
+    #    if _first_user[0] == request_in.temp_admin_code:
+    #        _admin_found = True
 
-    if _admin_found is False:
-        _reason = "Given 'temp_admin_code' has no permission to add new admins."
-        raise HTTPException(status_code=403, detail=_reason)
+    # if _admin_found is False:
+    #    _reason = "Given 'temp_admin_code' has no permission to add new admins."
+    #    raise HTTPException(status_code=403, detail=_reason)
 
     _work_id_hash = "".join(
         # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
@@ -268,7 +294,22 @@ async def post_admin_add(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    return FirstuserAddAdminOut(admin_added=True)
+    code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
+    _tmp_claim = '{"work_id_hash":"%s", "sub":"%s"}' % (_work_id_hash, request_in.work_id)
+    _q = settings.sqlite_insert_into_jwt.format(
+        claims=_tmp_claim,
+        consumed="no",
+        work_id_hash=_work_id_hash,
+        work_id=request_in.work_id,
+        exchange_code=code,
+    )
+
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error ssiij1"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=500, detail=_reason)
+    return FirstuserAddAdminOut(admin_added=True, jwt_exchange_code=code)
 
 
 # /delete-admin
@@ -279,11 +320,14 @@ async def post_delete_admin(
         None,
         examples=[FirstuserDeleteAdminIn.Config.schema_extra["examples"]],
     ),
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserDeleteAdminOut:
     """
     Remove work_id aka username/identity. The work_id's management hash is also removed from management table.
     """
-
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active is False:
@@ -345,12 +389,14 @@ async def post_delete_admin(
 # /list-admin
 @router.get("/list-admin", response_model=FirstuserListAdminOut)
 async def get_list_admin(
-    request: Request,
-    params: FirstuserListAdminIn = Depends(),
+    request: Request, params: FirstuserListAdminIn = Depends(), jwt: JWTPayload = Depends(JWTBearer(auto_error=True))
 ) -> FirstuserListAdminOut:
     """
     Return available 'admin' id's and hashes.
     """
+    if not jwt.get("anon_admin_session", False):
+        LOGGER.error("Requesting JWT must have admin session claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
     _success: bool = True
     _api_active = await check_if_api_is_active()
     if _api_active is False:
