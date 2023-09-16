@@ -5,6 +5,8 @@ import logging
 import pytest
 import requests
 
+from .conftest import DEFAULT_TIMEOUT
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -14,7 +16,9 @@ def test_get_init_status(
 ) -> None:
     """Initialize enrollment"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/status/{testdata['work_id1']}"
-    response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
+    response = requests.get(
+        url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT
+    )
     assert response.status_code == 200
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -33,7 +37,9 @@ def test_set_new_state(
         "work_id_hash": "work_id_hash",
         "permit_str": f"{testdata['permit_str']}",
     }
-    response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
+    response = requests.post(
+        url, json=data, headers=None, verify=False, timeout=DEFAULT_TIMEOUT
+    )
     assert response.status_code == 200
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -46,7 +52,9 @@ def test_get_new_status(
 ) -> None:
     """Check status of new enrollment"""
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/status/{testdata['work_id1']}"
-    response = requests.get(url, json=None, headers=None, verify=False, timeout=2.0)
+    response = requests.get(
+        url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT
+    )
     assert response.status_code == 200
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -65,7 +73,9 @@ def test_set_init_state(
         "work_id_hash": "work_id_hash",
         "permit_str": f"{testdata['permit_str']}",
     }
-    response = requests.post(url, json=data, headers=None, verify=False, timeout=2.0)
+    response = requests.post(
+        url, json=data, headers=None, verify=False, timeout=DEFAULT_TIMEOUT
+    )
     assert response.status_code == 200
     payload = response.json()
     LOGGER.debug("payload={}".format(payload))

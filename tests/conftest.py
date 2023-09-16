@@ -1,9 +1,11 @@
 """The conftest.py provides fixtures for the entire directory.
 Fixtures defined can be used by any test in that package without needing to import them."""
 from typing import Tuple, Dict, AsyncGenerator
+import platform
 import logging
 from pathlib import Path
 import ssl
+import asyncio
 
 import aiohttp
 import pytest
@@ -13,6 +15,13 @@ from libadvian.logging import init_logging
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 CA_PATH = Path(__file__).parent / "testcas"
+DEFAULT_TIMEOUT = 4.0
+
+# mypy: disable-error-code="attr-defined"
+if platform.system() == "Windows":
+    # Workaround for 'RuntimeError: Event Loop is closed'
+    # https://github.com/encode/httpx/issues/914
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
 @pytest_asyncio.fixture
