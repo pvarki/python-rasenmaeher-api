@@ -925,7 +925,6 @@ async def delete_invite_code(
     _existing_invite_code = await check_management_hash_permissions(
         raise_exeption=False, management_hash=invite_code, special_rule="invite-code", hash_like=True
     )
-    print(_existing_invite_code)
 
     if _existing_invite_code is False:
         raise HTTPException(status_code=404, detail="Invite code not found")
