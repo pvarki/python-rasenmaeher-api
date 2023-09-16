@@ -6,8 +6,9 @@ from typing import cast, Dict, Any
 
 import OpenSSL.crypto
 import requests
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Request, Response, HTTPException, Depends
 from fastapi.responses import JSONResponse
+from multikeyjwt.middleware import JWTBearer, JWTPayload
 from ....settings import settings
 
 router = APIRouter()
@@ -82,13 +83,37 @@ async def save_pfx(pfx: bytes, callsign: str) -> None:
         LOGGER.info("Error: %s : %s", _e.filename, _e.strerror)
 
 
+def check_jwt(jwt: JWTPayload, callsign: str) -> bool:
+    """Sanity checks for JWT payload here"""
+    if not jwt.get("sub", False):
+        LOGGER.error("Requesting JWT must have sub claim")
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    if jwt.get("sub") == callsign:
+        return True
+    LOGGER.error("Requesting JWT sub claim doesn't match requested callsign")
+    raise HTTPException(status_code=403, detail="Forbidden")
+
+
 @router.post("/{callsign}")
-async def return_enduser_certs(callsign: str) -> Response:
+async def return_enduser_certs(
+    request: Request,
+    callsign: str,
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
+) -> Response:
     """
     Method to create key, sign CSR and return PFX
     :param callsign: OTTER1
     :returns pfx
     """
+    if callsign is None or callsign == "":
+        _reason = "Error. Callsign missing as last parameter"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    # Check that the JWT has sub claim and it mathes requested callsign
+    check_jwt(jwt, callsign)
+
     _newkeybundle = await new_key(callsign)
     _key = cast(str, _newkeybundle.get("private_key"))
     _csr = cast(str, _newkeybundle.get("certificate_request"))
@@ -100,18 +125,27 @@ async def return_enduser_certs(callsign: str) -> Response:
 
 
 @router.get("/{callsign}")
-async def check_enduser_bundle_available(callsign: str) -> Response:
+async def check_enduser_bundle_available(
+    request: Request,
+    callsign: str,
+    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
+) -> Response:
     """
     Method to check if bundle is available
     :param callsign: OTTER1
     :returns pfx or 404 error
     """
-    # FIXME Unnecessary "else" after "return", pylint: disable=R1705
+
+    if callsign is None or callsign == "":
+        _reason = "Error. Callsign missing as last parameter"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    # Check that the JWT has sub claim and it mathes requested callsign
+    check_jwt(jwt, callsign)
+
     if os.path.exists(f"/data/persistent/{callsign}/{callsign}.pfx"):  # pylint: disable=R1705
         with open(f"/data/persistent/{callsign}/{callsign}.pfx", "rb") as file:
             _pfx = file.read()
         return Response(content=_pfx, media_type="application/x-pkcs12")
-    else:
-        return JSONResponse(
-            content={"result": "Error bundle not found"}, media_type="application/json", status_code=404
-        )
+    return JSONResponse(content={"result": "Error bundle not found"}, media_type="application/json", status_code=404)

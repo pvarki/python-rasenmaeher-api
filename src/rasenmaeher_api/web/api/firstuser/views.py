@@ -295,7 +295,7 @@ async def post_admin_add(
         raise HTTPException(status_code=500, detail=_reason)
 
     code = "".join(secrets.choice(CODE_ALPHABET) for i in range(CODE_CHAR_COUNT))
-    _tmp_claim = '{"work_id_hash":"%s"}' % (_work_id_hash)
+    _tmp_claim = '{"work_id_hash":"%s", "sub":"%s"}' % (_work_id_hash, request_in.work_id)
     _q = settings.sqlite_insert_into_jwt.format(
         claims=_tmp_claim,
         consumed="no",
