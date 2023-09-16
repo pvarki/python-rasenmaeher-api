@@ -88,6 +88,7 @@ aiodns = "^3.0"
 brotli = "^1.0"
 cchardet = { version="^2.1", python="<=3.10"}
 filelock = "^3.12"
+gino = "^1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4"
