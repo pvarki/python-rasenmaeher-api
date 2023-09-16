@@ -102,6 +102,10 @@ def session_env_config(
 
     with monkeysession.context() as mpatch:
         mpatch.setenv("LOG_CONSOLE_FORMATTER", "utc")
+        mpatch.setenv("RM_DATABASE_PORT", str(docker_services.port_for("postgres", 5432)))
+        mpatch.setenv("RM_DATABASE_HOST", docker_ip)
+        mpatch.setenv("RM_DATABASE_PASSWORD", "raesenmaehertestpwd")
+
         # Reset the singletons
         mpatch.setattr(Issuer, "_singleton", None)
         mpatch.setattr(Verifier, "_singleton", None)

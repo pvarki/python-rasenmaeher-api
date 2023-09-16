@@ -1,12 +1,27 @@
 """DB specific tests"""
+from typing import Generator
 import logging
 import uuid
+import asyncio
 
 import pytest
+import pytest_asyncio
+import sqlalchemy
 
-from rasenmaeher_api.db import DBConfig
+from rasenmaeher_api.db import DBConfig, bind_config, db, Person
 
 LOGGER = logging.getLogger(__name__)
+
+# pylint: disable=W0621
+
+
+@pytest.fixture(scope="session")
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    """Session scoped event loop so the db connection can stay up"""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
 
 
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -24,3 +39,31 @@ def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
         assert config.user == user
         assert str(config.password) == passwd
         assert config.dsn
+
+
+def test_dbconfig_defaults(docker_ip: str) -> None:
+    """Check that the fixture set port and host correctly"""
+    config = DBConfig()
+    assert config.port == 5542
+    assert config.host == docker_ip
+
+
+@pytest_asyncio.fixture(scope="session")
+async def ginosession() -> None:
+    """make sure db is bound etc"""
+    await bind_config()
+    LOGGER.debug("Creating raesenmaeher schema")
+    await db.status(sqlalchemy.schema.CreateSchema("raesenmaeher"))
+    await db.gino.create_all()
+
+
+@pytest.mark.asyncio
+async def test_create_person_crud(ginosession: None) -> None:
+    """Test the db abstraction"""
+    _ = ginosession
+    obj = Person(callsign="DOGGO01a", pfxpath="/nosushcdir")
+    await obj.create()
+    obj2 = await Person.by_callsign("DOGGO01a")
+    assert obj2.callsign == "DOGGO01a"
+    obj3 = await Person.by_pk(str(obj.pk))
+    assert obj3.callsign == "DOGGO01a"
