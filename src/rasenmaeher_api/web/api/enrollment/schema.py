@@ -4,46 +4,6 @@ from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field, Extra
 
 
-class EnrollmentGenVerifiIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment gen verification code in"""
-
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        schema_extra = {
-            "examples": [
-                {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This containts **description** of values.",
-                    "value": {
-                        "work_id": "[str] User defined username/id/workname",
-                        "work_id_hash": "[str] Generated hash for work-id",
-                    },
-                },
-                {
-                    "name": "with_values",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "work_id": "kissa",
-                    },
-                },
-                {
-                    "name": "with_values2",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "work_id_hash": "kissa123",
-                    },
-                },
-            ]
-        }
-
-
 class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment gen verification code out"""
 
@@ -59,8 +19,7 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
     """Enrollment config add manager schema in"""
 
     state: str
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
+    work_id: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -74,7 +33,6 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                     "value": {
                         "state": "[str] - Current state of enrollment",
                         "work_id": "[str] User defined username/id/workname",
-                        "work_id_hash": "[str]",
                     },
                 },
                 {
@@ -84,15 +42,6 @@ class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-m
                     "value": {
                         "state": "somestate",
                         "work_id": "kissa",
-                    },
-                },
-                {
-                    "name": "with_values2",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "state": "somestate",
-                        "work_id_hash": "kissa123",
                     },
                 },
             ]
@@ -270,7 +219,6 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentShowVerificationCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment status in schema"""
 
-    user_management_hash: str
     verification_code: str
 
 
@@ -297,12 +245,6 @@ class EnrollmentShowVerificationCodeOut(BaseModel):  # pylint: disable=too-few-p
         }
 
 
-class EnrollmentHaveIBeenAcceptedIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment status in schema"""
-
-    work_id_hash: str
-
-
 class EnrollmentHaveIBeenAcceptedOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment status check schema"""
 
@@ -322,7 +264,6 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
     work_id: str
-    user_management_hash: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -335,7 +276,6 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "This containts **description** of values.",
                     "value": {
                         "work_id": "[str] - Plain text enrollment role id",
-                        "user_management_hash": "[str] - Hash string having permissions to add work_id_hash",
                     },
                 },
                 {
@@ -344,7 +284,6 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** of values.",
                     "value": {
                         "work_id": "taikaponi",
-                        "user_management_hash": "[str] - Hash string having permissions to add work_id_hash",
                     },
                 },
             ]
@@ -452,7 +391,6 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment promote in schema"""
 
-    user_management_hash: str
     work_id: Optional[str]
     work_id_hash: Optional[str]
 
@@ -468,7 +406,6 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "value": {
                         "work_id": "[str] User defined username/id/workname",
                         "work_id_hash": "[str] - Hash string for work_id",
-                        "management_hash": "[str] - Hash string used to 'promote' given work_id/user/enrollment",
                     },
                 },
                 {
@@ -477,7 +414,6 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id": "kissa123",
-                        "management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -583,12 +519,6 @@ class EnrollmentIsInvitecodeActiveOut(BaseModel):  # pylint: disable=too-few-pub
                 "invitecode_is_active": "[bool] - True = this code can still be used",
             }
         }
-
-
-class EnrollmentListIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment list in schema"""
-
-    user_management_hash: str
 
 
 class EnrollmentListOut(BaseModel):  # pylint: disable=too-few-public-methods

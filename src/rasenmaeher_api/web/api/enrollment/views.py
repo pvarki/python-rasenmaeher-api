@@ -14,13 +14,10 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigSetDLCertIn,
     EnrollmentConfigSetStateIn,
     EnrollmentConfigSetMtlsIn,
-    EnrollmentGenVerifiIn,
     EnrollmentGenVerifiOut,
     EnrollmentShowVerificationCodeIn,
     EnrollmentShowVerificationCodeOut,
-    EnrollmentHaveIBeenAcceptedIn,
     EnrollmentHaveIBeenAcceptedOut,
-    EnrollmentListIn,
     EnrollmentListOut,
     EnrollmentPromoteIn,
     EnrollmentInitIn,
@@ -40,23 +37,36 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentInviteCodeDeactivateIn,
     EnrollmentInviteCodeDeleteOut,
 )
-
+from ..middleware import MTLSorJWT
 from ....settings import settings
 from ....sqlitedatabase import sqlite
 
-router = APIRouter()
+# router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
+ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 
-async def check_management_hash_permissions(
+
+async def check_management_permissions(
     raise_exeption: bool = False,
     management_hash: str = "",
+    work_id: str = "",
     special_rule: str = "",
     hash_like: bool = False,
 ) -> Union[bool, None]:
     """
     Simple function to check if management_hash is found and has permissions. Use hash_like to use LIKE instead of =.
     """
+    # If management hash is not provided, try to use one pro
+    if management_hash == "" and work_id == "":
+        _reason = "Error. check_management_permissions() both work_id and management_hash are empty"
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=400, detail=_reason)
+    if management_hash == "":
+        management_hash = await get_hash_with_either_workid_or_hash(
+            raise_exeption=True, work_id=work_id, work_id_hash=None
+        )
+
     # Get special_rules='first-user from managment
     if hash_like is True:
         _q = settings.sqlite_sel_from_management_where_hash_like_and_special_rule.format(
@@ -80,7 +90,12 @@ async def check_management_hash_permissions(
         return True
 
     if raise_exeption is True:
-        _reason = f"Error. Given management hash doesn't have {special_rule} permissions."
+        _reason = "Error. Given userid doesn't have enough permissions."
+        LOGGER.error(
+            "Missing permissions! User id/hash : {}, required permissions that are missing {}".format(
+                management_hash, special_rule
+            )
+        )
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=403, detail=_reason)
 
@@ -191,24 +206,33 @@ async def get_hash_with_either_workid_or_hash(
     return str(_result[0][1])
 
 
-@router.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)
+async def delete_invite_code_like(invite_code: str) -> bool:
+    """
+    Delete invite code like
+    """
+
+    _q = settings.sqlite_del_from_management_where_hash_like.format(
+        management_hash=invite_code, special_rules="invite-code"
+    )
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssumha1"
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+    return True
+
+
+@ENROLLMENT_ROUTER.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)
 async def post_generate_verification_code(
     request: Request,
-    request_in: EnrollmentGenVerifiIn = Body(
-        None,
-        examples=[EnrollmentGenVerifiIn.Config.schema_extra["examples"]],
-    ),
 ) -> EnrollmentGenVerifiOut:
     """
-    Update/Generate verification_code on database for given work_id or work_id_hash
+    Update/Generate verification_code to database for given jwt/mtls
     """
 
-    await is_workid_or_workidhash_given(
-        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
-    )
-
     _work_id_hash = await get_hash_with_either_workid_or_hash(
-        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, work_id_hash=None
     )
 
     _verification_code = "".join(
@@ -232,13 +256,13 @@ async def post_generate_verification_code(
     return EnrollmentGenVerifiOut(verification_code=f"{_verification_code}")
 
 
-@router.get("/show-verification-code-info", response_model=EnrollmentShowVerificationCodeOut)
+@ENROLLMENT_ROUTER.get("/show-verification-code-info", response_model=EnrollmentShowVerificationCodeOut)
 async def request_show_verification_code(
     request: Request,
     params: EnrollmentShowVerificationCodeIn = Depends(),
 ) -> EnrollmentShowVerificationCodeOut:
     """
-    /show-verification-code-info?user_management_hash=dasqdsdasqwe&verification_code=jaddajaa
+    /show-verification-code-info?verification_code=jaddajaa
     Return's information about the user/enrollment that made the code.
     """
 
@@ -247,7 +271,9 @@ async def request_show_verification_code(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=params.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     # Get the code from db
     _q = settings.sqlite_sel_from_enrollment_where_verification_code.format(verification_code=params.verification_code)
@@ -279,19 +305,20 @@ async def request_show_verification_code(
     )
 
 
-@router.get("/have-i-been-accepted", response_model=EnrollmentHaveIBeenAcceptedOut)
+@ENROLLMENT_ROUTER.get("/have-i-been-accepted", response_model=EnrollmentHaveIBeenAcceptedOut)
 async def request_have_i_been_accepted(
     request: Request,
-    params: EnrollmentHaveIBeenAcceptedIn = Depends(),
 ) -> EnrollmentHaveIBeenAcceptedOut:
     """
-    /have-i-been-accepted?work_id_hash=jaddajaa
+    /have-i-been-accepted
     Return's True/False in 'have_i_been_accepted'
     """
 
-    await is_workid_or_workidhash_given(raise_exeption=True, work_id=None, work_id_hash=params.work_id_hash)
+    _user_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, work_id_hash=None
+    )
 
-    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=params.work_id_hash)
+    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=_user_hash)
     _success, _result = sqlite.run_command(_q)
 
     if _success is False:
@@ -305,7 +332,7 @@ async def request_have_i_been_accepted(
     return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=False)
 
 
-@router.post("/config/set-state", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/config/set-state", response_model=EnrollmentConfigTaskDone)
 async def post_config_set_state(
     request: Request,
     request_in: EnrollmentConfigSetStateIn = Body(
@@ -317,12 +344,14 @@ async def post_config_set_state(
     Update/Set state/status for work_id/user/enrollment using either work_id_hash or work_id.
     """
 
-    await is_workid_or_workidhash_given(
-        raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
+    await is_workid_or_workidhash_given(raise_exeption=True, work_id=request_in.work_id, work_id_hash=None)
+
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
     )
 
     _q = settings.sqlite_update_enrollment_state.format(
-        work_id=request_in.work_id, work_id_hash=request_in.work_id_hash, state=request_in.state
+        work_id=request_in.work_id, work_id_hash=None, state=request_in.state
     )
     _success, _result = sqlite.run_command(_q)
 
@@ -334,7 +363,7 @@ async def post_config_set_state(
 
 
 # mtls_test_link
-@router.post("/config/set-mtls-test-link", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/config/set-mtls-test-link", response_model=EnrollmentConfigTaskDone)
 async def post_config_set_mtls_test_link(
     request: Request,
     request_in: EnrollmentConfigSetMtlsIn = Body(
@@ -350,6 +379,10 @@ async def post_config_set_mtls_test_link(
 'set_for_all' is set to False"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
+
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     if request_in.set_for_all is True:
         _q = settings.sqlite_update_enrollment_mtls_test_link_all.format(mtls_test_link=request_in.mtls_test_link)
@@ -372,7 +405,7 @@ async def post_config_set_mtls_test_link(
     return EnrollmentConfigTaskDone(success_message="Test link was set")
 
 
-@router.post("/config/set-cert-dl-link", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/config/set-cert-dl-link", response_model=EnrollmentConfigTaskDone)
 async def post_config_set_cert_dl_link(
     request: Request,
     request_in: EnrollmentConfigSetDLCertIn = Body(
@@ -383,6 +416,10 @@ async def post_config_set_cert_dl_link(
     """
     Store certificate or howto download link url for work_id (enrollment) using either work_id or work_id_hash
     """
+    LOGGER.error("asdasd {} ".format(request.state.mtls_or_jwt.userid))
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
@@ -396,6 +433,12 @@ async def post_config_set_cert_dl_link(
     _work_id_hash = await get_hash_with_either_workid_or_hash(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
+
+    _admin_hash = await get_hash_with_either_workid_or_hash(
+        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, work_id_hash=None
+    )
+
+    await check_management_permissions(raise_exeption=True, management_hash=_admin_hash)
 
     _success: bool = True
     if request_in.cert_download_link is not None:
@@ -421,7 +464,7 @@ async def post_config_set_cert_dl_link(
     return EnrollmentConfigTaskDone(success_message="Cert DL link was set")
 
 
-@router.post("/config/add-service-management-hash", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/config/add-service-management-hash", response_model=EnrollmentConfigTaskDone)
 async def post_config_add_manager(
     request: Request,
     request_in: EnrollmentAddServiceManagementIn = Body(
@@ -434,6 +477,10 @@ async def post_config_add_manager(
     You should think this as of adding "machine admin permissions". User related admin promotions should
     be done using /promote and /demote /lock.
     """
+    # TODO, REFAK, SERVICE's SHOULD BE ADDES AS enrollments and added then special permissions if needed...
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     if len(request_in.new_service_management_hash) < 64:
         _reason = "Error. new_service_management_hash too short. Needs to be 64 or more."
@@ -453,7 +500,7 @@ async def post_config_add_manager(
     return EnrollmentConfigTaskDone(success_message="Service management hash added")
 
 
-@router.get("/status", response_model=EnrollmentStatusOut)
+@ENROLLMENT_ROUTER.get("/status", response_model=EnrollmentStatusOut)
 async def request_enrolment_status(
     request: Request,
     params: EnrollmentStatusIn = Depends(),
@@ -485,18 +532,19 @@ async def request_enrolment_status(
     return EnrollmentStatusOut(work_id=params.work_id, work_id_hash=_work_id_hash, status=_status)
 
 
-@router.get("/list", response_model=EnrollmentListOut)
+@ENROLLMENT_ROUTER.get("/list", response_model=EnrollmentListOut)
 async def request_enrollment_list(
     request: Request,
-    params: EnrollmentListIn = Depends(),
 ) -> EnrollmentListOut:
     """
-    /list?user_management_hash=dasqdsdasqwe
+    /list
     Return users/work-id's/enrollments. If 'accepted' has something else than '', it has been accepted.
     Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'' } ]
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=params.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     _q = settings.sqlite_sel_from_enrollment_all.format()
     _success, _result = sqlite.run_command(_q)
@@ -517,7 +565,7 @@ async def request_enrollment_list(
     return EnrollmentListOut(work_id_list=_work_id_list)
 
 
-@router.post("/init", response_model=EnrollmentInitOut)
+@ENROLLMENT_ROUTER.post("/init", response_model=EnrollmentInitOut)
 async def request_enrollment_init(
     request: Request,
     request_in: EnrollmentInitIn = Body(
@@ -529,7 +577,9 @@ async def request_enrollment_init(
     Add new work_id (enrollment) to environment.
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     # First check if there is already enrollment for requested workid
     _q = settings.sqlite_sel_from_enrollment.format(work_id=request_in.work_id)
@@ -576,7 +626,7 @@ async def request_enrollment_init(
     return EnrollmentInitOut(work_id=request_in.work_id, work_id_hash=_work_id_hash)
 
 
-@router.post("/promote", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/promote", response_model=EnrollmentConfigTaskDone)
 async def request_enrollment_promote(
     request: Request,
     request_in: EnrollmentPromoteIn = Body(
@@ -588,7 +638,10 @@ async def request_enrollment_promote(
     "Promote" work_id/user/enrollment to have 'admin' rights
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
+
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
@@ -634,7 +687,7 @@ async def request_enrollment_promote(
     return EnrollmentConfigTaskDone(success_message="Promote done")
 
 
-@router.post("/demote", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/demote", response_model=EnrollmentConfigTaskDone)
 async def request_enrollment_demote(
     request: Request,
     request_in: EnrollmentDemoteIn = Body(
@@ -646,7 +699,9 @@ async def request_enrollment_demote(
     "Demote" work_id/user/enrollment from having 'admin' rights. work_id_hash can be used too.
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
@@ -695,7 +750,7 @@ async def request_enrollment_demote(
     return EnrollmentConfigTaskDone(success_message="Demote done")
 
 
-@router.post("/lock", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/lock", response_model=EnrollmentConfigTaskDone)
 async def request_enrollment_lock(
     request: Request,
     request_in: EnrollmentLockIn = Body(
@@ -707,7 +762,9 @@ async def request_enrollment_lock(
     Lock work_id/user/enrollment so it cannot be used anymore.
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
     await is_workid_or_workidhash_given(
         raise_exeption=True, work_id=request_in.work_id, work_id_hash=request_in.work_id_hash
     )
@@ -733,7 +790,7 @@ async def request_enrollment_lock(
     return EnrollmentConfigTaskDone(success_message="Lock task done")
 
 
-@router.get("/deliver", response_model=EnrollmentDeliverOut)
+@ENROLLMENT_ROUTER.get("/deliver", response_model=EnrollmentDeliverOut)
 async def request_enrollment_status(
     request: Request,
     params: EnrollmentDeliverIn = Depends(),
@@ -769,7 +826,7 @@ async def request_enrollment_status(
     )
 
 
-@router.post("/accept", response_model=EnrollmentAcceptOut)
+@ENROLLMENT_ROUTER.post("/accept", response_model=EnrollmentAcceptOut)
 async def post_enrollment_accept(
     request: Request,
     request_in: EnrollmentAcceptIn = Body(
@@ -781,7 +838,9 @@ async def post_enrollment_accept(
     Accept work_id_hash (work_id/enrollment) using management_hash
     """
 
-    await check_management_hash_permissions(raise_exeption=True, management_hash=request_in.user_management_hash)
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=request_in.work_id_hash)
     _success, _result = sqlite.run_command(_q)
@@ -811,8 +870,9 @@ async def post_enrollment_accept(
     )
 
 
-@router.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
+@ENROLLMENT_ROUTER.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
 async def post_invite_code(
+    request: Request,
     request_in: EnrollmentInviteCodeCreateIn = Body(
         None,
         examples=EnrollmentInviteCodeCreateIn.Config.schema_extra["examples"],
@@ -826,12 +886,12 @@ async def post_invite_code(
     """
 
     # Veriy that the user has permissions to create invite codes ??? is user-admin
-    await check_management_hash_permissions(
-        raise_exeption=True, management_hash=request_in.user_management_hash, special_rule="enrollment"
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid, special_rule="enrollment"
     )
 
     # Check does the user have existing invite code that matches their management hash
-    _existing_invite_code = await check_management_hash_permissions(
+    _existing_invite_code = await check_management_permissions(
         raise_exeption=False,
         management_hash=request_in.user_management_hash,
         special_rule="invite-code",
@@ -859,8 +919,9 @@ async def post_invite_code(
     return EnrollmentInviteCodeCreateOut(invite_code=f"{_invite_code}")
 
 
-@router.put("/invitecode/activate", response_model=EnrollmentInviteCodeActivateOut)
+@ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=EnrollmentInviteCodeActivateOut)
 async def put_activate_invite_code(
+    request: Request,
     request_in: EnrollmentInviteCodeActivateIn = Body(
         None,
         examples=EnrollmentInviteCodeActivateIn.Config.schema_extra["examples"],
@@ -870,8 +931,12 @@ async def put_activate_invite_code(
     Activate an invite code
     """
 
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid, special_rule="enrollment"
+    )
+
     # Check if there is an invite code matching the one in request
-    _existing_invite_code = await check_management_hash_permissions(
+    _existing_invite_code = await check_management_permissions(
         raise_exeption=True, management_hash=request_in.invite_code, special_rule="invite-code", hash_like=True
     )
 
@@ -887,8 +952,9 @@ async def put_activate_invite_code(
     return EnrollmentInviteCodeActivateOut(invite_code=request_in.invite_code)
 
 
-@router.put("/invitecode/deactivate", response_model=EnrollmentInviteCodeDeactivateOut)
+@ENROLLMENT_ROUTER.put("/invitecode/deactivate", response_model=EnrollmentInviteCodeDeactivateOut)
 async def put_deactivate_invite_code(
+    request: Request,
     request_in: EnrollmentInviteCodeDeactivateIn = Body(
         None,
         examples=EnrollmentInviteCodeDeactivateIn.Config.schema_extra["examples"],
@@ -897,9 +963,13 @@ async def put_deactivate_invite_code(
     """
     Deactivate an invite code
     """
+    # Check requester permissions
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     # Check if there is an invite code matching the one in request
-    _existing_invite_code = await check_management_hash_permissions(
+    _existing_invite_code = await check_management_permissions(
         raise_exeption=True, management_hash=request_in.invite_code, special_rule="invite-code", hash_like=True
     )
 
@@ -915,16 +985,21 @@ async def put_deactivate_invite_code(
     return EnrollmentInviteCodeDeactivateOut(invite_code=request_in.invite_code)
 
 
-@router.delete("/invitecode/{invite_code}", response_model=EnrollmentInviteCodeDeleteOut)
+@ENROLLMENT_ROUTER.delete("/invitecode/{invite_code}", response_model=EnrollmentInviteCodeDeleteOut)
 async def delete_invite_code(
+    request: Request,
     invite_code: str,
 ) -> EnrollmentInviteCodeDeleteOut:
     """
     Delete an invite code
     """
+    # Check requester permissions
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
 
     # Check if there is an invite code matching the one in request
-    _existing_invite_code = await check_management_hash_permissions(
+    _existing_invite_code = await check_management_permissions(
         raise_exeption=False, management_hash=invite_code, special_rule="invite-code", hash_like=True
     )
 
@@ -937,25 +1012,9 @@ async def delete_invite_code(
     return EnrollmentInviteCodeDeleteOut(invite_code=invite_code)
 
 
-async def delete_invite_code_like(invite_code: str) -> bool:
-    """
-    Delete invite code like
-    """
-
-    _q = settings.sqlite_del_from_management_where_hash_like.format(
-        management_hash=invite_code, special_rules="invite-code"
-    )
-    _success, _result = sqlite.run_command(_q)
-    if _success is False:
-        _reason = "Error. Undefined backend error q_ssumha1"
-        LOGGER.error("{}".format(_reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    return True
-
-
-@router.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
+@ENROLLMENT_ROUTER.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
 async def get_invite_codes(
+    request: Request,
     params: EnrollmentIsInvitecodeActiveIn = Depends(),
 ) -> EnrollmentIsInvitecodeActiveOut:
     """
@@ -963,9 +1022,14 @@ async def get_invite_codes(
     Returns true/false if the code is usable or not
     """
 
+    # Check requester permissions
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
+
     # Check if there is a invite code matching the one in request
-    _existing_invite_code = await check_management_hash_permissions(
-        raise_exeption=True, management_hash=params.invitecode, special_rule="invite-code", hash_like=True
+    _existing_invite_code = await check_management_permissions(
+        raise_exeption=False, management_hash=params.invitecode, special_rule="invite-code", hash_like=True
     )
 
     if _existing_invite_code is False:
@@ -974,7 +1038,7 @@ async def get_invite_codes(
     return EnrollmentIsInvitecodeActiveOut(invitecode_is_active=True)
 
 
-@router.post("/invitecode/enroll", response_model=EnrollmentInitOut)
+@ENROLLMENT_ROUTER.post("/invitecode/enroll", response_model=EnrollmentInitOut)
 async def post_enroll_invite_code(
     request: Request,
     request_in: EnrollmentInviteCodeEnrollIn = Body(
@@ -986,8 +1050,13 @@ async def post_enroll_invite_code(
     Enroll with an invite code
     """
 
+    # Check requester permissions
+    await check_management_permissions(
+        raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
+    )
+
     # Check if there is a invite code matching the one in request
-    _existing_invite_code = await check_management_hash_permissions(
+    _existing_invite_code = await check_management_permissions(
         raise_exeption=False, management_hash=request_in.invite_code, special_rule="invite-code", hash_like=True
     )
 

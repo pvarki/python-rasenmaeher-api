@@ -79,6 +79,29 @@ def get_jwt(ctx: click.Context, claims_json: str) -> None:
     ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
 
 
+@cli_group.command(name="getadminjwt")
+@click.pass_context
+@click.argument("claims_json", required=False, default="""{"sub": "pyteststuff"}""", type=str)
+def get_adminjwt(ctx: click.Context, claims_json: str) -> None:
+    """
+    Get RASENMAEHER signed admin user JWT
+    """
+    claims = json.loads(claims_json)
+    LOGGER.debug("Parsed claims={}".format(claims))
+    if not claims:
+        click.echo("Must specify claims", err=True)
+        ctx.exit(1)
+
+    async def call_backend(claims: Dict[str, Any]) -> int:
+        """Call the backend"""
+        await jwt_init()
+        token = Issuer.singleton().issue(claims)
+        click.echo(token)
+        return 0
+
+    ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
+
+
 @cli_group.command(name="addtestusers")
 @click.pass_context
 def add_test_users(ctx: click.Context) -> None:
