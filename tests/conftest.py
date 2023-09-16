@@ -1,11 +1,12 @@
 """The conftest.py provides fixtures for the entire directory.
 Fixtures defined can be used by any test in that package without needing to import them."""
-import platform
 from typing import Tuple, Dict, AsyncGenerator
+import platform
 import logging
 from pathlib import Path
 import ssl
 import asyncio
+
 import aiohttp
 import pytest
 import pytest_asyncio
@@ -14,6 +15,7 @@ from libadvian.logging import init_logging
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 CA_PATH = Path(__file__).parent / "testcas"
+DEFAULT_TIMEOUT = 4.0
 
 # mypy: disable-error-code="attr-defined"
 if platform.system() == "Windows":
@@ -38,15 +40,15 @@ async def session_with_testcas() -> AsyncGenerator[aiohttp.ClientSession, None]:
 
 
 @pytest.fixture
-def localmaeher_api() -> Tuple[str, str, float]:
-    """Return url, version and max timeout for https API"""
-    return "https://localmaeher.pvarki.fi:4439/api", "v1", 4.0
+def localmaeher_api() -> Tuple[str, str]:
+    """Return url and version for https API"""
+    return "https://localmaeher.pvarki.fi:4439/api", "v1"
 
 
 @pytest.fixture
-def localhost_api() -> Tuple[str, str, float]:
-    """Return url, version and max timeout for http API"""
-    return "http://127.0.0.1:8000/api", "v1", 4.0
+def localhost_api() -> Tuple[str, str]:
+    """Return url and version for http API"""
+    return "http://127.0.0.1:8000/api", "v1"
 
 
 @pytest.fixture

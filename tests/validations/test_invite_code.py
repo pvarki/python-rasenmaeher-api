@@ -5,6 +5,7 @@ import logging
 import aiohttp
 import pytest
 
+from ..conftest import DEFAULT_TIMEOUT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -13,14 +14,14 @@ LOGGER = logging.getLogger(__name__)
 @pytest.mark.asyncio
 async def test_not_used_invite_code(
     session_with_testcas: aiohttp.ClientSession,
-    localmaeher_api: Tuple[str, str, float],
+    localmaeher_api: Tuple[str, str],
     testdata: Dict[str, str],
 ) -> None:
     """Tests that we can check invite_code is usable"""
     client = session_with_testcas
     url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/invitecode?invitecode={testdata['invite_code']}"
     LOGGER.debug("Fetching {}".format(url))
-    response = await client.get(url, timeout=localmaeher_api[2])
+    response = await client.get(url, timeout=DEFAULT_TIMEOUT)
     response.raise_for_status()
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -30,7 +31,7 @@ async def test_not_used_invite_code(
 @pytest.mark.asyncio
 async def test_invalid_invite_code_enroll(
     session_with_testcas: aiohttp.ClientSession,
-    localmaeher_api: Tuple[str, str, float],
+    localmaeher_api: Tuple[str, str],
     testdata: Dict[str, str],
     error_messages: Dict[str, str],
 ) -> None:
@@ -42,7 +43,7 @@ async def test_invalid_invite_code_enroll(
         "work_id": f"{testdata['invite_code_work_id1']}",
     }
     LOGGER.debug("Fetching {}".format(url))
-    response = await client.post(url, json=data, timeout=localmaeher_api[2])
+    response = await client.post(url, json=data, timeout=DEFAULT_TIMEOUT)
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status == 400
@@ -52,7 +53,7 @@ async def test_invalid_invite_code_enroll(
 @pytest.mark.asyncio
 async def test_invalid_user_hash_invite_code_create(
     session_with_testcas: aiohttp.ClientSession,
-    localmaeher_api: Tuple[str, str, float],
+    localmaeher_api: Tuple[str, str],
     testdata: Dict[str, str],
     error_messages: Dict[str, str],
 ) -> None:
@@ -63,7 +64,7 @@ async def test_invalid_user_hash_invite_code_create(
         "user_management_hash": f"{testdata['invite_code_invalid_user_hash']}",
     }
     LOGGER.debug("Fetching {}".format(url))
-    response = await client.post(url, json=data, timeout=localmaeher_api[2])
+    response = await client.post(url, json=data, timeout=DEFAULT_TIMEOUT)
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
     assert response.status == 403
