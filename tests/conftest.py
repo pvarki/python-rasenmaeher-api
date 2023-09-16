@@ -20,6 +20,7 @@ from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.settings import settings
 from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
+import rasenmaeher_api.sqlitedatabase
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -124,10 +125,12 @@ def session_env_config(
         mpatch.setattr(settings, "kraftwerk_manifest_bool", False)
         check_kraftwerk_manifest()
 
+        # Make *sure* we always use fresh db
         mpatch.setattr(settings, "sqlite_filepath_prod", str(sqlitepath))
         mpatch.setenv("RM_SQLITE_FILEPATH_PROD", settings.sqlite_filepath_prod)
         mpatch.setattr(settings, "sqlite_filepath_dev", str(sqlitepath))
         mpatch.setenv("RM_SQLITE_FILEPATH_DEV", settings.sqlite_filepath_prod)
+        mpatch.setattr(rasenmaeher_api.sqlitedatabase, "sqlite", rasenmaeher_api.sqlitedatabase.SqliteDB())
 
         yield None
 
