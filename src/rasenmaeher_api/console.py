@@ -3,6 +3,7 @@ from typing import Dict, Any
 import logging
 import json
 import asyncio
+import pprint
 
 import click
 from libadvian.logging import init_logging
@@ -11,6 +12,7 @@ from multikeyjwt import Issuer
 from rasenmaeher_api import __version__
 from rasenmaeher_api.web.api.tokens.views import create_code_backend
 from rasenmaeher_api.jwtinit import jwt_init
+from rasenmaeher_api.testhelpers import create_test_users
 
 
 LOGGER = logging.getLogger(__name__)
@@ -75,6 +77,17 @@ def get_jwt(ctx: click.Context, claims_json: str) -> None:
         return 0
 
     ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
+
+
+@cli_group.command(name="addtestusers")
+@click.pass_context
+def add_test_users(ctx: click.Context) -> None:
+    """
+    Create the test users defined in testhelpers.create_test_users
+    """
+    ret = create_test_users()
+    click.echo(pprint.pformat(ret))
+    ctx.exit(0)
 
 
 def rasenmaeher_api_cli() -> None:
