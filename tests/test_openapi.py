@@ -2,22 +2,26 @@
 from typing import Tuple
 import logging
 
-import requests
+import aiohttp
+import pytest
 
 
 LOGGER = logging.getLogger(__name__)
 
 
-def test_get_openapi_json(
-    localmaeher_api: Tuple[str, str, float], openapi_version: Tuple[str, str]
+@pytest.mark.asyncio
+async def test_get_openapi_json(
+    session_with_testcas: aiohttp.ClientSession,
+    localmaeher_api: Tuple[str, str, float],
+    openapi_version: Tuple[str, str],
 ) -> None:
     """Fetch openapi spec and check certain things exist"""
+    client = session_with_testcas
     url = f"{localmaeher_api[0]}/openapi.json"
-    response = requests.get(
-        url, json=None, headers=None, verify=False, timeout=localmaeher_api[2]
-    )
-    assert response.status_code == 200
-    payload = response.json()
+    LOGGER.debug("Fetching {}".format(url))
+    response = await client.get(url, timeout=localmaeher_api[2])
+    response.raise_for_status()
+    payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
     assert payload["openapi"] == f"{openapi_version[0]}"
     assert payload["info"] is not None
