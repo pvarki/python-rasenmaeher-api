@@ -63,6 +63,7 @@ def openapi_version() -> Tuple[str, str]:
 def testdata() -> Dict[str, str]:
     """Return values needed for tests"""
     return {
+        "testing_management_hash": "TestikalukalukalukaulinJotainAsdJotainJotainJotain",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
         "user_hash": "PerPerPerjantaiPulloParisee",
         "first_time_user_work_id1": "kukko",
