@@ -1,6 +1,6 @@
 """Schema for enrollment."""
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Extra
 from ....settings import settings
 
 
@@ -628,6 +628,7 @@ class EnrollmentInviteCodeDeactivateIn(BaseModel):
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {"invite_code": "[str] - Admin hash string having permissions to create invite code"},

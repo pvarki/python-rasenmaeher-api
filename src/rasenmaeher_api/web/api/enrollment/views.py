@@ -1,10 +1,8 @@
-"""Enrollment API views."""
-from sre_constants import SUCCESS
+"""Enrollment API views."""  # pylint: disable=too-many-lines
 import string
 import random
 import logging
 from typing import Dict, List, Any, Optional, Union
-from unittest import result
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigTaskDone,
@@ -41,7 +39,6 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentInviteCodeDeactivateOut,
     EnrollmentInviteCodeDeactivateIn,
     EnrollmentInviteCodeDeleteOut,
-    EnrollmentInviteCodeDeleteIn,
 )
 
 from ....settings import settings
@@ -81,7 +78,7 @@ async def check_management_hash_permissions(
 
     if len(_result) > 0:
         return True
-   
+
     if raise_exeption is True:
         _reason = f"Error. Given management hash doesn't have {special_rule} permissions."
         LOGGER.error("{}".format(_reason))
@@ -827,7 +824,7 @@ async def post_invite_code(
     """
 
     # Veriy that the user has permissions to create invite codes ??? is user-admin
-    d = await check_management_hash_permissions(
+    await check_management_hash_permissions(
         raise_exeption=True, management_hash=request_in.user_management_hash, special_rule="enrollment"
     )
 
@@ -841,7 +838,6 @@ async def post_invite_code(
 
     # Random string for invite-code eg. GLXBT0
     _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))  # nosec B311
-    print(_invite_code)
     # Update existing code if existing LIKE management_hash and invite-code
     if _existing_invite_code:
         _q = settings.sqlite_update_from_management_where_management_like.format(
@@ -863,7 +859,6 @@ async def post_invite_code(
 
 @router.put("/invitecode/activate", response_model=EnrollmentInviteCodeActivateOut)
 async def put_activate_invite_code(
-    request: Request,
     request_in: EnrollmentInviteCodeActivateIn = Body(
         None,
         examples=EnrollmentInviteCodeActivateIn.Config.schema_extra["examples"],
@@ -892,7 +887,6 @@ async def put_activate_invite_code(
 
 @router.put("/invitecode/deactivate", response_model=EnrollmentInviteCodeDeactivateOut)
 async def put_deactivate_invite_code(
-    request: Request,
     request_in: EnrollmentInviteCodeDeactivateIn = Body(
         None,
         examples=EnrollmentInviteCodeDeactivateIn.Config.schema_extra["examples"],
@@ -918,9 +912,6 @@ async def put_deactivate_invite_code(
 
     return EnrollmentInviteCodeDeactivateOut(invite_code=request_in.invite_code)
 
-@router.get("/hello")
-async def hello_world():
-    return {"message": "Hello, World!"}
 
 @router.delete("/invitecode/{invite_code}", response_model=EnrollmentInviteCodeDeleteOut)
 async def delete_invite_code(
@@ -958,8 +949,8 @@ async def delete_invite_code_like(invite_code: str) -> bool:
         _reason = "Error. Undefined backend error q_ssumha1"
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=500, detail=_reason)
-    else:
-        return True
+
+    return True
 
 
 @router.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
