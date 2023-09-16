@@ -7,9 +7,18 @@ x-kc_dbconfig_env: &kcdbconfig_env
   # FIXME: take from env (which should be set to random)
   KEYCLOAK_DATABASE_PASSWORD: &kcdbpass keycloakpwd # pragma: allowlist secret
 
+x-raesenmaeher_dbconfig_env: &rmdbconfig_env
+  RM_DATABASE_NAME: &rmdbname raesenmaeher
+  RM_DATABASE_HOST: postgres
+  RM_DATABASE_USER: &rmdbuser raesenmaeher
+  # FIXME: take from env (which should be set to random)
+  RM_DATABASE_PASSWORD: &rmdbpass raesenmaeherpwd # pragma: allowlist secret
+
+
 x-postgres_env: &postgres_env
   KEYCLOAK_PASSWORD: *kcdbpass # pragma: allowlist secret
   POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
+  RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
 
 
 x-ldap_admin_env: &ldap_admin_env
@@ -206,6 +215,7 @@ services:
     ports:
       - "8000:8000"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
     environment:
+      <<: [*rmdbconfig_env]
       JWT_PUBKEY_PATH: "/data/persistent/public"
       JWT_PRIVKEY_PATH: "/data/persistent/private/rm_jwtsign.key"
       JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
@@ -228,6 +238,8 @@ services:
       cfssl:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      postgres:  # keycloak already depends on pg but for completenes' sake
         condition: service_healthy
       keycloak-init:
         condition: service_completed_successfully
