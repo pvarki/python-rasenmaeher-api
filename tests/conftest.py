@@ -1,5 +1,5 @@
 """pytest automagics"""
-from typing import Dict, Any, AsyncGenerator, Generator
+from typing import Dict, Any, AsyncGenerator, Generator, Tuple, List
 import logging
 from pathlib import Path
 import uuid
@@ -20,6 +20,7 @@ from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.settings import settings
 from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 import rasenmaeher_api.sqlitedatabase
+from rasenmaeher_api.testhelpers import create_test_users
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -27,7 +28,18 @@ DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
 
-# FIXME: Set environment so the mTLS client loads certs from a temp dir
+# pylint: disable=W0621
+
+
+@pytest.fixture(scope="session")
+def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
+    """Create a few test users and work ids returns
+    list of work-ids and their corresponding "hashes"
+
+    First one has "enrollment" special role
+    """
+    _ = session_env_config
+    return create_test_users()
 
 
 # pylint: disable=redefined-outer-name

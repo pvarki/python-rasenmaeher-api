@@ -1,7 +1,7 @@
 """Schema for enrollment."""
 from typing import Optional, List, Dict, Any
+
 from pydantic import BaseModel, Field, Extra
-from ....settings import settings
 
 
 class EnrollmentGenVerifiIn(BaseModel):  # pylint: disable=too-few-public-methods
@@ -423,7 +423,7 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id_hash": "kissa123",
-                        "user_management_hash": f"{settings.sqlite_init_management_hash}",
+                        "user_management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -477,7 +477,7 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id": "kissa123",
-                        "management_hash": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -512,7 +512,7 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id": "kissa123",
-                        "management_hash": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -548,7 +548,7 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id": "kissa123",
-                        "management_hash": f"{settings.sqlite_init_management_hash}",
+                        "management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
