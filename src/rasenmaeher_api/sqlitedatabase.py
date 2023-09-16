@@ -108,13 +108,13 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
 
             # Add initial management hash that has permissions to enroll users etc
             _q = self.settings.sqlite_insert_into_management.format(
-                management_hash=self.settings.sqlite_init_management_hash, special_rules="main"
+                management_hash=self.settings.sqlite_init_management_hash, special_rules="main", active=1
             )
             self.run_command(_q)
 
             # Add initial 'first time user' hash that has permission to create admin users
             _q = self.settings.sqlite_insert_into_management.format(
-                management_hash=self.settings.sqlite_first_time_user_hash, special_rules="first-user"
+                management_hash=self.settings.sqlite_first_time_user_hash, special_rules="first-user", active=1
             )
             self.run_command(_q)
 
@@ -134,7 +134,9 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                 )
                 self.run_command(_q)
                 _q = self.settings.sqlite_insert_into_management.format(
-                    management_hash=self.settings.sqlite_init_testing_management_hash, special_rules="enrollment"
+                    management_hash=self.settings.sqlite_init_testing_management_hash,
+                    special_rules="enrollment",
+                    active=True,
                 )
                 self.run_command(_q)
 

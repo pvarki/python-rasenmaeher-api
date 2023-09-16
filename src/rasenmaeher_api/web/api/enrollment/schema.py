@@ -620,10 +620,52 @@ class EnrollmentInviteCodeCreateOut(BaseModel):  # pylint: disable=too-few-publi
     invite_code: str
 
 
+class EnrollmentInviteCodeDeactivateIn(BaseModel):
+    """Enrollment Invite code deactivate request schema"""
+
+    invite_code: str
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
+            ]
+        }
+
+
+class EnrollmentInviteCodeDeactivateOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment Invite code deactivate response schema"""
+
+    invite_code: str
+
+
+class EnrollmentInviteCodeActivateIn(BaseModel):
+    """Enrollment Invite code activate request schema"""
+
+    invite_code: str
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
+            ]
+        }
+
+
+class EnrollmentInviteCodeActivateOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment Invite code activate response schema"""
+
+    invite_code: str
+
+
 class EnrollmentInviteCodeEnrollIn(BaseModel):
     """Enrollment Enrollment Invite code request schema"""
 
-    invitecode: str
+    invite_code: str
     work_id: str
 
     class Config:  # pylint: disable=too-few-public-methods
@@ -632,8 +674,29 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
         schema_extra = {
             "examples": [
                 {
-                    "invitecode": "[str] - Code that is used validate enrollment init for work_id",
+                    "invite_code": "[str] - Code that is used validate enrollment init for work_id",
                     "work_id": "[str] User defined username/id/workname",
                 },
             ]
         }
+
+
+class EnrollmentInviteCodeDeleteIn(BaseModel):
+    """Enrollment Invite code deactivate request schema"""
+
+    invite_code: str
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        schema_extra = {
+            "examples": [
+                {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
+            ]
+        }
+
+
+class EnrollmentInviteCodeDeleteOut(BaseModel):  # pylint: disable=too-few-public-methods
+    """Enrollment Invite code deactivate response schema"""
+
+    invite_code: str

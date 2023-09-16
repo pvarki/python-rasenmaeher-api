@@ -1,8 +1,10 @@
 """Enrollment API views."""
+from sre_constants import SUCCESS
 import string
 import random
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
+from unittest import result
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentConfigTaskDone,
@@ -34,6 +36,12 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentInviteCodeCreateIn,
     EnrollmentInviteCodeCreateOut,
     EnrollmentInviteCodeEnrollIn,
+    EnrollmentInviteCodeActivateOut,
+    EnrollmentInviteCodeActivateIn,
+    EnrollmentInviteCodeDeactivateOut,
+    EnrollmentInviteCodeDeactivateIn,
+    EnrollmentInviteCodeDeleteOut,
+    EnrollmentInviteCodeDeleteIn,
 )
 
 from ....settings import settings
@@ -44,8 +52,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 async def check_management_hash_permissions(
-    raise_exeption: bool = True, management_hash: str = "", special_rule: str = "enrollment", hash_like: bool = False
-) -> bool:
+    raise_exeption: bool = False,
+    management_hash: str = "",
+    special_rule: str = "",
+    hash_like: bool = False,
+) -> Union[bool, None]:
     """
     Simple function to check if management_hash is found and has permissions. Use hash_like to use LIKE instead of =.
     """
@@ -65,15 +76,60 @@ async def check_management_hash_permissions(
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    if len(_result) > 0:
+    if special_rule == "invite-code" and _success is True:
         return True
-
+        
     if raise_exeption is True:
-        _reason = "Error. Given management hash doesn't have 'enrollment' permissions."
+        _reason = f"Error. Given management hash doesn't have {special_rule} permissions."
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=403, detail=_reason)
 
+    if len(_result) > 0:
+        return True
+
     return False
+
+
+async def update_management_hash_permissions(management_hash: str, special_rule: str, active: bool) -> None:
+    """
+    Update the active status of a management hash in the management table
+    """
+
+    # convert bool to int
+    if active is True:
+        active_int = 1
+    else:
+        active_int = 0
+
+    _q = settings.sqlite_update_management_state.format(
+        management_hash=management_hash, special_rules=special_rule, active=active_int
+    )
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssumha1"
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=500, detail=_reason)
+
+
+async def update_invite_code_state(invite_code: str, active: bool) -> None:
+    """
+    Update the active status of a invite-code in the management table
+    """
+
+    # convert bool to int
+    if active is True:
+        active_int = 1
+    else:
+        active_int = 0
+
+    _q = settings.update_management_hash_like.format(
+        management_hash=invite_code, special_rules="invite-code", active=active_int
+    )
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssumha1"
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=500, detail=_reason)
 
 
 async def is_workid_or_workidhash_given(
@@ -785,7 +841,7 @@ async def post_invite_code(
 
     # Random string for invite-code eg. GLXBT0
     _invite_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=8))  # nosec B311
-
+    print(_invite_code)
     # Update existing code if existing LIKE management_hash and invite-code
     if _existing_invite_code:
         _q = settings.sqlite_update_from_management_where_management_like.format(
@@ -798,11 +854,109 @@ async def post_invite_code(
     else:
         # Create a new invite code for management_hash_GLXBT0
         _q = settings.sqlite_insert_into_management.format(
-            management_hash=f"{request_in.user_management_hash}_{_invite_code}", special_rules="invite-code"
+            management_hash=f"{request_in.user_management_hash}_{_invite_code}", special_rules="invite-code", active=1
         )
         _success, _result = sqlite.run_command(_q)
 
     return EnrollmentInviteCodeCreateOut(invite_code=f"{_invite_code}")
+
+
+@router.put("/invitecode/activate", response_model=EnrollmentInviteCodeActivateOut)
+async def put_activate_invite_code(
+    request: Request,
+    request_in: EnrollmentInviteCodeActivateIn = Body(
+        None,
+        examples=EnrollmentInviteCodeActivateIn.Config.schema_extra["examples"],
+    ),
+) -> EnrollmentInviteCodeActivateOut:
+    """
+    Activate an invite code
+    """
+
+    # Check if there is an invite code matching the one in request
+    _existing_invite_code = await check_management_hash_permissions(
+        raise_exeption=True, management_hash=request_in.invite_code, special_rule="invite-code", hash_like=True
+    )
+
+    if _existing_invite_code is False:
+        raise HTTPException(status_code=404, detail="Invite code not found or deactivated")
+
+    _q = settings.sqlite_sel_from_management_where_hash_like.format(management_hash=request_in.invite_code)
+    _success2, _result2 = sqlite.run_command(_q)
+
+    # Activate the invite code
+    await update_invite_code_state(invite_code=request_in.invite_code, active=True)
+
+    return EnrollmentInviteCodeActivateOut(invite_code=request_in.invite_code)
+
+
+@router.put("/invitecode/deactivate", response_model=EnrollmentInviteCodeDeactivateOut)
+async def put_deactivate_invite_code(
+    request: Request,
+    request_in: EnrollmentInviteCodeDeactivateIn = Body(
+        None,
+        examples=EnrollmentInviteCodeDeactivateIn.Config.schema_extra["examples"],
+    ),
+) -> EnrollmentInviteCodeDeactivateOut:
+    """
+    Deactivate an invite code
+    """
+
+    # Check if there is an invite code matching the one in request
+    _existing_invite_code = await check_management_hash_permissions(
+        raise_exeption=True, management_hash=request_in.invite_code, special_rule="invite-code", hash_like=True
+    )
+
+    if _existing_invite_code is False:
+        raise HTTPException(status_code=404, detail="Invite code not found or deactivated")
+
+    _q = settings.sqlite_sel_from_management_where_hash_like.format(management_hash=request_in.invite_code)
+    _success2, _result2 = sqlite.run_command(_q)
+
+    # Deactivate the invite code
+    await update_invite_code_state(invite_code=request_in.invite_code, active=False)
+
+    return EnrollmentInviteCodeDeactivateOut(invite_code=request_in.invite_code)
+
+
+@router.delete("/invitecode/{invite_code}", response_model=EnrollmentInviteCodeDeleteOut)
+async def delete_invite_code(
+    invite_code: str,
+) -> EnrollmentInviteCodeDeleteOut:
+    """
+    Delete an invite code
+    """
+
+    # Check if there is an invite code matching the one in request
+    _existing_invite_code = await check_management_hash_permissions(
+        raise_exeption=False, management_hash=invite_code, special_rule="invite-code", hash_like=True
+    )
+    print(_existing_invite_code)
+
+    if _existing_invite_code is False:
+        raise HTTPException(status_code=404, detail="Invite code not found")
+
+    # Delete the invite code
+    await delete_invite_code_like(invite_code=invite_code)
+
+    return EnrollmentInviteCodeDeleteOut(invite_code=invite_code)
+
+
+async def delete_invite_code_like(invite_code: str) -> bool:
+    """
+    Delete invite code like
+    """
+
+    _q = settings.sqlite_del_from_management_where_hash_like.format(
+        management_hash=invite_code, special_rules="invite-code"
+    )
+    _success, _result = sqlite.run_command(_q)
+    if _success is False:
+        _reason = "Error. Undefined backend error q_ssumha1"
+        LOGGER.error("{}".format(_reason))
+        raise HTTPException(status_code=500, detail=_reason)
+    else:
+        return True
 
 
 @router.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
@@ -839,7 +993,7 @@ async def post_enroll_invite_code(
 
     # Check if there is a invite code matching the one in request
     _existing_invite_code = await check_management_hash_permissions(
-        raise_exeption=False, management_hash=request_in.invitecode, special_rule="invite-code", hash_like=True
+        raise_exeption=False, management_hash=request_in.invite_code, special_rule="invite-code", hash_like=True
     )
 
     if _existing_invite_code is False:
