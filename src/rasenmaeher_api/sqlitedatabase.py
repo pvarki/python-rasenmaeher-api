@@ -118,65 +118,6 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
             )
             self.run_command(_q)
 
-            # Create development dummy roles
-            if self.settings.environment.lower() == "dev":
-                # Create test admin credentials
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id=settings.sqlite_init_testing_management_username,
-                    work_id_hash=settings.sqlite_init_testing_management_hash,
-                    state="ReadyForDelivery",
-                    accepted="somehashwhoaccepted_this",
-                    cert_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                    cert_howto_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                    mtls_test_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                    verification_code="",
-                    locked="",
-                )
-                self.run_command(_q)
-                _q = self.settings.sqlite_insert_into_management.format(
-                    management_hash=self.settings.sqlite_init_testing_management_hash, special_rules="enrollment"
-                )
-                self.run_command(_q)
-
-                # Create kissa dummy role
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="kissa",
-                    work_id_hash="kissa123",
-                    state="ReadyForDelivery",
-                    accepted="somehashwhoaccepted_this",
-                    cert_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                    cert_howto_dl_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                    mtls_test_link="https://www.kuvaton.com/kuvei/asiakkaamme_kissa.jpg",
-                    verification_code="",
-                    locked="",
-                )
-                self.run_command(_q)
-                # Create koira dummy role
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="koira",
-                    work_id_hash="koira123",
-                    state="init",
-                    accepted="",
-                    cert_dl_link="",
-                    cert_howto_dl_link="",
-                    mtls_test_link="",
-                    verification_code="",
-                    locked="",
-                )
-                self.run_command(_q)
-                _q = self.settings.sqlite_insert_into_enrollment.format(
-                    work_id="porakoira",
-                    work_id_hash="porakoira123",
-                    state="init",
-                    accepted="",
-                    cert_dl_link="",
-                    cert_howto_dl_link="",
-                    mtls_test_link="",
-                    verification_code="",
-                    locked="",
-                )
-                self.run_command(_q)
-
         else:
             LOGGER.critical("Error! cannot create the database connection.")
 
