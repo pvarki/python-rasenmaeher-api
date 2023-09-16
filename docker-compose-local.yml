@@ -44,6 +44,7 @@ services:
     environment:
       RASENMAEHER_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
       RASENMAEHER_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
+      PRODUCT_HTTPS_PORT: ${NGINX_HTTPS_PRODUCT_PORT:-4625}
     volumes:
       - kraftwerk_shared:/pvarki
       - kraftwerk_data:/data/persistent
