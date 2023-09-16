@@ -80,17 +80,23 @@ async def get_check_code(
         _reason = "/firstuser API is disabled"
         raise HTTPException(status_code=410, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    _q = settings.sqlite_jwt_sel_from_jwt_where_exchange.format(exchange_code=params.temp_admin_code)
     _success, _result = sqlite.run_command(_q)
 
+    # _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    # _success, _result = sqlite.run_command(_q)
+
     if _success is False:
-        _reason = "Error. Undefined backend error q_sssfmwsrl2"
+        _reason = "Error. Undefined backend error q_ssjsfjwe1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    for _first_user in _result:
-        if _first_user[0] == params.temp_admin_code:
-            return FirstuserCheckCodeOut(code_ok=True)
+    if len(_result) > 0 and _result[0][2].lower() == "no":
+        return FirstuserCheckCodeOut(code_ok=True)
+
+    # for _first_user in _result:
+    #    if _first_user[0] == params.temp_admin_code:
+    #        return FirstuserCheckCodeOut(code_ok=True)
 
     return FirstuserCheckCodeOut(code_ok=False)
 
