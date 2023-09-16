@@ -248,17 +248,17 @@ async def post_admin_add(
         _reason = "/firstuser API is disabled"
         raise HTTPException(status_code=410, detail=_reason)
 
-    _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
-    _success, _result = sqlite.run_command(_q)
+    # _q = settings.sqlite_sel_from_management_where_special_rule_like.format(special_rules="first-user")
+    # _success, _result = sqlite.run_command(_q)
 
-    _admin_found: bool = False
-    for _first_user in _result:
-        if _first_user[0] == request_in.temp_admin_code:
-            _admin_found = True
+    # _admin_found: bool = False
+    # for _first_user in _result:
+    #    if _first_user[0] == request_in.temp_admin_code:
+    #        _admin_found = True
 
-    if _admin_found is False:
-        _reason = "Given 'temp_admin_code' has no permission to add new admins."
-        raise HTTPException(status_code=403, detail=_reason)
+    # if _admin_found is False:
+    #    _reason = "Given 'temp_admin_code' has no permission to add new admins."
+    #    raise HTTPException(status_code=403, detail=_reason)
 
     _work_id_hash = "".join(
         # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
