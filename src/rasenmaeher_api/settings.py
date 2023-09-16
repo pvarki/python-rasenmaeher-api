@@ -107,9 +107,6 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     # Initial shared secret between services (provided by kraftwerk)
     sqlite_init_management_hash: str = "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1"
-    # TestingCredentials - admin hash and name
-    sqlite_init_testing_management_hash: str = "TestikalukalukalukaulinJotainAsdJotainJotainJotain"
-    sqlite_init_testing_management_username: str = "pyteststuff"
     # Initial 'One time' code used to create first admin accounts (provided by kraftwerk)
     sqlite_first_time_user_hash: str = "PerPerPerjantaiPulloParisee"
 

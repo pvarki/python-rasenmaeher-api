@@ -3,7 +3,6 @@ from typing import Tuple, List
 import logging
 
 from .sqlitedatabase import sqlite as sqlitewrapper
-from .settings import settings
 
 
 LOGGER = logging.getLogger(__name__)
@@ -19,9 +18,9 @@ def create_test_users() -> Tuple[List[str], List[str]]:
     work_ids: List[str] = []
     work_hashes: List[str] = []
 
-    # FIXME: do not put these to settings
-    work_ids.append(settings.sqlite_init_testing_management_username)
-    work_hashes.append(settings.sqlite_init_testing_management_hash)
+    # PONDER: create random ones ?
+    work_ids.append("pyteststuff")
+    work_hashes.append("TestikalukalukalukaulinJotainAsdJotainJotainJotain")
     # Create test admin credentials
     _q = sqlitewrapper.settings.sqlite_insert_into_enrollment.format(
         work_id=work_ids[-1],
@@ -36,7 +35,7 @@ def create_test_users() -> Tuple[List[str], List[str]]:
     )
     sqlitewrapper.run_command(_q)
     _q = sqlitewrapper.settings.sqlite_insert_into_management.format(
-        management_hash=sqlitewrapper.settings.sqlite_init_testing_management_hash, special_rules="enrollment"
+        management_hash=work_hashes[-1], special_rules="enrollment"
     )
     sqlitewrapper.run_command(_q)
 
