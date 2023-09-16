@@ -1,10 +1,10 @@
 """The conftest.py provides fixtures for the entire directory.
 Fixtures defined can be used by any test in that package without needing to import them."""
+import platform
 from typing import Tuple, Dict, AsyncGenerator
 import logging
 from pathlib import Path
 import ssl
-import platform
 import asyncio
 import aiohttp
 import pytest
@@ -15,12 +15,12 @@ init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 CA_PATH = Path(__file__).parent / "testcas"
 
-import platform
-
-# Workaround for 'RuntimeError: Event Loop is closed'
-# https://github.com/encode/httpx/issues/914
-if platform.system() == 'Windows':
+# mypy: disable-error-code="attr-defined"
+if platform.system() == "Windows":
+    # Workaround for 'RuntimeError: Event Loop is closed'
+    # https://github.com/encode/httpx/issues/914
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 @pytest_asyncio.fixture
 async def session_with_testcas() -> AsyncGenerator[aiohttp.ClientSession, None]:
