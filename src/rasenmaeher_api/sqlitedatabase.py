@@ -136,7 +136,7 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
                 _q = self.settings.sqlite_insert_into_management.format(
                     management_hash=self.settings.sqlite_init_testing_management_hash,
                     special_rules="enrollment",
-                    active=True,
+                    active=1,
                 )
                 self.run_command(_q)
 
