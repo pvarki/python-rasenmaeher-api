@@ -1,5 +1,5 @@
 """The Gino baseclass with db connection wrapping"""
-from typing import Self, cast
+from typing import Self, cast, Union
 import uuid
 
 from gino import Gino
@@ -26,12 +26,15 @@ class BaseModel(DBModel):  # type: ignore[misc] # pylint: disable=R0903
     deleted = sa.Column(sa.DateTime(timezone=True), nullable=True)
 
     @classmethod
-    async def by_pk(cls, pkin: str, allow_deleted: bool = False) -> Self:
+    async def by_pk(cls, pkin: Union[str, uuid.UUID], allow_deleted: bool = False) -> Self:
         """Get by pk"""
-        try:
-            getpk = b64_to_uuid(ensure_utf8(pkin))
-        except ValueError:
-            getpk = uuid.UUID(ensure_str(pkin))
+        if isinstance(pkin, uuid.UUID):
+            getpk = pkin
+        else:
+            try:
+                getpk = b64_to_uuid(ensure_utf8(pkin))
+            except ValueError:
+                getpk = uuid.UUID(ensure_str(pkin))
         obj = await cls.get(getpk)
         if not obj:
             raise NotFound()
