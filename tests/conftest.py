@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 import uuid
 import json
+import asyncio
 
 import pytest
 from multikeyjwt import Issuer, Verifier
@@ -29,6 +30,15 @@ JWT_PATH = DATA_PATH / Path("jwt")
 
 
 # pylint: disable=W0621
+
+
+@pytest.fixture(scope="session")
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    """Session scoped event loop so the db connection can stay up"""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture(scope="session")
