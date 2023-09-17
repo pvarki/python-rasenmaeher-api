@@ -2,12 +2,17 @@
 from typing import Self, cast, Union
 import uuid
 import logging
+from pathlib import Path
+import tempfile
+import asyncio
+import random
 
 from gino import Gino
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
-from asyncpg.exceptions import DuplicateSchemaError
+from asyncpg.exceptions import DuplicateSchemaError, UniqueViolationError
 from libadvian.binpackers import b64_to_uuid, ensure_utf8, ensure_str
+import filelock
 
 from .errors import NotFound, Deleted
 from .config import DBConfig
@@ -59,14 +64,27 @@ async def bind_config() -> None:
 
 async def init_db() -> None:
     """Create schemas and tables, normally one should use migration manager"""
+    # Random sleep to avoid race conditions
+    lockpath = Path(tempfile.gettempdir()) / "dbinit.lock"
+    lock = filelock.FileLock(lockpath)
     try:
-        LOGGER.debug("Acquiring connection")
-        async with db.acquire() as conn:
-            LOGGER.debug("Acquiring transaction")
-            async with conn.transaction():
-                LOGGER.debug("Creating raesenmaeher schema")
-                await db.status(sa.schema.CreateSchema("raesenmaeher"))
-                LOGGER.debug("Creating tables")
-                await db.gino.create_all()
-    except DuplicateSchemaError:
-        pass
+        await asyncio.sleep(random.random() * 2)  # nosec
+        lock.acquire(timeout=0.0)
+        try:
+            LOGGER.debug("Acquiring connection")
+            async with db.acquire() as conn:
+                LOGGER.debug("Acquiring transaction")
+                async with conn.transaction():
+                    LOGGER.debug("Creating raesenmaeher schema")
+                    await db.status(sa.schema.CreateSchema("raesenmaeher"))
+                    LOGGER.debug("Creating tables")
+                    await db.gino.create_all()
+        except (DuplicateSchemaError, UniqueViolationError):
+            pass
+    except filelock.Timeout:
+        LOGGER.warning("Someone has already locked {}".format(lockpath))
+        LOGGER.debug("Sleeping for ~5s and then recursing")
+        await asyncio.sleep(5.0 + random.random())  # nosec
+        return await init_db()
+    finally:
+        lock.release()
