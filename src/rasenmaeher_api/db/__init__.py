@@ -1,14 +1,15 @@
 """Gino based database abstraction"""
 from .config import DBConfig
-from .base import db, bind_config
+from .base import db, bind_config, init_db
 from .people import Person, Role
 from .enrollments import Enrollment, EnrollmentPool, EnrollmentState
 
 __all__ = [
     "DBConfig",
     "db",
-    "Person",
     "bind_config",
+    "init_db",
+    "Person",
     "Role",
     "Enrollment",
     "EnrollmentPool",

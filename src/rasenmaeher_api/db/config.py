@@ -1,5 +1,5 @@
 """Read database configuration from ENV or .env -file"""
-from typing import Optional, cast, Callable
+from typing import Optional, cast, Callable, ClassVar, Any
 import logging
 import functools
 from dataclasses import dataclass, field
@@ -11,6 +11,8 @@ from starlette.datastructures import Secret
 
 LOGGER = logging.getLogger(__name__)
 config = Config(".env")
+
+# FIXME: this should probably be in some common library of ours
 
 
 @dataclass
@@ -69,6 +71,17 @@ class DBConfig:  # pylint: disable=R0902
     retry_interval: int = field(
         default_factory=cast(Callable[..., int], functools.partial(config, "DB_RETRY_INTERVAL", cast=int, default=1))
     )
+
+    # private
+    _singleton: ClassVar[Optional["DBConfig"]] = None
+
+    @classmethod
+    def singleton(cls, **kwargs: Any) -> "DBConfig":
+        """Get a singleton"""
+        if DBConfig._singleton is None:
+            DBConfig._singleton = DBConfig(**kwargs)
+        assert DBConfig._singleton is not None
+        return DBConfig._singleton
 
     def __post_init__(self) -> None:
         """Post init stuff"""

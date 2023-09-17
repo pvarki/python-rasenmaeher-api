@@ -1,29 +1,18 @@
 """DB specific tests"""
-from typing import Generator
 import logging
 import uuid
-import asyncio
 
 import pytest
 import pytest_asyncio
-import sqlalchemy
 from libadvian.binpackers import uuid_to_b64
 
-from rasenmaeher_api.db import DBConfig, bind_config, db, Person, Enrollment, EnrollmentState, EnrollmentPool
+from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool
+from rasenmaeher_api.db.base import init_db, bind_config
 from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation, PoolInactive
 
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Session scoped event loop so the db connection can stay up"""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
 
 
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -54,9 +43,7 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
 async def ginosession() -> None:
     """make sure db is bound etc"""
     await bind_config()
-    LOGGER.debug("Creating raesenmaeher schema")
-    await db.status(sqlalchemy.schema.CreateSchema("raesenmaeher"))
-    await db.gino.create_all()
+    await init_db()
 
 
 @pytest.mark.asyncio
