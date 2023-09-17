@@ -10,9 +10,12 @@ from libadvian.logging import init_logging
 from multikeyjwt import Issuer
 
 from rasenmaeher_api import __version__
-from rasenmaeher_api.web.api.tokens.views import create_code_backend
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.testhelpers import create_test_users
+from rasenmaeher_api.db import LoginCode
+from rasenmaeher_api.db import base as dbbase
+from rasenmaeher_api.db.config import DBConfig
+from rasenmaeher_api.db.middleware import DBWrapper
 
 
 LOGGER = logging.getLogger(__name__)
@@ -32,6 +35,8 @@ def cli_group(ctx: click.Context, loglevel: int, verbose: int) -> None:
 
     LOGGER.setLevel(loglevel)
     ctx.ensure_object(dict)
+    ctx.obj["loop"] = asyncio.get_event_loop()
+    ctx.obj["dbwrapper"] = DBWrapper(gino=dbbase.db, config=DBConfig.singleton())
 
 
 @cli_group.command(name="addcode")
@@ -49,11 +54,14 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
 
     async def call_backend(claims: Dict[str, Any]) -> int:
         """Call the backend"""
-        code = await create_code_backend(claims)
+        nonlocal ctx
+        await ctx.obj["dbwrapper"].app_startup_event()
+        code = await LoginCode.create_for_claims(claims)
+        await ctx.obj["dbwrapper"].app_startup_event()
         click.echo(code)
         return 0
 
-    ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
+    ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
 
 
 @cli_group.command(name="getjwt")
@@ -76,7 +84,7 @@ def get_jwt(ctx: click.Context, claims_json: str) -> None:
         click.echo(token)
         return 0
 
-    ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
+    ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
 
 
 @cli_group.command(name="getadminjwt")
@@ -99,7 +107,7 @@ def get_adminjwt(ctx: click.Context, claims_json: str) -> None:
         click.echo(token)
         return 0
 
-    ctx.exit(asyncio.get_event_loop().run_until_complete(call_backend(claims)))
+    ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
 
 
 @cli_group.command(name="addtestusers")

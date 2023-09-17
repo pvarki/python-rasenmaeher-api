@@ -30,11 +30,13 @@ class EnrollmentError(Exception):
     """Baseclass for issues with enrollments"""
 
 
-class CallsignReserved(ValueError, EnrollmentError, HTTPException):
+class CallsignReserved(HTTPException, EnrollmentError, ValueError):
     """Callsign is already reserved"""
 
     def __init__(self, *args: Sequence[Any]) -> None:
         """make us also 403 HTTP error"""
+        self.status_code = status.HTTP_403_FORBIDDEN
+        self.detail = "Forbidden"
         new_args = [status.HTTP_403_FORBIDDEN] + list(args)
         super(HTTPException, self).__init__(*new_args)
 
@@ -43,10 +45,12 @@ class PoolInactive(EnrollmentError, ForbiddenOperation):
     """Inactive pool forbidden operations"""
 
 
-class TokenReuse(ValueError, HTTPException):
+class TokenReuse(HTTPException, ValueError):
     """Token is already reserved"""
 
     def __init__(self, *args: Sequence[Any]) -> None:
         """make us also 403 HTTP error"""
+        self.status_code = status.HTTP_403_FORBIDDEN
+        self.detail = "Forbidden"
         new_args = [status.HTTP_403_FORBIDDEN] + list(args)
         super(HTTPException, self).__init__(*new_args)
