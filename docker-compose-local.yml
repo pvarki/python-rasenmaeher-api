@@ -229,6 +229,7 @@ services:
       - kcnet
       - canet
       - intranet
+      - dbnet
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
