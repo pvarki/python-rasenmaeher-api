@@ -112,37 +112,6 @@ class SqliteDB:  # pylint: disable=too-few-public-methods
             )
             self.run_command(_q)
 
-            # Add initial 'first time user' hash that has permission to create admin users
-            _q = self.settings.sqlite_insert_into_management.format(
-                management_hash=self.settings.sqlite_first_time_user_hash, special_rules="first-user", active=1
-            )
-            self.run_command(_q)
-
-            # Add the 'first time user' code to jwt table if not there already
-            _q = self.settings.sqlite_jwt_sel_from_jwt_where_exchange.format(
-                exchange_code=self.settings.one_time_admin_code
-            )
-            _success, _result = self.run_command(_q)
-
-            if _success is False:
-                _reason = "Error in init! Database query failed. Undefined backend error q_init123"
-                LOGGER.error("{}".format(_reason))
-                raise RuntimeError(_reason)
-
-            if len(_result) == 0:
-                _q = self.settings.sqlite_insert_into_jwt.format(
-                    claims='{"anon_admin_session":true}',
-                    consumed="no",
-                    work_id_hash="NA",
-                    work_id="NA",
-                    exchange_code=self.settings.one_time_admin_code,
-                )
-                _success, _result = self.run_command(_q)
-                if _success is False:
-                    _reason = "Error in init! Database query failed. Undefined backend error q_init223"
-                    LOGGER.error("{}".format(_reason))
-                    raise RuntimeError(_reason)
-
         else:
             LOGGER.critical("Error! cannot create the database connection.")
 

@@ -155,8 +155,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                     consumed text NOT NULL,
                                     work_id_hash text NOT NULL,
                                     work_id text NOT NULL,
-                                    exchange_code text NOT NULL,
-                                    UNIQUE(work_id_hash)
+                                    exchange_code text NOT NULL
                                 ); """
 
     sqlite_insert_into_services = """ INSERT OR REPLACE INTO services
@@ -193,7 +192,7 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
                                         VALUES('{management_hash}','{special_rules}','{active}')
                                     ;"""
 
-    sqlite_insert_into_jwt = """ INSERT OR REPLACE INTO jwt
+    sqlite_insert_into_jwt = """ INSERT INTO jwt
                                     (claims, consumed, work_id_hash, work_id, exchange_code)
                                     VALUES('{claims}','{consumed}','{work_id_hash}','{work_id}','{exchange_code}')
                                     ;"""
