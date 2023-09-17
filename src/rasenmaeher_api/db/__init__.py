@@ -4,6 +4,7 @@ from .base import db, bind_config, init_db
 from .people import Person, Role
 from .enrollments import Enrollment, EnrollmentPool, EnrollmentState
 from .nonces import SeenToken
+from .logincodes import LoginCode
 
 __all__ = [
     "DBConfig",
@@ -16,4 +17,5 @@ __all__ = [
     "EnrollmentPool",
     "EnrollmentState",
     "SeenToken",
+    "LoginCode",
 ]

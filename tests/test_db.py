@@ -5,10 +5,12 @@ import uuid
 import pytest
 import pytest_asyncio
 from libadvian.binpackers import uuid_to_b64
+from multikeyjwt import Verifier
 
-from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken
+from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
 from rasenmaeher_api.db.base import init_db, bind_config
 from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation, PoolInactive, TokenReuse
+from rasenmaeher_api.jwtinit import jwt_init
 
 LOGGER = logging.getLogger(__name__)
 
@@ -183,3 +185,28 @@ async def test_seentokens_crud(ginosession: None) -> None:
     await SeenToken.use_token(token2)
     obj2 = await SeenToken.by_token(token2)
     assert not obj2.auditmeta
+    with pytest.raises(ForbiddenOperation):
+        await obj2.delete()
+
+
+@pytest.mark.asyncio
+async def test_logincodes_crud(ginosession: None) -> None:
+    """Test the db abstraction for login codes"""
+    _ = ginosession
+    await jwt_init()
+    code = await LoginCode.create_for_claims({"sub": "sotakoira"})
+    obj = await LoginCode.by_code(code)
+    assert not obj.used_on
+    jwt = await LoginCode.use_code(code)
+    obj2 = await LoginCode.by_code(code)
+    assert obj2.used_on
+    claims = Verifier.singleton().decode(jwt)
+    LOGGER.debug("claims={}".format(claims))
+    assert "sub" in claims
+    assert claims["sub"] == "sotakoira"
+
+    with pytest.raises(ForbiddenOperation):
+        await obj2.delete()
+
+    with pytest.raises(TokenReuse):
+        await LoginCode.use_code(code)
