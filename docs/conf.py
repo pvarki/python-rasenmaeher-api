@@ -21,17 +21,17 @@ import textwrap
 BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
+sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath(".."))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Rasenmaeher docs'
-copyright = '2023, PVARKI' # noqa: A001
-author = 'PVARKI'
-version = '0.1.0'
-release = '0.1.0'
-language = 'en'
+project = "Rasenmaeher docs"
+copyright = "2023, PVARKI"  # noqa: A001
+author = "PVARKI"
+version = "0.1.0"
+release = "0.1.0"
+language = "en"
 
 
 # -- General configuration ---------------------------------------------------
@@ -40,32 +40,36 @@ language = 'en'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-  #'breathe',              # Doxygen C/C++ integration
-  #'exhale',               # Doxygen Python integration
-  'sphinx.ext.autodoc',  # Core Sphinx library for auto html doc generation from docstrings
-  #'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
-  'sphinx.ext.intersphinx',  # Link to other project's documentation (see mapping below)
-  'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
-  'sphinx_autodoc_typehints', # Automatically document param types (less noise in class signature)
-  #'sphinx_autopackagesummary',
-  'sphinx_rtd_theme',     # Read The Docs theme
-  'myst_parser',          # Markdown parsing
-  'sphinx_sitemap',       # sitemap generation for SEO
-  'autoapi.extension'
+    #'breathe',              # Doxygen C/C++ integration
+    #'exhale',               # Doxygen Python integration
+    "sphinx.ext.autodoc",  # Core Sphinx library for auto html doc generation from docstrings
+    #'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
+    "sphinx.ext.intersphinx",  # Link to other project's documentation (see mapping below)
+    "sphinx.ext.viewcode",  # Add a link to the Python source code for classes, functions etc.
+    "sphinx_autodoc_typehints",  # Automatically document param types (less noise in class signature)
+    #'sphinx_autopackagesummary',
+    "sphinx_rtd_theme",  # Read The Docs theme
+    "myst_parser",  # Markdown parsing
+    "sphinx_sitemap",  # sitemap generation for SEO
+    "autoapi.extension",
 ]
 intersphinx_mapping = {
-    'python': ('https://docs.python.org/3/', None),
+    "python": ("https://docs.python.org/3/", None),
 }
 autoapi_generate_api_docs = True
 
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
-html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)
+html_show_sourcelink = (
+    False  # Remove 'view source code' from top of page (for html, not python)
+)
 autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
 set_type_checking_flag = True  # Enable 'expensive' imports for sphinx_autodoc_typehints
 nbsphinx_allow_errors = True  # Continue through Jupyter errors
-autodoc_typehints = "description" # Sphinx-native method. Not as good as sphinx_autodoc_typehints
-add_module_names = False # Remove namespaces from class/method signatures
+autodoc_typehints = (
+    "description"  # Sphinx-native method. Not as good as sphinx_autodoc_typehints
+)
+add_module_names = False  # Remove namespaces from class/method signatures
 autodoc_default_flags = [
     # Make sure that any autodoc declarations show the right members
     "members",
@@ -76,36 +80,37 @@ autodoc_default_flags = [
 
 myst_enable_extensions = ["colon_fence"]
 myst_html_meta = {
-  "description": "Rasenmaeher docs",
-  "keywords": "Rasenmaeher docs, documentation",
-  "robots": "all,follow",
-  "googlebot": "index,follow,snippet,archive",
-  "property=og:locale": "en_US",
+    "description": "docker-rasenmaeher-integration docs",
+    "keywords": "docker-rasenmaeher-integration docs, documentation",
+    "robots": "all,follow",
+    "googlebot": "index,follow,snippet,archive",
+    "property=og:locale": "en_US",
 }
 
-html_baseurl = 'https://docs.pvarki.ai/'
+html_baseurl = "https://pvarki.github.io/docker-rasenmaeher-integration/docs"
 sitemap_filename = "sitemap.xml"
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-#exclude_patterns = []
+# exclude_patterns = []
 
 # Setup the exhale extension
 exhale_args = {
     # These arguments are required
-    "containmentFolder":     "./api",
-    "rootFileName":          "index.rst",
-    "doxygenStripFromPath":  "..", # strip '..' from paths in xml
+    "containmentFolder": "./api",
+    "rootFileName": "index.rst",
+    "doxygenStripFromPath": "..",  # strip '..' from paths in xml
     # Suggested optional arguments
-    "createTreeView":        True, # Create tree-view in sidebar
+    "createTreeView": True,  # Create tree-view in sidebar
     # TIP: if using the sphinx-bootstrap-theme, you need
     # "treeViewIsBootstrap": True,
     "exhaleExecutesDoxygen": True,
-    "exhaleDoxygenStdin": textwrap.dedent('''
+    "exhaleDoxygenStdin": textwrap.dedent(
+        """
         EXTRACT_ALL = YES
         SOURCE_BROWSER = YES
         EXTRACT_STATIC = YES
@@ -116,20 +121,21 @@ exhale_args = {
         FILE_PATTERNS = *.py
         EXAMPLE_RECURSIVE = YES
         GENERATE_TREEVIEW = YES
-    ''')
+    """
+    ),
 }
 # -- c docs configuration ---------------------------------------------------
 
 # Breathe Configuration
-breathe_default_project = "api"#
+breathe_default_project = "api"  #
 # breathe_build_directory = f"{BASEDIR}/build/docs/html/xml"
-#breathe_separate_member_pages = True
-#breathe_default_members = ('members', 'private-members', 'undoc-members')
-#breathe_domain_by_extension = {
+# breathe_separate_member_pages = True
+# breathe_default_members = ('members', 'private-members', 'undoc-members')
+# breathe_domain_by_extension = {
 #    "py": "py",
-#}
-#breathe_implementation_filename_extensions = ['.py', '.py']
-#breathe_doxygen_config_options = {}
+# }
+# breathe_implementation_filename_extensions = ['.py', '.py']
+# breathe_doxygen_config_options = {}
 breathe_projects = {
     "api": f"{BASEDIR}/docs/html/api/xml",
     "cfssl": f"{BASEDIR}/docs/html/cfssl/xml",
@@ -139,36 +145,46 @@ breathe_projects = {
     "mkcert": f"{BASEDIR}/docs/html/mkcert/xml",
     "nginx": f"{BASEDIR}/docs/html/nginx/xml",
     "openldap": f"{BASEDIR}/docs/html/openldap/xml",
-    "pg_init": f"{BASEDIR}/docs/html/pg_init/xml"
+    "pg_init": f"{BASEDIR}/docs/html/pg_init/xml",
 }
 
-#autoapi_dirs = ['api', 'cfssl', 'fakewerk', 'keycloak', 'kw_product_init', 'mkcert', 'nginx', 'openldap', 'pg_init']
-autoapi_dirs = ['../api', '../cfssl', '../fakewerk', '../keycloak', '../kw_product_init', '../mkcert', '../nginx', '../openldap', '../pg_init']
-autoapi_root = 'technical/api'
+# autoapi_dirs = ['api', 'cfssl', 'fakewerk', 'keycloak', 'kw_product_init', 'mkcert', 'nginx', 'openldap', 'pg_init']
+autoapi_dirs = [
+    "../api",
+    "../cfssl",
+    "../fakewerk",
+    "../keycloak",
+    "../kw_product_init",
+    "../mkcert",
+    "../nginx",
+    "../openldap",
+    "../pg_init",
+]
+autoapi_root = "technical/api"
 # only document files that have accompanying .cc files next to them
 print("searching for c_docs...")
 for root, _, files in os.walk(BASEDIR):
-  found = False
-  breath_src = {}
-  breathe_srcs_list = []
+    found = False
+    breath_src = {}
+    breathe_srcs_list = []
 
-  for file in files:
-    pyFile = os.path.join(root, file)[:-2] + ".py"
+    for file in files:
+        pyFile = os.path.join(root, file)[:-2] + ".py"
 
-    if exists(pyFile):
-      f = os.path.join(root, file)
+        if exists(pyFile):
+            f = os.path.join(root, file)
 
-      parent_dir_abs = os.path.dirname(f)
-      parent_dir = parent_dir_abs[len(BASEDIR) + 1:]
-      parent_project = parent_dir.replace('/', '_')
-      print(f"\tFOUND: {f} in {parent_project}")
+            parent_dir_abs = os.path.dirname(f)
+            parent_dir = parent_dir_abs[len(BASEDIR) + 1 :]
+            parent_project = parent_dir.replace("/", "_")
+            print(f"\tFOUND: {f} in {parent_project}")
 
-      breathe_srcs_list.append(file)
-      found = True
+            breathe_srcs_list.append(file)
+            found = True
 
-    if found:
-      breath_src[parent_project] = (parent_dir_abs, breathe_srcs_list)
-      breathe_projects.update(breath_src)
+        if found:
+            breath_src[parent_project] = (parent_dir_abs, breathe_srcs_list)
+            breathe_projects.update(breath_src)
 
 print(f"breathe_projects_source: {breathe_projects.keys()}")
 
@@ -177,19 +193,19 @@ print(f"breathe_projects_source: {breathe_projects.keys()}")
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_rtd_theme"
 html_show_copyright = True
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-#html_static_path = ['_static']
-#html_logo = '_static/logo.png'
-#html_favicon = '_static/favicon.ico'
+# html_static_path = ['_static']
+# html_logo = '_static/logo.png'
+# html_favicon = '_static/favicon.ico'
 html_theme_options = {
-  'logo_only': False,
-  'display_version': True,
-  'vcs_pageview_mode': 'blob',
-  'style_nav_header_background': '#000000',
+    "logo_only": False,
+    "display_version": True,
+    "vcs_pageview_mode": "blob",
+    "style_nav_header_background": "#000000",
 }
-#html_extra_path = ['_static']
+# html_extra_path = ['_static']

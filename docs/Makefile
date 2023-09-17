@@ -29,8 +29,8 @@ clean:
 
 
 
-	
-	
+
+
 	@echo "help"
 	which gcp
 	@echo "Cleaning build folder..."

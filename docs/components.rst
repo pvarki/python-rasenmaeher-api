@@ -3,7 +3,7 @@ Components
 .. toctree::
    :caption: Contents:
    :maxdepth: 2
-   
+
    API <api.rst>
    CFSSL <cfssl.rst>
    Fakewerk <fakewerk.rst>
