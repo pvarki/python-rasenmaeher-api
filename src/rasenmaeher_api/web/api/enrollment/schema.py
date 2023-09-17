@@ -295,6 +295,7 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
 
     work_id: str
     work_id_hash: str
+    jwt: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -303,6 +304,7 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
             "example": {
                 "work_id": "[str] User defined username/id/workname",
                 "work_id_hash": "[str] - Hash string for work_id",
+                "jwt": "[str] jwt token needed for later use",
             }
         }
 
@@ -340,7 +342,6 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
     work_id_hash: str
-    user_management_hash: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -353,7 +354,6 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "This contains **description** of values.",
                     "value": {
                         "work_id_hash": "[str] - Enrollment hash string.",
-                        "user_management_hash": "[str] - Hash string having permissions to accept work_id_hash",
                     },
                 },
                 {
@@ -362,7 +362,6 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id_hash": "kissa123",
-                        "user_management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -372,18 +371,14 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    work_id: str
     work_id_hash: str
-    management_hash: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
         schema_extra = {
             "example": {
-                "work_id": "[str] User defined username/id/workname",
                 "work_id_hash": "[str] - Hash string for work_id",
-                "management_hash": "[str] - Hash string used to accept enrollment",
             }
         }
 
@@ -423,7 +418,6 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment demote in schema"""
 
-    user_management_hash: str
     work_id: Optional[str]
     work_id_hash: Optional[str]
 
@@ -439,7 +433,6 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "value": {
                         "work_id": "[str] User defined username/id/workname",
                         "work_id_hash": "[str] - Hash string for work_id",
-                        "management_hash": "[str] - Hash string used to 'promote' given work_id/user/enrollment",
                     },
                 },
                 {
@@ -448,7 +441,6 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id": "kissa123",
-                        "management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -458,7 +450,6 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment lock in schema"""
 
-    user_management_hash: str
     lock_reason: str
     work_id: Optional[str]
     work_id_hash: Optional[str]
@@ -475,7 +466,6 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "value": {
                         "work_id": "[str] User defined username/id/workname",
                         "work_id_hash": "[str] - Hash string for work_id",
-                        "management_hash": "[str] - Hash string used to 'promote' given work_id/user/enrollment",
                     },
                 },
                 {
@@ -484,7 +474,6 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "description": "**Example** values.",
                     "value": {
                         "work_id": "kissa123",
-                        "management_hash": "some_suitably_strong_key",
                     },
                 },
             ]
@@ -529,22 +518,6 @@ class EnrollmentListOut(BaseModel):  # pylint: disable=too-few-public-methods
     reason: str = Field(default="")
 
 
-class EnrollmentInviteCodeCreateIn(BaseModel):
-    """Enrollment Invite code request schema"""
-
-    user_management_hash: str
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
-            "examples": [
-                {"user_management_hash": "[str] - Admin hash string having permissions to create invite code"},
-            ]
-        }
-
-
 class EnrollmentInviteCodeCreateOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment Invite code response schema"""
 
@@ -562,7 +535,7 @@ class EnrollmentInviteCodeDeactivateIn(BaseModel):
         extra = Extra.forbid
         schema_extra = {
             "examples": [
-                {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
+                {"invite_code": "[str] - Invite code that will be deactivated"},
             ]
         }
 
@@ -584,7 +557,7 @@ class EnrollmentInviteCodeActivateIn(BaseModel):
         extra = Extra.forbid
         schema_extra = {
             "examples": [
-                {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
+                {"invite_code": "[str] - Invite code that will be reactivated"},
             ]
         }
 
@@ -626,7 +599,7 @@ class EnrollmentInviteCodeDeleteIn(BaseModel):
         extra = Extra.forbid
         schema_extra = {
             "examples": [
-                {"invite_code": "[str] - Admin hash string having permissions to create invite code"},
+                {"invite_code": "[str] - Invite code that will be removed."},
             ]
         }
 
