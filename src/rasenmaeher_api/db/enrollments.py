@@ -1,4 +1,5 @@
 """Abstractions for enrollments"""
+import uuid
 from typing import Self, Dict, cast, Any, Optional
 import string
 import secrets
@@ -16,6 +17,21 @@ from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted
 LOGGER = logging.getLogger(__name__)
 CODE_CHAR_COUNT = 8  # TODO: Make configurable ??
 CODE_ALPHABET = string.ascii_uppercase + string.digits
+CODE_MAX_ATTEMPTS = 100
+
+
+class EnrollmentPool(BaseModel):  # pylint: disable=R0903
+    """Enrollment pools aka links, pk is UUID and comes from basemodel"""
+
+    __tablename__ = "enrollmentpools"
+
+    owner = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=False)  # whos mainly responsible
+    active = sa.Column(sa.Boolean(), nullable=False, default=True)
+    extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the enrollments
+
+    async def create_enrollment(self, callsign: str) -> "Enrollment":
+        """Create enrollment from this pool"""
+        return await Enrollment.create_for_callsign(callsign, self.pk, self.extra)
 
 
 class EnrollmentState(enum.IntEnum):
@@ -36,8 +52,9 @@ class Enrollment(BaseModel):  # pylint: disable=R0903
     decided_on = sa.Column(sa.DateTime(timezone=True), nullable=True)
     decided_by = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=True)
     person = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=True)
+    pool = sa.Column(saUUID(), sa.ForeignKey(EnrollmentPool.pk), nullable=True)
     state = sa.Column(sa.Integer(), nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
-    extra = sa.Column(JSONB, nullable=False, server_default="{}")
+    extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the Persons
 
     async def approve(self, approver: Person) -> Person:
         """Creates the person record, their certs etc"""
@@ -48,7 +65,7 @@ class Enrollment(BaseModel):  # pylint: disable=R0903
 
     async def reject(self, decider: Person) -> None:
         """Reject"""
-        await self.update(state=EnrollmentState.REJECTED, decided_by=decider.pk, decided_on=utcnow)
+        await self.update(state=EnrollmentState.REJECTED, decided_by=decider.pk, decided_on=utcnow).apply()
 
     @classmethod
     async def by_callsign(cls, callsign: str) -> Self:
@@ -73,7 +90,9 @@ class Enrollment(BaseModel):  # pylint: disable=R0903
         return cast(Enrollment, obj)
 
     @classmethod
-    async def create_for_callsign(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> Self:
+    async def create_for_callsign(
+        cls, callsign: str, pool: Optional[uuid.UUID] = None, extra: Optional[Dict[str, Any]] = None
+    ) -> Self:
         """Create a new one with random code for the callsign"""
         # TODO: Do this in a transaction to avoid race conditions
         try:
@@ -81,12 +100,22 @@ class Enrollment(BaseModel):  # pylint: disable=R0903
             raise CallsignReserved()
         except NotFound:
             pass
-        code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
+        attempt = 0
+        while True:
+            attempt += 1
+            code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
+            try:
+                await Enrollment.by_approvecode(code)
+            except NotFound:
+                break
+            if attempt > CODE_MAX_ATTEMPTS:
+                raise RuntimeError("Can't find unused code")
         obj = Enrollment(
             approvecode=code,
             callsign=callsign,
             state=EnrollmentState.PENDING,
             extra=extra,
+            pool=pool,
         )
         await obj.create()
         # refresh
