@@ -75,6 +75,18 @@ class Person(BaseModel):  # pylint: disable=R0903
             raise NotFound("No userid defined")
         return await cls.by_callsign(payload.userid, allow_deleted)
 
+    async def get_key_pem(self) -> bytes:
+        """Read the private key from under certspath and return the PEM"""
+        raise NotImplementedError()
+
+    async def get_cert_pem(self) -> bytes:
+        """Read the cert from under certspath and return the PEM"""
+        raise NotImplementedError()
+
+    async def get_cert_pfx(self) -> bytes:
+        """Read the cert and private key from under certspath and return the PFX container"""
+        raise NotImplementedError()
+
     async def _get_role(self, role: str) -> Optional["Role"]:
         """Internal helper for DRY"""
         obj = await Role.query.where(Role.user == self.pk).where(Role.role == role).gino.first()
