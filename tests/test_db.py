@@ -76,6 +76,11 @@ async def test_person_crud(ginosession: None) -> None:
         callsigns.append(user.callsign)
     assert "DOGGO01a" in callsigns
 
+    callsigns = []
+    async for user in Person.by_role("nosuchrole"):
+        callsigns.append(user.callsign)
+    assert not callsigns
+
     assert await obj2.has_role("admin")
     assert await obj2.remove_role("admin")
     assert not await obj2.remove_role("admin")  # not assigned, no need to delete
@@ -93,6 +98,21 @@ async def test_person_crud(ginosession: None) -> None:
     obj4 = await Person.by_callsign("DOGGO01a", allow_deleted=True)
     assert obj4.callsign == "DOGGO01a"
     assert obj4.deleted
+
+    person = Person(callsign="DOGGO01b", certspath=str(uuid.uuid4()))
+    await person.create()
+
+    callsigns = []
+    async for user in Person.list(False):
+        callsigns.append(user.callsign)
+    assert "DOGGO01a" not in callsigns
+    assert "DOGGO01b" in callsigns
+
+    callsigns = []
+    async for user in Person.list(True):
+        callsigns.append(user.callsign)
+    assert "DOGGO01a" in callsigns
+    assert "DOGGO01b" in callsigns
 
 
 @pytest.mark.asyncio

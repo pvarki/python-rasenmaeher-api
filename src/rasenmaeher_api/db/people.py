@@ -15,7 +15,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Person(BaseModel):  # pylint: disable=R0903
-    """People, pk is UUID and comes from basemodel"""
+    """People, pk is UUID and comes from basemodel
+
+    NOTE: at some point we want to stop keeping track of people in our own db
+    and only use keycloack as the store for actual users. In any case we need a nice pythonic
+    abstraction layer so implement any queries you need to add as helpers here.
+    """
 
     __tablename__ = "users"
 
@@ -31,8 +36,21 @@ class Person(BaseModel):  # pylint: disable=R0903
         raise NotImplementedError()
 
     @classmethod
+    async def list(cls, include_deleted: bool = False) -> AsyncGenerator["Person", None]:
+        """List people"""
+        async with db.acquire() as conn:  # Cursors need transaction
+            async with conn.transaction():
+                query = Person.query
+                if not include_deleted:
+                    query = query.where(
+                        Person.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
+                    )
+                async for person in query.order_by(Person.callsign).gino.iterate():
+                    yield person
+
+    @classmethod
     async def by_role(cls, role: str) -> AsyncGenerator["Person", None]:
-        """List people that have given role"""
+        """List people that have given role, if role is None list all people"""
         async with db.acquire() as conn:  # Cursors need transaction
             async with conn.transaction():
                 async for lnk in Role.load(user=Person).query.where(Role.role == role).where(
