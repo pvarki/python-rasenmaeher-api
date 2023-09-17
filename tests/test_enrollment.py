@@ -385,21 +385,17 @@ async def test_post_enrollment_accept(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
-async def test_post_enrollment_accept_fail_oopsie_permitstr(
-    tilauspalvelu_jwt_admin_client: TestClient, test_user_secrets: Tuple[List[str], List[str]]
-) -> None:
+async def test_post_enrollment_accept_fail_oopsie_permitstr(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     /accept
     Enrollment should fail
     reason="Error. Undefined backend error q_ssfm1"
     """
-    _, workhashes = test_user_secrets
-    kissahash = workhashes[1]
-    json_dict: Dict[Any, Any] = {"work_id_hash": kissahash, "user_management_hash": "oopsie'%3Boopsie"}
+    json_dict: Dict[Any, Any] = {"work_id_hash": "oopsie'%3Boopsie"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 500
-    assert resp_dict["detail"] == "Error. Undefined backend error q_ssuae1"
+    assert resp_dict["detail"] == "Error. Undefined backend error q_ssfewh1"
 
 
 @pytest.mark.asyncio
