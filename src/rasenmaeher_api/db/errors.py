@@ -37,3 +37,7 @@ class CallsignReserved(ValueError, EnrollmentError, HTTPException):
         """make us also 403 HTTP error"""
         new_args = [status.HTTP_403_FORBIDDEN] + list(args)
         super(HTTPException, self).__init__(*new_args)
+
+
+class PoolInactive(EnrollmentError, ForbiddenOperation):
+    """Inactive pool forbidden operations"""

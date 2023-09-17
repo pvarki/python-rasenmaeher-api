@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 from .base import BaseModel, utcnow
 from .people import Person
-from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted
+from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
 
 LOGGER = logging.getLogger(__name__)
 CODE_CHAR_COUNT = 8  # TODO: Make configurable ??
@@ -31,7 +31,16 @@ class EnrollmentPool(BaseModel):  # pylint: disable=R0903
 
     async def create_enrollment(self, callsign: str) -> "Enrollment":
         """Create enrollment from this pool"""
+        if not self.active:
+            raise PoolInactive()
+        if self.deleted:
+            raise Deleted("Can't create enrollments on deleted pools")
         return await Enrollment.create_for_callsign(callsign, self.pk, self.extra)
+
+    async def set_active(self, state: bool = True) -> Self:
+        """Set active and return refreshed object"""
+        await self.update(active=state).apply()
+        return await EnrollmentPool.by_pk(self.pk, allow_deleted=True)
 
 
 class EnrollmentState(enum.IntEnum):

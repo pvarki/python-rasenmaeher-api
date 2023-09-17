@@ -9,8 +9,8 @@ import pytest_asyncio
 import sqlalchemy
 from libadvian.binpackers import uuid_to_b64
 
-from rasenmaeher_api.db import DBConfig, bind_config, db, Person, Enrollment, EnrollmentState
-from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation
+from rasenmaeher_api.db import DBConfig, bind_config, db, Person, Enrollment, EnrollmentState, EnrollmentPool
+from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation, PoolInactive
 
 LOGGER = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ async def ginosession() -> None:
 async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction of persons and roles"""
     _ = ginosession
-    obj = Person(callsign="DOGGO01a", certspath="/nosushcdir")
+    obj = Person(callsign="DOGGO01a", certspath=str(uuid.uuid4()))
     await obj.create()
     obj2 = await Person.by_callsign("DOGGO01a")
     assert obj2.callsign == "DOGGO01a"
@@ -117,9 +117,9 @@ async def test_person_crud(ginosession: None) -> None:
 
 @pytest.mark.asyncio
 async def test_enrollments_crud(ginosession: None) -> None:
-    """Test the db abstraction enrollments and enrollmentpools"""
+    """Test the db abstraction enrollments"""
     _ = ginosession
-    person = Person(callsign="MEGAMAN00a", certspath="/anothernosushcdir")
+    person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
     await person.create()
     # refresh
     person = await Person.by_callsign("MEGAMAN00a")
@@ -144,3 +144,33 @@ async def test_enrollments_crud(ginosession: None) -> None:
     assert obj4.decided_by == person.pk
     assert obj4.state == EnrollmentState.REJECTED
     # Approval is missing functionality in person class
+
+
+@pytest.mark.asyncio
+async def test_enrollmentpools_crud(ginosession: None) -> None:
+    """Test the db abstraction enrollments and enrollmentpools"""
+    _ = ginosession
+    person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
+    await person.create()
+    pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"})
+    await pool.create()
+    # refresh
+    pool = await EnrollmentPool.by_pk(pool.pk)
+    assert pool.active
+
+    pool = await pool.set_active(False)
+    with pytest.raises(PoolInactive):
+        await pool.create_enrollment(str(uuid.uuid4()))
+    pool = await pool.set_active(True)
+    enr1 = await pool.create_enrollment("JONNE01a")
+    assert "jonnet" in enr1.extra
+    assert enr1.extra["jonnet"] == "ei tiiä"
+    assert enr1.pool == pool.pk
+
+    await pool.delete()
+    with pytest.raises(Deleted):
+        await EnrollmentPool.by_pk(pool.pk)
+    # refresh
+    pool = await EnrollmentPool.by_pk(pool.pk, allow_deleted=True)
+    with pytest.raises(Deleted):
+        await pool.create_enrollment(str(uuid.uuid4()))
