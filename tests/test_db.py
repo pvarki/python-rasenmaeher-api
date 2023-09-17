@@ -7,9 +7,10 @@ import asyncio
 import pytest
 import pytest_asyncio
 import sqlalchemy
+from libadvian.binpackers import uuid_to_b64
 
-from rasenmaeher_api.db import DBConfig, bind_config, db, Person
-from rasenmaeher_api.db.errors import NotFound, Deleted
+from rasenmaeher_api.db import DBConfig, bind_config, db, Person, Enrollment, EnrollmentState
+from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ async def ginosession() -> None:
 
 @pytest.mark.asyncio
 async def test_person_crud(ginosession: None) -> None:
-    """Test the db abstraction"""
+    """Test the db abstraction of persons and roles"""
     _ = ginosession
     obj = Person(callsign="DOGGO01a", certspath="/nosushcdir")
     await obj.create()
@@ -92,3 +93,34 @@ async def test_person_crud(ginosession: None) -> None:
     obj4 = await Person.by_callsign("DOGGO01a", allow_deleted=True)
     assert obj4.callsign == "DOGGO01a"
     assert obj4.deleted
+
+
+@pytest.mark.asyncio
+async def test_enrollments_crud(ginosession: None) -> None:
+    """Test the db abstraction enrollments and enrollmentpools"""
+    _ = ginosession
+    person = Person(callsign="MEGAMAN00a", certspath="/anothernosushcdir")
+    await person.create()
+    # refresh
+    person = await Person.by_callsign("MEGAMAN00a")
+
+    obj = await Enrollment.create_for_callsign("PORA22b")
+    assert obj.approvecode
+    assert obj.callsign == "PORA22b"
+    assert obj.state == EnrollmentState.PENDING
+    obj2 = await Enrollment.by_approvecode(obj.approvecode)
+    assert obj2.callsign == obj.callsign
+    obj3 = await Enrollment.by_callsign(obj.callsign)
+    assert obj3.callsign == obj.callsign
+
+    with pytest.raises(CallsignReserved):
+        await Enrollment.create_for_callsign("PORA22b")
+    with pytest.raises(ForbiddenOperation):
+        await obj2.delete()
+
+    await obj.reject(person)
+    obj4 = await Enrollment.by_pk(uuid_to_b64(obj.pk))
+    assert obj4.decided_on
+    assert obj4.decided_by == person.pk
+    assert obj4.state == EnrollmentState.REJECTED
+    # Approval is missing functionality in person class
