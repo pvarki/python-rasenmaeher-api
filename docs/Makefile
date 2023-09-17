@@ -8,7 +8,7 @@ RASENMAEHER_ROOT = `git rev-parse --show-toplevel`
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 DOCSDIR       = "$(RASENMAEHER_ROOT)/docs"
-SOURCEDIR     = "$(RASENMAEHER_ROOT)/build/docs"
+SOURCEDIR     = "."
 DOCSBUILDDIR  = "$(RASENMAEHER_ROOT)/build/docs"
 BUILDDIR      = "$(RASENMAEHER_ROOT)/build"
 
@@ -40,7 +40,7 @@ clean:
 	@echo "Copying docs & config to build folder..."
 	cp -a "$(DOCSDIR)" "$(BUILDDIR)"
 	cd "$(RASENMAEHER_ROOT)" && \
-		find . -type f \( -name "*.md" -o -name "*.rst" -o -name "*.png" -o -name "*.jpg" -o -name "*.svg" \) \
+		find . -type f \( -name "*.md" -o -name "*.rst" -o -name "*.png" -o -name "*.jpg" -o -name "*.svg" -name "*.py" \) \
 			-not -path "*/.*" \
 			-not -path "./build/*" \
 			-not -path "./docs/*" \
@@ -49,7 +49,7 @@ clean:
 
 	@echo "Building rst files..."
 	sphinx-apidoc -o "$(DOCSBUILDDIR)" ../ \
-		$(shell find .. -type d -name "*tests*")
+	$(shell find .. -type d -name "*tests*")
 
 	@echo "Building html files..."
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(DOCSBUILDDIR)" $(SPHINXOPTS) $(O)

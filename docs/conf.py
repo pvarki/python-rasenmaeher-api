@@ -41,25 +41,38 @@ language = 'en'
 # ones.
 extensions = [
   #'breathe',              # Doxygen C/C++ integration
-  'exhale',               # Doxygen Python integration
+  #'exhale',               # Doxygen Python integration
   'sphinx.ext.autodoc',  # Core Sphinx library for auto html doc generation from docstrings
-  'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
+  #'sphinx.ext.autosummary',  # Create neat summary tables for modules/classes/methods etc
   'sphinx.ext.intersphinx',  # Link to other project's documentation (see mapping below)
   'sphinx.ext.viewcode',  # Add a link to the Python source code for classes, functions etc.
   'sphinx_autodoc_typehints', # Automatically document param types (less noise in class signature)
-   'sphinx_autopackagesummary',
+  #'sphinx_autopackagesummary',
   'sphinx_rtd_theme',     # Read The Docs theme
   'myst_parser',          # Markdown parsing
   'sphinx_sitemap',       # sitemap generation for SEO
+  'autoapi.extension'
 ]
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3/', None),
+}
+autoapi_generate_api_docs = True
+
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
 html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)
 autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
 set_type_checking_flag = True  # Enable 'expensive' imports for sphinx_autodoc_typehints
 nbsphinx_allow_errors = True  # Continue through Jupyter errors
-#autodoc_typehints = "description" # Sphinx-native method. Not as good as sphinx_autodoc_typehints
+autodoc_typehints = "description" # Sphinx-native method. Not as good as sphinx_autodoc_typehints
 add_module_names = False # Remove namespaces from class/method signatures
+autodoc_default_flags = [
+    # Make sure that any autodoc declarations show the right members
+    "members",
+    "inherited-members",
+    "private-members",
+    "show-inheritance",
+]
 
 myst_enable_extensions = ["colon_fence"]
 myst_html_meta = {
@@ -79,16 +92,16 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+#exclude_patterns = []
 
 # Setup the exhale extension
 exhale_args = {
     # These arguments are required
     "containmentFolder":     "./api",
     "rootFileName":          "index.rst",
-    "doxygenStripFromPath":  "..",
+    "doxygenStripFromPath":  "..", # strip '..' from paths in xml
     # Suggested optional arguments
-    "createTreeView":        True,
+    "createTreeView":        True, # Create tree-view in sidebar
     # TIP: if using the sphinx-bootstrap-theme, you need
     # "treeViewIsBootstrap": True,
     "exhaleExecutesDoxygen": True,
@@ -129,7 +142,9 @@ breathe_projects = {
     "pg_init": f"{BASEDIR}/docs/html/pg_init/xml"
 }
 
-
+#autoapi_dirs = ['api', 'cfssl', 'fakewerk', 'keycloak', 'kw_product_init', 'mkcert', 'nginx', 'openldap', 'pg_init']
+autoapi_dirs = ['../api', '../cfssl', '../fakewerk', '../keycloak', '../kw_product_init', '../mkcert', '../nginx', '../openldap', '../pg_init']
+autoapi_root = 'technical/api'
 # only document files that have accompanying .cc files next to them
 print("searching for c_docs...")
 for root, _, files in os.walk(BASEDIR):
