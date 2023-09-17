@@ -6,16 +6,23 @@ import logging
 from pathlib import Path
 import ssl
 import asyncio
+import uuid
 
 import aiohttp
 import pytest
 import pytest_asyncio
 from libadvian.logging import init_logging
+from multikeyjwt import Issuer
+from multikeyjwt.config import Secret
+
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 CA_PATH = Path(__file__).parent / "testcas"
+JWT_PATH = Path(__file__).parent / "testjwts"
 DEFAULT_TIMEOUT = 4.0
+
+# pylint: disable=W0621
 
 # mypy: disable-error-code="attr-defined"
 if platform.system() == "Windows":
@@ -37,6 +44,35 @@ async def session_with_testcas() -> AsyncGenerator[aiohttp.ClientSession, None]:
     conn = aiohttp.TCPConnector(ssl=ssl_ctx)
     async with aiohttp.ClientSession(connector=conn) as session:
         yield session
+
+
+@pytest.fixture(scope="session")
+def tp_issuer() -> Issuer:
+    """Issuer initialized with fake tilauspalvelu keys"""
+    pwfile = JWT_PATH / "tilauspalvelu.pass"
+    keyfile = JWT_PATH / "tilauspalvelu.key"
+    issuer = Issuer(
+        privkeypath=keyfile,
+        keypasswd=Secret(pwfile.read_text("utf-8")),
+    )
+    return issuer
+
+
+@pytest_asyncio.fixture
+async def session_with_tpjwt(
+    session_with_testcas: aiohttp.ClientSession, tp_issuer: Issuer
+) -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """Add 'tilauspalvelu' single use JWT to session"""
+    session = session_with_testcas
+    token = tp_issuer.issue(
+        {
+            "sub": "tpadminsession",
+            "anon_admin_session": True,
+            "nonce": str(uuid.uuid4()),
+        }
+    )
+    session.headers.update({"Authorization": f"Bearer {token}"})
+    yield session
 
 
 @pytest.fixture
