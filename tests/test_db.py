@@ -6,9 +6,9 @@ import pytest
 import pytest_asyncio
 from libadvian.binpackers import uuid_to_b64
 
-from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool
+from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken
 from rasenmaeher_api.db.base import init_db, bind_config
-from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation, PoolInactive
+from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation, PoolInactive, TokenReuse
 
 LOGGER = logging.getLogger(__name__)
 
@@ -161,3 +161,25 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     pool = await EnrollmentPool.by_pk(pool.pk, allow_deleted=True)
     with pytest.raises(Deleted):
         await pool.create_enrollment(str(uuid.uuid4()))
+
+
+@pytest.mark.asyncio
+async def test_seentokens_crud(ginosession: None) -> None:
+    """Test the db abstraction for seen tokens"""
+    _ = ginosession
+    token = str(uuid.uuid4())
+    meta = {"koirat": "doggoi"}
+    with pytest.raises(NotFound):
+        await SeenToken.by_token(token)
+    await SeenToken.use_token(token, meta)
+    obj = await SeenToken.by_token(token)
+    assert "koirat" in obj.auditmeta
+    assert obj.auditmeta["koirat"] == "doggoi"
+
+    with pytest.raises(TokenReuse):
+        await SeenToken.use_token(token, meta)
+
+    token2 = str(uuid.uuid4())
+    await SeenToken.use_token(token2)
+    obj2 = await SeenToken.by_token(token2)
+    assert not obj2.auditmeta

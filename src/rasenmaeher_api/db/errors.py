@@ -41,3 +41,12 @@ class CallsignReserved(ValueError, EnrollmentError, HTTPException):
 
 class PoolInactive(EnrollmentError, ForbiddenOperation):
     """Inactive pool forbidden operations"""
+
+
+class TokenReuse(ValueError, HTTPException):
+    """Token is already reserved"""
+
+    def __init__(self, *args: Sequence[Any]) -> None:
+        """make us also 403 HTTP error"""
+        new_args = [status.HTTP_403_FORBIDDEN] + list(args)
+        super(HTTPException, self).__init__(*new_args)

@@ -1,10 +1,11 @@
 """Abstractions for enrollments"""
-import uuid
 from typing import Self, Dict, cast, Any, Optional
 import string
 import secrets
 import logging
 import enum
+import uuid
+
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
