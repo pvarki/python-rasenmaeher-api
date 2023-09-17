@@ -12,6 +12,8 @@ from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use 
 
 from .schema import CertificatesResponse, CertificatesRequest, ReadyRequest, GenericResponse
 from ....settings import settings
+from ....db.nonces import SeenToken
+from ....db.errors import NotFound
 
 
 router = APIRouter()
@@ -72,17 +74,19 @@ async def return_ca_and_sign_csr(
     if "nonce" not in jwtpayload or not jwtpayload["nonce"]:
         raise HTTPException(403, "JWT does not provide nonce")
 
-    # TODO: **Actually** check that the nonce has not been used yet
-    nonce_used = False
-    if nonce_used:
+    try:
+        # If we can get the token it was used
+        await SeenToken.by_token(jwtpayload["nonce"])
         raise HTTPException(403, "This token was already used to sign a cert")
+    except NotFound:
+        pass
 
     # PONDER: Should we check jwtpayload["sub"] is among the products in KRAFTWERK manifest ??
 
     cachain = await get_ca()
     certificate = await sign_csr(certs.csr)
 
-    # TODO: mark the nonce as used
+    await SeenToken.use_token(jwtpayload["nonce"])
 
     return CertificatesResponse(
         ca=cachain,
