@@ -1,8 +1,7 @@
 """mTLS fixtures"""
-from typing import Tuple, Generator
+from typing import Tuple
 from pathlib import Path
 import logging
-import asyncio
 
 import pytest
 import pytest_asyncio
@@ -16,15 +15,6 @@ from rasenmaeher_api.web.api.product.views import sign_csr
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621,R0801
-
-
-@pytest.fixture(scope="module")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Module scoped event loop so we don't have to regenrate keys etc for every test"""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
 
 
 @pytest.fixture(scope="module")

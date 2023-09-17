@@ -1,5 +1,18 @@
 version: '3.4'
 
+x-raesenmaeher_dbconfig_env: &rmdbconfig_env
+  RM_DATABASE_NAME: &rmdbname raesenmaeher
+  RM_DATABASE_HOST: postgres
+  RM_DATABASE_USER: &rmdbuser raesenmaeher
+  # FIXME: take from env (which should be set to random)
+  RM_DATABASE_PASSWORD: &rmdbpass raesenmaehertestpwd # pragma: allowlist secret
+
+
+x-postgres_env: &postgres_env
+  POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
+  RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
+
+
 services:
   cfssl:
     image: pvarki/cfssl:latest
@@ -97,9 +110,29 @@ services:
       fpapi_run:
         condition: service_healthy
 
+  postgres:
+    image: postgres:12
+    volumes:
+      - ./pg_init:/docker-entrypoint-initdb.d
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - intranet
+    ports:
+      - '5542:5432'
+    environment:
+      <<: *postgres_env
+    healthcheck:
+      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+
 networks:
   canet:
   intranet:
 
 volumes:
   fpinit_data:
+  pg_data:

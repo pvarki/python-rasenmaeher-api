@@ -41,7 +41,6 @@ async def test_sign(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
     assert "ca" in payload
 
 
-@pytest.mark.xfail(reason="Nonce checking not implemented yet")
 @pytest.mark.asyncio
 async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
     """Test using same nonce twice, should fail"""
@@ -58,7 +57,7 @@ async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> No
     payload = resp.json()
     assert "certificate" in payload
 
-    # Second signing, should return 401
+    # Second signing, should return 403
     resp2 = await client.post(
         "/api/v1/product/sign_csr",
         json={
@@ -66,4 +65,4 @@ async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> No
         },
     )
     LOGGER.debug("Got second response {}".format(resp2))
-    assert resp2.status_code == 401
+    assert resp2.status_code == 403

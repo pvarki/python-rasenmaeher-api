@@ -3,8 +3,8 @@
 # Tox testsuite for multiple python version #
 #############################################
 FROM advian/tox-base:debian-bookworm as tox
-ARG PYTHON_VERSIONS="3.11 3.10 3.9"
-ARG POETRY_VERSION="1.5.1"
+ARG PYTHON_VERSIONS="3.11 3.12"
+ARG POETRY_VERSION="1.6.1"
 RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && echo RESOLVED_VERSIONS=$RESOLVED_VERSIONS \
     && for pyver in $RESOLVED_VERSIONS; do pyenv install -s $pyver; done \
@@ -52,7 +52,7 @@ ENV \
   PIP_DISABLE_PIP_VERSION_CHECK=on \
   PIP_DEFAULT_TIMEOUT=100 \
   # poetry:
-  POETRY_VERSION=1.5.1
+  POETRY_VERSION=1.6.1
 
 RUN apt-get update && apt-get install -y \
         curl \
