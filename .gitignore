@@ -26,3 +26,7 @@ venv
 venv/*
 .venv
 .venv/*
+
+
+build
+build/*
