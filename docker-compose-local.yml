@@ -57,6 +57,7 @@ services:
     volumes:
       - kraftwerk_shared:/pvarki
       - kraftwerk_data:/data/persistent
+      - ./tests/testjwts:/test_jwts
 
   cfssl:
     image: pvarki/cfssl:latest
@@ -228,6 +229,7 @@ services:
       - kcnet
       - canet
       - intranet
+      - dbnet
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
