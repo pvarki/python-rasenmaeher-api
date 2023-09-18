@@ -25,6 +25,7 @@ clean:
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
+# brew install coreutils for gcp is required on macos
 %: Makefile
 
 
@@ -45,7 +46,7 @@ clean:
 			-not -path "./build/*" \
 			-not -path "./docs/*" \
 			-not -path "./venv/*" \
-			-exec /usr/local/bin/gcp  --parents "{}" ./build/docs/ \;
+			-exec sh -c 'if [ "$$(uname)" = "Darwin" ]; then /usr/local/bin/gcp --parents "{}" ./build/docs/; else cp --parents "{}" ./build/docs/; fi' \;
 
 	@echo "Building rst files..."
 	sphinx-apidoc -o "$(DOCSBUILDDIR)" ../ \
