@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Doxy
-        run: apt update && apt install doxygen -y
+        run: sudo apt-get update -y && sudo apt-get install doxygen -y
       - name: Install python dependencies
         run: |
           python -m pip install --upgrade pip
