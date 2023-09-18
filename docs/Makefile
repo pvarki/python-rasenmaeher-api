@@ -33,7 +33,6 @@ clean:
 
 
 	@echo "help"
-	which gcp
 	@echo "Cleaning build folder..."
 	rm -rf "$(BUILDDIR)"
 	mkdir -p "$(DOCSBUILDDIR)"
