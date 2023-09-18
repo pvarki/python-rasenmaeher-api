@@ -10,6 +10,8 @@ on:
 jobs:
   sphinx_docs_to_gh-pages:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 5
     steps:
       - name: Checkout source code
