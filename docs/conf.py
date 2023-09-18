@@ -1,13 +1,12 @@
-# type: ignore
+"""
+Configuration file for the Sphinx documentation builder.
 
-# Configuration file for the Sphinx documentation builder.
-#
-# This file only contains a selection of the most common options. For a full
-# list see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
+This file only contains a selection of the most common options. For a full
+list see the documentation:
+https://www.sphinx-doc.org/en/master/usage/configuration.html
+"""
 
-# -- Path setup --------------------------------------------------------------
-
+# pylint: disable=invalid-name
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -27,7 +26,7 @@ sys.path.insert(0, os.path.abspath(".."))
 # -- Project information -----------------------------------------------------
 
 project = "Rasenmaeher docs"
-copyright = "2023, PVARKI"  # noqa: A001
+copyright = "2023, PVARKI"  # pylint: disable=W0622
 author = "PVARKI"
 version = "0.1.0"
 release = "0.1.0"
@@ -162,7 +161,7 @@ autoapi_dirs = [
 ]
 autoapi_root = "technical/api"
 # only document files that have accompanying .cc files next to them
-print("searching for c_docs...")
+print("searching for py_docs...")
 for root, _, files in os.walk(BASEDIR):
     found = False
     breath_src = {}
@@ -184,7 +183,9 @@ for root, _, files in os.walk(BASEDIR):
 
         if found:
             breath_src[parent_project] = (parent_dir_abs, breathe_srcs_list)
-            breathe_projects.update(breath_src)
+            breathe_projects.update(
+                {k: v[0] for k, v in breath_src.items()}
+            )  # mypy: ignore
 
 print(f"breathe_projects_source: {breathe_projects.keys()}")
 
