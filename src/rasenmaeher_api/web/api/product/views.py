@@ -6,11 +6,13 @@ import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
 from libadvian.binpackers import ensure_utf8, ensure_str
 from libpvarki.middleware.mtlsheader import MTLSHeader
+from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.schemas.product import ReadyRequest
 from multikeyjwt.middleware import JWTBearer
 from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
 
 
-from .schema import CertificatesResponse, CertificatesRequest, ReadyRequest, GenericResponse
+from .schema import CertificatesResponse, CertificatesRequest
 from ....settings import settings
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
@@ -119,9 +121,9 @@ async def renew_csr(
 @router.post("/ready", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def signal_ready(
     meta: ReadyRequest,
-) -> GenericResponse:
+) -> OperationResultResponse:
     """Used by product integration API to signify everything is ready in their end"""
     # FIXME: Actually do something
     _ = meta
 
-    return GenericResponse(ok=True, message="This was actually NO-OP")
+    return OperationResultResponse(success=True, extra="This was actually NO-OP")
