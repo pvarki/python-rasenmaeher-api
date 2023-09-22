@@ -6,7 +6,7 @@ import json
 
 import aiohttp
 import pydantic
-from libpvarki.schemas.product import OperationResultResponse
+from libpvarki.schemas.generic import OperationResultResponse
 
 from .settings import settings
 from .mtlsinit import get_session_winit
