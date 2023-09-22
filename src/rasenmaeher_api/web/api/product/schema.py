@@ -1,5 +1,5 @@
 """Schema for product mTLS cert signing"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Extra
 
 
 class CertificatesResponse(BaseModel):  # pylint: disable=too-few-public-methods
@@ -8,26 +8,38 @@ class CertificatesResponse(BaseModel):  # pylint: disable=too-few-public-methods
     ca: str = Field(description="CA chain, cfssl encoded (newlines -> \\n)")
     certificate: str = Field(description="Signed cert, cfssl encoded (newlines -> \\n)")
 
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+        schema_extra = {
+            "examples": [
+                {
+                    "ca": """-----BEGIN CERTIFICATE-----\\nMIID9...\\n-----END CERTIFICATE-----\\n""",
+                    "certificate": """-----BEGIN CERTIFICATE-----\\nMIID9...\\n-----END CERTIFICATE-----\\n""",
+                },
+            ]
+        }
+
 
 class CertificatesRequest(BaseModel):  # pylint: disable=too-few-public-methods
     """Request signed cert"""
 
-    csr: str = Field(description="CSR, cfssl encoded (newlines -> \\n)")
+    csr: str = Field(description="CSR PEM")
 
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
 
-class ReadyRequest(BaseModel):  # pylint: disable=too-few-public-methods
-    """Indicate product API readiness"""
-
-    product: str = Field(description="Product name")
-    apiurl: str = Field(description="Product API URL")
-    url: str = Field(description="Product UI URL")
-
-
-# FIXME: Move to libpvarki as generic response
-
-
-class GenericResponse(BaseModel):  # pylint: disable=too-few-public-methods
-    """Generic ok/not-ok response"""
-
-    ok: bool = Field(description="Is everything ok")
-    message: str = Field(description="Any message", default="")
+        extra = Extra.forbid
+        schema_extra = {
+            "examples": [
+                {
+                    "csr": """-----BEGIN CERTIFICATE REQUEST-----
+MIIENzCCAx+gAwIBAgIUYI++L/D00OIhBba4cixT5aJrw+wwDQYJKoZIhvcNAQEL
+...
+0TdCAC4q4VuW+1FYcLrBkZhJZDnPRn214POSwN5lRmkYfUK40VGBRJMhgaI6Iud/
+yiIpfvrcT9M4hJwtVFZy
+-----END CERTIFICATE REQUEST-----"""
+                },
+            ]
+        }

@@ -4,6 +4,7 @@ import logging
 import json
 import asyncio
 import pprint
+import uuid
 
 import click
 from libadvian.logging import init_logging
@@ -16,6 +17,7 @@ from rasenmaeher_api.db import LoginCode
 from rasenmaeher_api.db import base as dbbase
 from rasenmaeher_api.db.config import DBConfig
 from rasenmaeher_api.db.middleware import DBWrapper
+from rasenmaeher_api.web.application import get_app_no_init
 
 
 LOGGER = logging.getLogger(__name__)
@@ -37,6 +39,17 @@ def cli_group(ctx: click.Context, loglevel: int, verbose: int) -> None:
     ctx.ensure_object(dict)
     ctx.obj["loop"] = asyncio.get_event_loop()
     ctx.obj["dbwrapper"] = DBWrapper(gino=dbbase.db, config=DBConfig.singleton())
+
+
+@cli_group.command(name="openapi")
+@click.pass_context
+def dump_openapi(ctx: click.Context) -> None:
+    """
+    Dump autogenerate openapi spec as JSON
+    """
+    app = get_app_no_init()
+    click.echo(json.dumps(app.openapi()))
+    ctx.exit(0)
 
 
 @cli_group.command(name="addcode")
@@ -66,12 +79,15 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
 
 @cli_group.command(name="getjwt")
 @click.pass_context
+@click.option("--nonce", is_flag=True, help="Add nonce field with UUID as value")
 @click.argument("claims_json", required=False, default="""{"anon_admin_session": true}""", type=str)
-def get_jwt(ctx: click.Context, claims_json: str) -> None:
+def get_jwt(ctx: click.Context, claims_json: str, nonce: bool) -> None:
     """
     Get RASENMAEHER signed JWT
     """
     claims = json.loads(claims_json)
+    if nonce:
+        claims["nonce"] = str(uuid.uuid4())
     LOGGER.debug("Parsed claims={}".format(claims))
     if not claims:
         click.echo("Must specify claims", err=True)

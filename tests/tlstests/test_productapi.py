@@ -4,7 +4,8 @@ import uuid
 
 import pytest
 import aiohttp
-from libpvarki.schemas.product import OperationResultResponse, UserCRUDRequest, UserInstructionFragment
+from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 
 
 from rasenmaeher_api.settings import settings
