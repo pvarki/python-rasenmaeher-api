@@ -4,7 +4,7 @@ from typing import Any, Dict
 from pydantic import BaseModel, Field, Extra
 
 
-class JWTExchangeRequestResponse(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
+class JWTExchangeRequestResponse(BaseModel):  # pylint: disable=too-few-public-methods
     """Exchange a TILAUSPALVELU single-use JWT for RASENMAEHER session JWT"""
 
     jwt: str = Field(description="The token")
@@ -20,7 +20,7 @@ class JWTExchangeRequestResponse(BaseModel, extra=Extra.forbid):  # pylint: disa
         }
 
 
-class LoginCodeCreateRequest(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
+class LoginCodeCreateRequest(BaseModel):  # pylint: disable=too-few-public-methods
     """TILAUSPALVELU asks us to create an one-time login code that user can input to a field.
     If TILAUSPALVELU wants to revoke a code it should just exchange it and discard the result"""
 
@@ -41,7 +41,7 @@ class LoginCodeCreateRequest(BaseModel, extra=Extra.forbid):  # pylint: disable=
         }
 
 
-class LoginCodeRequestResponse(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
+class LoginCodeRequestResponse(BaseModel):  # pylint: disable=too-few-public-methods
     """The response to LoginCodeCreateRequest and also used to exchange the code"""
 
     code: str = Field(description="The code user must provide to get a session JWT")
