@@ -9,8 +9,8 @@ from pathlib import Path
 from aiohttp import web
 from libadvian.logging import init_logging
 from libpvarki.mtlshelp import get_ssl_context
-from libpvarki.schemas.product import (  # type:ignore[attr-defined]
-    OperationResultResponse,
+from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.schemas.product import (
     UserInstructionFragment,
     UserCRUDRequest,
 )
