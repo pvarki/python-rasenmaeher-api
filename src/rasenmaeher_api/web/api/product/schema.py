@@ -2,7 +2,7 @@
 from pydantic import BaseModel, Field, Extra
 
 
-class CertificatesResponse(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
+class CertificatesResponse(BaseModel):  # pylint: disable=too-few-public-methods
     """Respond with signed client cert and CA chain"""
 
     ca: str = Field(description="CA chain, cfssl encoded (newlines -> \\n)")
