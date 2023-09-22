@@ -4,6 +4,7 @@ import logging
 import json
 import asyncio
 import pprint
+import uuid
 
 import click
 from libadvian.logging import init_logging
@@ -78,12 +79,15 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
 
 @cli_group.command(name="getjwt")
 @click.pass_context
+@click.option("--nonce", is_flag=True, help="Add nonce field with UUID as value")
 @click.argument("claims_json", required=False, default="""{"anon_admin_session": true}""", type=str)
-def get_jwt(ctx: click.Context, claims_json: str) -> None:
+def get_jwt(ctx: click.Context, claims_json: str, nonce: bool) -> None:
     """
     Get RASENMAEHER signed JWT
     """
     claims = json.loads(claims_json)
+    if nonce:
+        claims["nonce"] = str(uuid.uuid4())
     LOGGER.debug("Parsed claims={}".format(claims))
     if not claims:
         click.echo("Must specify claims", err=True)
