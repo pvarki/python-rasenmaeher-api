@@ -183,7 +183,7 @@ FROM devel_build as devel_shell
 # Copy everything to the image
 COPY . /app
 WORKDIR /app
-RUN apt-get update && apt-get install -y zsh \
+RUN apt-get update && apt-get install -y zsh jq \
     && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
     && echo "source /root/.profile" >>/root/.zshrc \
     && pip3 install git-up \
