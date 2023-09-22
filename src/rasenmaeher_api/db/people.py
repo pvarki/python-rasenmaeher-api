@@ -6,6 +6,7 @@ import logging
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
+from pydantic import Extra
 
 from .base import BaseModel, DBModel, utcnow, db
 from ..web.api.middleware import MTLSorJWTPayload
@@ -28,6 +29,11 @@ class Person(BaseModel):  # pylint: disable=R0903
     # Directory with the key, cert and pfx
     certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
+
+    class Config:  # pylint: disable=R0903
+        """Basemodel config"""
+
+        extra = Extra.forbid
 
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":

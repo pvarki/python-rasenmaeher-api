@@ -1,6 +1,6 @@
 """Schema for enrollment."""
 from typing import List, Dict, Any
-from pydantic import BaseModel
+from pydantic import BaseModel, Extra
 
 
 class FirstuserIsActiveOut(BaseModel):  # pylint: disable=too-few-public-methods
@@ -11,6 +11,7 @@ class FirstuserIsActiveOut(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "api_is_active": "[bool] - True = this api (/firstuser) can still be used",
@@ -26,6 +27,7 @@ class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -52,6 +54,7 @@ class FirstuserCheckCodeOut(BaseModel):  # pylint: disable=too-few-public-method
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "code_ok": "[bool] - True = Requested 'first use admin code' was found and can be used.",
@@ -67,6 +70,7 @@ class FirstuserDisableIn(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -93,6 +97,7 @@ class FirstuserDisableOut(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "api_disabled": "[bool] - True = this api (/firstuser) should be disabled now.",
@@ -108,6 +113,7 @@ class FirstuserEnableIn(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -134,6 +140,7 @@ class FirstuserEnableOut(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "api_enabled": "[bool] - True = this api (/firstuser) should be enabled now.",
@@ -150,6 +157,7 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -179,6 +187,7 @@ class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "admin_added": "[bool] - True = admin user were added",
@@ -196,6 +205,7 @@ class FirstuserDeleteAdminIn(BaseModel):  # pylint: disable=too-few-public-metho
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -225,6 +235,7 @@ class FirstuserDeleteAdminOut(BaseModel):  # pylint: disable=too-few-public-meth
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "admin_removed": "[bool] - True = admin user were removed",
@@ -240,6 +251,7 @@ class FirstuserListAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "examples": [
                 {
@@ -266,6 +278,7 @@ class FirstuserListAdminOut(BaseModel):  # pylint: disable=too-few-public-method
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
 
+        extra = Extra.forbid
         schema_extra = {
             "example": {
                 "admin_list": "list[str] - list of 'admin id's' found...",

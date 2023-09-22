@@ -7,6 +7,7 @@ import secrets
 from sqlalchemy.dialects.postgresql import JSONB
 import sqlalchemy as sa
 from multikeyjwt import Issuer
+from pydantic import Extra
 
 from .base import BaseModel, utcnow
 from .errors import ForbiddenOperation, NotFound, Deleted, TokenReuse
@@ -26,6 +27,11 @@ class LoginCode(BaseModel):  # pylint: disable=R0903
     auditmeta = sa.Column(JSONB, nullable=False, server_default="{}")
     used_on = sa.Column(sa.DateTime(timezone=True), nullable=True)
     claims = sa.Column(JSONB, nullable=False, server_default="{}")
+
+    class Config:  # pylint: disable=R0903
+        """Basemodel config"""
+
+        extra = Extra.forbid
 
     @classmethod
     async def use_code(cls, code: str, auditmeta: Optional[Dict[str, Any]] = None) -> str:

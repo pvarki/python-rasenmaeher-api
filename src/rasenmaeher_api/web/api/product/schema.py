@@ -1,21 +1,21 @@
 """Schema for product mTLS cert signing"""
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, Extra
 
 
-class CertificatesResponse(BaseModel):  # pylint: disable=too-few-public-methods
+class CertificatesResponse(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Respond with signed client cert and CA chain"""
 
     ca: str = Field(description="CA chain, cfssl encoded (newlines -> \\n)")
     certificate: str = Field(description="Signed cert, cfssl encoded (newlines -> \\n)")
 
 
-class CertificatesRequest(BaseModel):  # pylint: disable=too-few-public-methods
+class CertificatesRequest(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Request signed cert"""
 
     csr: str = Field(description="CSR, cfssl encoded (newlines -> \\n)")
 
 
-class ReadyRequest(BaseModel):  # pylint: disable=too-few-public-methods
+class ReadyRequest(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Indicate product API readiness"""
 
     product: str = Field(description="Product name")
@@ -26,7 +26,7 @@ class ReadyRequest(BaseModel):  # pylint: disable=too-few-public-methods
 # FIXME: Move to libpvarki as generic response
 
 
-class GenericResponse(BaseModel):  # pylint: disable=too-few-public-methods
+class GenericResponse(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Generic ok/not-ok response"""
 
     ok: bool = Field(description="Is everything ok")
