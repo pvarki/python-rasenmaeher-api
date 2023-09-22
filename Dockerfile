@@ -135,6 +135,9 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
     && true
 ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]
 
+FROM production as openapi
+CMD ["rasenmaeher_api", "openapi"]
+
 
 #####################################
 # Base stage for development builds #
