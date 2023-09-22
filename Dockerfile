@@ -135,6 +135,9 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
     && true
 ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]
 
+FROM production as openapi
+CMD ["rasenmaeher_api", "openapi"]
+
 
 #####################################
 # Base stage for development builds #
@@ -180,7 +183,7 @@ FROM devel_build as devel_shell
 # Copy everything to the image
 COPY . /app
 WORKDIR /app
-RUN apt-get update && apt-get install -y zsh \
+RUN apt-get update && apt-get install -y zsh jq \
     && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
     && echo "source /root/.profile" >>/root/.zshrc \
     && pip3 install git-up \

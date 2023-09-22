@@ -262,8 +262,16 @@ Production docker
 There's a "production" target as well for running the application, remember to change that
 architecture tag to arm64 if building on ARM::
 
-    docker build --ssh default --target production -t rasenmaeher_api:latest .
+    docker build --ssh default --target production -t rasenmaeher_api:amd64-latest .
+    docker run --rm -it --name rasenmaeher_openapijson rasenmaeher_api:amd64-latest rasenmaeher_api openapi
     docker run -it --name rasenmaeher_api rasenmaeher_api:amd64-latest
+
+There is also a specific target for just dumping the openapi.json::
+
+    docker build --ssh default --target openapi -t rasenmaeher_api:amd64-openapi .
+    docker run --rm -it --name rasenmaeher_openapijson rasenmaeher_api:amd64-openapi
+
+
 
 Development
 -----------

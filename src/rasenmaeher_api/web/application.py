@@ -32,14 +32,17 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await dbwrapper.app_shutdown_event()
 
 
-def get_app() -> FastAPI:
-    """Returns the FastAPI application."""
-    init_logging(settings.log_level_int)
-
+def get_app_no_init() -> FastAPI:
+    """Retunr the app without logging etc inits"""
     app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan)
     app.include_router(router=api_router, prefix="/api/v1")
     app.add_middleware(DBConnectionMiddleware, gino=dbbase.db, config=DBConfig.singleton())
+    return app
 
+
+def get_app() -> FastAPI:
+    """Returns the FastAPI application."""
+    init_logging(settings.log_level_int)
+    app = get_app_no_init()
     LOGGER.info("API init done, setting log verbosity to '{}'.".format(settings.log_level))
-
     return app

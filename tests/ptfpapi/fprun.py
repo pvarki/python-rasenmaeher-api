@@ -9,7 +9,11 @@ from pathlib import Path
 from aiohttp import web
 from libadvian.logging import init_logging
 from libpvarki.mtlshelp import get_ssl_context
-from libpvarki.schemas.product import OperationResultResponse, UserInstructionFragment, UserCRUDRequest
+from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.schemas.product import (
+    UserInstructionFragment,
+    UserCRUDRequest,
+)
 
 LOGGER = logging.getLogger(__name__)
 
