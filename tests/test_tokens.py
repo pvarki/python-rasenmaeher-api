@@ -28,6 +28,19 @@ async def test_get_code(tilauspalvelu_jwt_client: TestClient) -> None:
     assert len(code) > 10
 
 
+@pytest.mark.asyncio
+async def test_get_code_422(tilauspalvelu_jwt_client: TestClient) -> None:
+    """Test that we get error if trying to give wrong input"""
+    client = tilauspalvelu_jwt_client
+    resp = await client.post(
+        "/api/v1/token/code/generate", json={"claims": {"anon_admin_session": True}, "nosuchfield": "trollollooo"}
+    )
+    LOGGER.debug("resp={}".format(resp))
+    assert resp.status_code == 422
+    payload = resp.json()
+    LOGGER.debug("payload={}".format(payload))
+
+
 async def use_code(client: TestClient, code: str) -> str:
     """Use the code"""
     # This always fails for now
