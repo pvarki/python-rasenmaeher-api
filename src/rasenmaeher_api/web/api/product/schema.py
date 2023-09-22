@@ -22,7 +22,6 @@ class CertificatesResponse(BaseModel, extra=Extra.forbid):  # pylint: disable=to
         }
 
 
-
 class CertificatesRequest(BaseModel):  # pylint: disable=too-few-public-methods
     """Request signed cert"""
 
