@@ -23,7 +23,7 @@ jobs:
           poetry run docker/pre_commit_init.sh
       - name: Test with pytest
         run: |
-          poetry run py.test -v
+          poetry run py.test -v --junitxml=pytest.xml
 
   devel_shell:
     runs-on: ubuntu-latest
