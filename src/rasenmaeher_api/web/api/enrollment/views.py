@@ -41,6 +41,8 @@ from ..middleware import MTLSorJWT
 from ....settings import settings
 from ....sqlitedatabase import sqlite
 
+from ....db import Person
+
 LOGGER = logging.getLogger(__name__)
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
@@ -55,8 +57,11 @@ async def check_management_permissions(
     hash_like: bool = False,
 ) -> Union[bool, None]:
     """
-    Simple function to check if management_hash is found and has permissions. Use hash_like to use LIKE instead of =.
+    Simple function to check if requester has admin permissions. Use hash_like to use LIKE instead of =.
     """
+    # TODO check permissions in new orm, now it passes everything...
+    if management_hash != "asddasdsaadsasdsad":
+        return True
     # If management hash is not provided, try to use one pro
     if management_hash == "" and work_id == "":
         _reason = "Error. check_management_permissions() both work_id and management_hash are empty"
@@ -230,29 +235,9 @@ async def post_generate_verification_code(
     """
     Update/Generate verification_code to database for given jwt/mtls
     """
-
-    _work_id_hash = await get_hash_with_either_workid_or_hash(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, work_id_hash=None
-    )
-
-    _verification_code = "".join(
-        # [B311:blacklist] Standard pseudo-random generators are not suitable for security/cryptographic purposes.
-        [
-            random.choice(string.ascii_lowercase + string.digits)  # nosec B311 - pseudo-random is good enough
-            for n in range(8)
-        ]
-    )
-
-    _q = settings.sqlite_update_enrollment_verification_code.format(
-        verification_code=_verification_code, work_id_hash=_work_id_hash
-    )
-
-    _success, _result = sqlite.run_command(_q)
-    if _success is False:
-        _reason = "Error. Undefined backend error ssuevc1"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
+    # _obj = Person()
+    # _verification_code = await _obj.set_verification_code(callsign=request.state.mtls_or_jwt.userid)
+    _verification_code = await Person.set_verification_code(callsign=request.state.mtls_or_jwt.userid)
     return EnrollmentGenVerifiOut(verification_code=f"{_verification_code}")
 
 
@@ -275,33 +260,17 @@ async def request_show_verification_code(
         raise_exeption=True, management_hash="", work_id=request.state.mtls_or_jwt.userid
     )
 
-    # Get the code from db
-    _q = settings.sqlite_sel_from_enrollment_where_verification_code.format(verification_code=params.verification_code)
+    # TODO
+    _obj = await Person.by_verification_code(verification_code=params.verification_code)
 
-    _success, _result = sqlite.run_command(_q)
-    if _success is False:
-        _reason = "Error. Undefined backend error qsssfmewvc1"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Code not found."
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=404, detail=_reason)
-
-    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=_result[0][0])
-    _success, _result = sqlite.run_command(_q)
-    if _success is False:
-        _reason = "Error. Undefined backend error qsssfewh1"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
+    _callsign = _obj.callsign
 
     return EnrollmentShowVerificationCodeOut(
-        work_id=_result[0][0],
-        work_id_hash=_result[0][1],
-        state=_result[0][2],
-        accepted=_result[0][3],
-        locked=_result[0][8],
+        work_id=_callsign,
+        work_id_hash="REMOVE_ME",
+        state="GET_ME_FROM_ENROLLMENT",
+        accepted="GET_ME_FROM_ENROLLMENT",
+        locked="GET_ME_FROM_ENROLLMENT",
     )
 
 
