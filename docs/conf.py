@@ -14,9 +14,14 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 import os
 import sys
 import textwrap
+from pathlib import Path
+import re
+
+# FIXME: switch all the os.path stuff to use pathlib.Path
 
 # define BASEDIR folder of the git repository
 BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # pylint: disable=E1101 # false positive
+APIDIR = Path(__file__).parent.parent / "api"
 
 
 sys.path.insert(0, os.path.abspath("."))  # pylint: disable=E1101 # false positive
@@ -27,8 +32,12 @@ sys.path.insert(0, os.path.abspath(".."))  # pylint: disable=E1101 # false posit
 project = "Rasenmaeher docs"
 copyright = "2023, PVARKI"  # pylint: disable=W0622
 author = "PVARKI"
-version = "0.1.0"
-release = "0.1.0"
+tomltext = (APIDIR / "pyproject.toml").read_text(encoding="utf-8")
+if match := re.search(r"^version\s*=\s*\"(.+)\"$", tomltext, re.MULTILINE):
+    version = match.group(1)
+else:
+    version = "unresolved"
+release = version  # FIXME: Should this be something else ??
 language = "en"
 
 
