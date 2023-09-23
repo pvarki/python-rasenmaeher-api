@@ -13,23 +13,31 @@ https://www.sphinx-doc.org/en/master/usage/configuration.html
 #
 import os
 import sys
-from os.path import exists
 import textwrap
+from pathlib import Path
+import re
+
+# FIXME: switch all the os.path stuff to use pathlib.Path
 
 # define BASEDIR folder of the git repository
-BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # pylint: disable=E1101 # false positive
+APIDIR = Path(__file__).parent.parent / "api"
 
 
-sys.path.insert(0, os.path.abspath("."))
-sys.path.insert(0, os.path.abspath(".."))
+sys.path.insert(0, os.path.abspath("."))  # pylint: disable=E1101 # false positive
+sys.path.insert(0, os.path.abspath(".."))  # pylint: disable=E1101 # false positive
 
 # -- Project information -----------------------------------------------------
 
 project = "Rasenmaeher docs"
 copyright = "2023, PVARKI"  # pylint: disable=W0622
 author = "PVARKI"
-version = "0.1.0"
-release = "0.1.0"
+tomltext = (APIDIR / "pyproject.toml").read_text(encoding="utf-8")
+if match := re.search(r"^version\s*=\s*\"(.+)\"$", tomltext, re.MULTILINE):
+    version = match.group(1)
+else:
+    version = "unresolved"
+release = version  # FIXME: Should this be something else ??
 language = "en"
 
 
@@ -51,6 +59,7 @@ extensions = [
     "myst_parser",  # Markdown parsing
     "sphinx_sitemap",  # sitemap generation for SEO
     "autoapi.extension",
+    "sphinxcontrib.mermaid",
 ]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
@@ -59,15 +68,11 @@ autoapi_generate_api_docs = True
 
 autosummary_generate = True  # Turn on sphinx.ext.autosummary
 autoclass_content = "both"  # Add __init__ doc (ie. params) to class summaries
-html_show_sourcelink = (
-    False  # Remove 'view source code' from top of page (for html, not python)
-)
+html_show_sourcelink = False  # Remove 'view source code' from top of page (for html, not python)
 autodoc_inherit_docstrings = True  # If no docstring, inherit from base class
 set_type_checking_flag = True  # Enable 'expensive' imports for sphinx_autodoc_typehints
 nbsphinx_allow_errors = True  # Continue through Jupyter errors
-autodoc_typehints = (
-    "description"  # Sphinx-native method. Not as good as sphinx_autodoc_typehints
-)
+autodoc_typehints = "description"  # Sphinx-native method. Not as good as sphinx_autodoc_typehints
 add_module_names = False  # Remove namespaces from class/method signatures
 autodoc_default_flags = [
     # Make sure that any autodoc declarations show the right members
@@ -162,18 +167,18 @@ autoapi_dirs = [
 autoapi_root = "technical/api"
 # only document files that have accompanying .cc files next to them
 print("searching for py_docs...")
-for root, _, files in os.walk(BASEDIR):
+for root, _, files in os.walk(BASEDIR):  # pylint: disable=E1101 # false positive
     found = False
     breath_src = {}
     breathe_srcs_list = []
 
     for file in files:
-        pyFile = os.path.join(root, file)[:-2] + ".py"
+        pyFile = os.path.join(root, file)[:-2] + ".py"  # pylint: disable=E1101 # false positive
 
-        if exists(pyFile):
-            f = os.path.join(root, file)
+        if os.path.exists(pyFile):  # pylint: disable=E1101 # false positive
+            f = os.path.join(root, file)  # pylint: disable=E1101 # false positive
 
-            parent_dir_abs = os.path.dirname(f)
+            parent_dir_abs = os.path.dirname(f)  # pylint: disable=E1101 # false positive
             parent_dir = parent_dir_abs[len(BASEDIR) + 1 :]
             parent_project = parent_dir.replace("/", "_")
             print(f"\tFOUND: {f} in {parent_project}")
@@ -183,9 +188,7 @@ for root, _, files in os.walk(BASEDIR):
 
         if found:
             breath_src[parent_project] = (parent_dir_abs, breathe_srcs_list)
-            breathe_projects.update(
-                {k: v[0] for k, v in breath_src.items()}
-            )  # mypy: ignore
+            breathe_projects.update({k: v[0] for k, v in breath_src.items()})  # mypy: ignore
 
 print(f"breathe_projects_source: {breathe_projects.keys()}")
 
@@ -210,3 +213,5 @@ html_theme_options = {
     "style_nav_header_background": "#000000",
 }
 # html_extra_path = ['_static']
+
+mermaid_params = ["-p", "puppeteer-config.json"]

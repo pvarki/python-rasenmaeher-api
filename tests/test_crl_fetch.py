@@ -38,7 +38,5 @@ async def test_localmaeher_fetch_crl_sslfail(localmaeher_api: Tuple[str, str]) -
 def test_localhost_fetch_crl(localhost_api: Tuple[str, str]) -> None:
     """Test that we can get CRL via the direct localhost access to rasenmaeher"""
     url = f"{localhost_api[0]}/{localhost_api[1]}/utils/crl"
-    response = requests.get(
-        url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT
-    )
+    response = requests.get(url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT)
     assert response.status_code == 200
