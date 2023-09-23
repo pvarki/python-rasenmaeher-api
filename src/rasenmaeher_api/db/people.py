@@ -180,6 +180,14 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
         return cast(Person, obj)
 
     @classmethod
+    async def is_callsign_available(cls, callsign: str) -> bool:
+        """Is callsign available"""
+        obj = await Person.query.where(Person.callsign == callsign).gino.first()
+        if not obj:
+            return False
+        return True
+
+    @classmethod
     async def by_verification_code(cls, verification_code: str, allow_deleted: bool = False) -> Self:
         """Get by verification_code"""
         obj = await Person.query.where(Person.verification_code == verification_code).gino.first()
