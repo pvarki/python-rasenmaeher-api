@@ -55,7 +55,7 @@ jobs:
     - name: add test users
       id: add_test_users
       run: |
-        docker exec rmdev-rmapi-1 rasenmaeher_api addtestusers
+        docker exec rmlocal-rmapi-1 rasenmaeher_api addtestusers
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
@@ -123,7 +123,7 @@ jobs:
     - name: add test users
       id: add_test_users
       run: |
-        docker exec rmlocal-rmapi-1 rasenmaeher_api addtestusers
+        docker exec rmdev-rmapi-1 rasenmaeher_api addtestusers
     - name: generate openapi.json
       id: generate_openapijson
       run: curl http://localhost:8000/api/openapi.json -o openapi.json
