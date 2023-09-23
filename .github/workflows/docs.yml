@@ -41,3 +41,4 @@ jobs:
           publish_dir: build/docs/html
           destination_dir: docs
           publish_branch: gh-pages
+          keep_files: true
