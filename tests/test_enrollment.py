@@ -860,3 +860,4 @@ async def test_get_enrollment_invitecode_check_fail(tilauspalvelu_jwt_admin_clie
     assert resp.status_code == 200
     print(resp_dict)
     assert resp_dict["invitecode_is_active"] is False
+

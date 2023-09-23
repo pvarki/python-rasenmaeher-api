@@ -154,7 +154,7 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     _ = ginosession
     person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
     await person.create()
-    pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"})
+    pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
     await pool.create()
     # refresh
     pool = await EnrollmentPool.by_pk(pool.pk)
