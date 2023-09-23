@@ -278,9 +278,7 @@ async def test_delete_firstuser_temp_admin_code_missing(
     response = await client.post(url, json=data, timeout=DEFAULT_TIMEOUT)
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert (
-        " ".join(payload["detail"][0]["loc"]) == error_messages["BODY_TEMP_ADMIN_CODE"]
-    )
+    assert " ".join(payload["detail"][0]["loc"]) == error_messages["BODY_TEMP_ADMIN_CODE"]
     assert payload["detail"][0]["msg"] == error_messages["FIELD_REQUIRED"]
     assert payload["detail"][0]["type"] == error_messages["VALUE_MISSING"]
 

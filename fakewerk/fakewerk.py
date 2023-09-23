@@ -53,9 +53,7 @@ def create_tilauspalvelu_keypair() -> None:
 
 def create_fakeproduct_manifest() -> None:
     """create manisfest for fakeproduct"""
-    issuer = Issuer(
-        privkeypath=TP_PRIVKEY_PATH, keypasswd=Secret(get_key_pass(TP_PRIVKEY_PATH))
-    )
+    issuer = Issuer(privkeypath=TP_PRIVKEY_PATH, keypasswd=Secret(get_key_pass(TP_PRIVKEY_PATH)))
     issuer.config.lifetime = 3600 * 24  # 24h
     token = issuer.issue(
         {
@@ -64,12 +62,8 @@ def create_fakeproduct_manifest() -> None:
             "nonce": uuid_to_b64(uuid.uuid4()),
         }
     )
-    rm_port = int(
-        os.environ.get("RASENMAEHER_HTTPS_PORT", "4439")  # pylint: disable=E1101
-    )
-    rm_host = os.environ.get(  # pylint: disable=E1101
-        "RASENMAEHER_HOST", "localmaeher.pvarki.fi"
-    )
+    rm_port = int(os.environ.get("RASENMAEHER_HTTPS_PORT", "4439"))  # pylint: disable=E1101
+    rm_host = os.environ.get("RASENMAEHER_HOST", "localmaeher.pvarki.fi")  # pylint: disable=E1101
     if rm_port != 443:
         rm_uri = f"https://{rm_host}:{rm_port}/"
     else:
@@ -88,9 +82,7 @@ def create_fakeproduct_manifest() -> None:
 
 def create_rasenmaeher_manifest() -> None:
     """create manifest for RASENMAEHER"""
-    fakeproduct_port = int(
-        os.environ.get("PRODUCT_HTTPS_PORT", "4625")  # pylint: disable=E1101
-    )
+    fakeproduct_port = int(os.environ.get("PRODUCT_HTTPS_PORT", "4625"))  # pylint: disable=E1101
     manifest = {
         "dns": "localmaeher.pvarki.fi",
         "products": {

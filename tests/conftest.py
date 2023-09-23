@@ -116,9 +116,7 @@ def openapi_version() -> Tuple[str, str]:
 @pytest.fixture
 def work_id_generator() -> str:
     """Return random work_id"""
-    return "".join(
-        random.choice(string.ascii_uppercase + string.digits) for _ in range(6)
-    )
+    return "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
 
 
 # FIXME: rename this, or if only needed in one test file=module, move it there
