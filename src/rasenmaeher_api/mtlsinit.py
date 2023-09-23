@@ -11,7 +11,7 @@ import aiohttp
 import filelock
 
 
-from .web.api.product.views import sign_csr
+from .cfssl.anoncsr import anon_sign_csr
 from .settings import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -82,7 +82,7 @@ async def mtls_init() -> None:
         LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
         keypair = await asyncio.get_event_loop().run_in_executor(None, create_keypair)
         csr_path = await asyncio.get_event_loop().run_in_executor(None, create_csr, keypair)
-        certpem = (await sign_csr(csr_path.read_text())).replace("\\n", "\n")
+        certpem = (await anon_sign_csr(csr_path.read_text())).replace("\\n", "\n")
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")

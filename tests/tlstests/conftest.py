@@ -10,7 +10,7 @@ from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 from libpvarki.mtlshelp import get_session
 
 
-from rasenmaeher_api.web.api.product.views import sign_csr
+from rasenmaeher_api.cfssl.private import sign_csr
 
 LOGGER = logging.getLogger(__name__)
 
