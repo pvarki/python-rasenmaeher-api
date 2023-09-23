@@ -51,6 +51,7 @@ extensions = [
     "myst_parser",  # Markdown parsing
     "sphinx_sitemap",  # sitemap generation for SEO
     "autoapi.extension",
+    "sphinxcontrib.mermaid"
 ]
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
@@ -210,3 +211,5 @@ html_theme_options = {
     "style_nav_header_background": "#000000",
 }
 # html_extra_path = ['_static']
+
+mermaid_params = ['-p' 'puppeteer-config.json']
