@@ -143,7 +143,7 @@ jobs:
       id: add_test_users
       run: |
         docker ps
-        docker exec rmdev-rmapi-1 rasenmaeher_api addtestusers
+        docker exec rmdev-rmapi-1 /.venv/bin/rasenmaeher_api addtestusers
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
