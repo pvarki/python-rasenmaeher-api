@@ -55,6 +55,7 @@ jobs:
     - name: add test users
       id: add_test_users
       run: |
+        docker ps
         docker exec rmlocal-rmapi-1 rasenmaeher_api addtestusers
     - name: run pytest
       id: run_pytest
@@ -120,10 +121,6 @@ jobs:
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
         dcdev up --wait || ( dcdev logs && exit 1 )
       continue-on-error: true
-    - name: add test users
-      id: add_test_users
-      run: |
-        docker exec rmdev-rmapi-1 rasenmaeher_api addtestusers
     - name: generate openapi.json
       id: generate_openapijson
       run: curl http://localhost:8000/api/openapi.json -o openapi.json
@@ -142,6 +139,11 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: swagger-ui
+    - name: add test users
+      id: add_test_users
+      run: |
+        docker ps
+        docker exec rmdev-rmapi-1 rasenmaeher_api addtestusers
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
