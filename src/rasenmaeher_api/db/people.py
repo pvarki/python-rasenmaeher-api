@@ -1,4 +1,6 @@
 """Abstractions for people"""
+import secrets
+import string
 from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
 import uuid
 import logging
@@ -22,6 +24,8 @@ from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
 from ..prodcutapihelpers import post_to_all_products
 
 LOGGER = logging.getLogger(__name__)
+CODE_CHAR_COUNT = 12
+CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 class Person(ORMBaseModel):  # pylint: disable=R0903
