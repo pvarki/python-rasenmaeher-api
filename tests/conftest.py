@@ -77,6 +77,23 @@ async def session_with_tpjwt(
     yield session
 
 
+@pytest_asyncio.fixture
+async def session_with_invalid_tpjwt(
+    session_with_testcas: aiohttp.ClientSession, tp_issuer: Issuer
+) -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """Add 'tilauspalvelu' single use JWT to session"""
+    session = session_with_testcas
+    token = tp_issuer.issue(
+        {
+            "sub": "invalidasdfar33",
+            "anon_admin_session": True,
+            "nonce": str(uuid.uuid4()),
+        }
+    )
+    session.headers.update({"Authorization": f"Bearer {token}"})
+    yield session
+
+
 @pytest.fixture
 def localmaeher_api() -> Tuple[str, str]:
     """Return url and version for https API"""
@@ -109,12 +126,8 @@ def work_id_generator() -> str:
 def testdata() -> Dict[str, str]:
     """Return values needed for tests"""
     return {
-        "testing_management_hash": "TestikalukalukalukaulinJotainAsdJotainJotainJotain",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
         "user_hash": "PerPerPerjantaiPulloParisee",
-        "invite_code_invalid_user_hash": "asdfaj3433423420342230942394",
-        "invite_code_work_id1": "roosteri",
-        "invite_code": "asdölfjasfrei33424äxcxc",
     }
 
 
@@ -127,8 +140,10 @@ def error_messages() -> Dict[str, str]:
         "FIRSTUSER_API_IS_DISABLED": "/firstuser API is disabled",
         "NOT_FOUND": "Not Found",
         "INVITECODE_NOT_VALID": "Error. invitecode not valid.",
-        "NO_ENROLLMENT_PERMISSIONS": "Error. Given management hash doesn't have 'enrollment' permissions.",
+        "WORK_ID_NOT_FOUND": "Wont do. Requested work_id or work_id_hash not found...",
+        "EXTRA_FIELDS": "extra fields not permitted",
         "FIELD_REQUIRED": "field required",
         "VALUE_MISSING": "value_error.missing",
         "BODY_TEMP_ADMIN_CODE": "body temp_admin_code",
+        "BODY_INVITE_CODE": "body invite_code",
     }
