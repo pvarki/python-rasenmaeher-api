@@ -188,16 +188,6 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
         return True
 
     @classmethod
-    async def by_verification_code(cls, verification_code: str, allow_deleted: bool = False) -> Self:
-        """Get by verification_code"""
-        obj = await Person.query.where(Person.verification_code == verification_code).gino.first()
-        if not obj:
-            raise NotFound()
-        if obj.deleted and not allow_deleted:
-            raise Deleted()
-        return cast(Person, obj)
-
-    @classmethod
     async def by_mtlsjwt_payload(cls, payload: MTLSorJWTPayload, allow_deleted: bool = False) -> Self:
         """Get by MTLSorJWTMiddleWare payload"""
         if not payload.userid:
@@ -251,18 +241,6 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
         if role == "admin":
             await user_demoted(self)
         return True
-
-    @classmethod
-    async def set_verification_code(cls, callsign: str) -> str:
-        """Set verification code for callsign"""
-        obj = await Person.by_callsign(callsign=callsign)
-        code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
-        print(callsign)
-        print(code)
-        print(obj)
-        await obj.update(verification_code=code).apply()
-
-        return code
 
 
 class Role(DBModel):  # type: ignore[misc] # pylint: disable=R0903

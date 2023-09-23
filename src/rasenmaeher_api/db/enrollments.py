@@ -1,5 +1,5 @@
 """Abstractions for enrollments"""
-from typing import Self, Dict, cast, Any, Optional
+from typing import Self, Dict, cast, Any, Optional, AsyncGenerator
 import string
 import secrets
 import logging
@@ -37,10 +37,44 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
             raise Deleted("Can't create enrollments on deleted pools")
         return await Enrollment.create_for_callsign(callsign, self.pk, self.extra)
 
-    async def set_active(self, state: bool = True) -> Self:
+    async def set_active(self, state: bool) -> Self:
         """Set active and return refreshed object"""
         await self.update(active=state).apply()
         return await EnrollmentPool.by_pk(self.pk, allow_deleted=True)
+
+    @classmethod
+    async def by_owner(cls, owner_uuid: str) -> Self:
+        """Get by owner UUID"""
+        obj = await EnrollmentPool.query.where(EnrollmentPool.owner == owner_uuid).gino.first()
+        if not obj:
+            raise NotFound()
+        return cast(EnrollmentPool, obj)
+
+    @classmethod
+    async def by_invitecode(cls, invitecode: str) -> Self:
+        """Get by invitecode"""
+        obj = await EnrollmentPool.query.where(EnrollmentPool.invitecode == invitecode).gino.first()
+        if not obj:
+            raise NotFound()
+        return cast(EnrollmentPool, obj)
+
+    @classmethod
+    async def create_or_update_invitecode_for_callsign(
+        cls, callsign: str, extra: Optional[Dict[str, Any]] = None
+    ) -> Self:
+        """Create enrollment pool owned by callsign, or update invitecode for existing one"""
+        _owner = await Person.by_callsign(callsign=callsign)
+
+        _invitecode = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
+        try:
+            existing_obj = await EnrollmentPool.by_owner(owner_uuid=_owner.pk)
+            await existing_obj.update(invitecode=_invitecode).apply()
+
+        except NotFound:
+            obj = EnrollmentPool(owner=_owner.pk, active=True, extra=extra, invitecode=_invitecode)
+            await obj.create()
+
+        return await EnrollmentPool.by_owner(owner_uuid=_owner.pk)
 
 
 class EnrollmentState(enum.IntEnum):
@@ -69,12 +103,27 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
         """Creates the person record, their certs etc"""
         # TODO: Do in a transaction so rollback on DB failures
         person = await Person.create_with_cert(self.callsign, extra=self.extra)
-        self.update(state=EnrollmentState.APPROVED, decided_by=approver.pk, decided_on=utcnow, person=person.pk)
+        await self.update(
+            state=EnrollmentState.APPROVED, decided_by=approver.pk, decided_on=utcnow, person=person.pk
+        ).apply()
         return person
 
     async def reject(self, decider: Person) -> None:
         """Reject"""
         await self.update(state=EnrollmentState.REJECTED, decided_by=decider.pk, decided_on=utcnow).apply()
+
+    @classmethod
+    async def list(cls, include_deleted: bool = False) -> AsyncGenerator["Enrollment", None]:
+        """List people"""
+        async with db.acquire() as conn:  # Cursors need transaction
+            async with conn.transaction():
+                query = Enrollment.query
+                if not include_deleted:
+                    query = query.where(
+                        Enrollment.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
+                    )
+                async for enrollment in query.order_by(Enrollment.callsign).gino.iterate():
+                    yield enrollment
 
     @classmethod
     async def by_callsign(cls, callsign: str) -> Self:
@@ -97,6 +146,14 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
             LOGGER.error("Got a deleted enrollment {}, this should not be possible".format(obj.pk))
             raise Deleted()  # This should *not* be happening
         return cast(Enrollment, obj)
+
+    @classmethod
+    async def set_approvecode(cls, callsign: str) -> str:
+        """Set approvecode code for callsign"""
+        obj = await Enrollment.by_callsign(callsign=callsign)
+        code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
+        await obj.update(approvecode=code).apply()
+        return code
 
     @classmethod
     async def create_for_callsign(
