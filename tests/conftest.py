@@ -3,6 +3,8 @@ Fixtures defined can be used by any test in that package without needing to impo
 from typing import Tuple, Dict, AsyncGenerator
 import platform
 import logging
+import string
+import random
 from pathlib import Path
 import ssl
 import asyncio
@@ -20,7 +22,7 @@ init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 CA_PATH = Path(__file__).parent / "testcas"
 JWT_PATH = Path(__file__).parent / "testjwts"
-DEFAULT_TIMEOUT = 4.0
+DEFAULT_TIMEOUT = 5.0
 
 # pylint: disable=W0621
 
@@ -66,7 +68,7 @@ async def session_with_tpjwt(
     session = session_with_testcas
     token = tp_issuer.issue(
         {
-            "sub": "tpadminsession",
+            "sub": "pyteststuff",
             "anon_admin_session": True,
             "nonce": str(uuid.uuid4()),
         }
@@ -94,6 +96,14 @@ def openapi_version() -> Tuple[str, str]:
     return "3.1.0", "0.1.0"
 
 
+@pytest.fixture
+def work_id_generator() -> str:
+    """Return random work_id"""
+    return "".join(
+        random.choice(string.ascii_uppercase + string.digits) for _ in range(6)
+    )
+
+
 # FIXME: rename this, or if only needed in one test file=module, move it there
 @pytest.fixture
 def testdata() -> Dict[str, str]:
@@ -102,8 +112,6 @@ def testdata() -> Dict[str, str]:
         "testing_management_hash": "TestikalukalukalukaulinJotainAsdJotainJotainJotain",
         "permit_str": "PaulinTaikaKaulinOnKaunis_PaulisMagicPinIsBuuutiful!11!1",
         "user_hash": "PerPerPerjantaiPulloParisee",
-        "first_time_user_work_id1": "kukko",
-        "first_time_user_work_id2": "kana",
         "invite_code_invalid_user_hash": "asdfaj3433423420342230942394",
         "invite_code_work_id1": "roosteri",
         "invite_code": "asdölfjasfrei33424äxcxc",
@@ -120,4 +128,7 @@ def error_messages() -> Dict[str, str]:
         "NOT_FOUND": "Not Found",
         "INVITECODE_NOT_VALID": "Error. invitecode not valid.",
         "NO_ENROLLMENT_PERMISSIONS": "Error. Given management hash doesn't have 'enrollment' permissions.",
+        "FIELD_REQUIRED": "field required",
+        "VALUE_MISSING": "value_error.missing",
+        "BODY_TEMP_ADMIN_CODE": "body temp_admin_code",
     }
