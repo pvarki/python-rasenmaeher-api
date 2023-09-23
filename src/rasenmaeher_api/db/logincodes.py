@@ -7,9 +7,8 @@ import secrets
 from sqlalchemy.dialects.postgresql import JSONB
 import sqlalchemy as sa
 from multikeyjwt import Issuer
-from pydantic import Extra
 
-from .base import BaseModel, utcnow
+from .base import ORMBaseModel, utcnow
 from .errors import ForbiddenOperation, NotFound, Deleted, TokenReuse
 
 LOGGER = logging.getLogger(__name__)
@@ -18,7 +17,7 @@ CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
 
 
-class LoginCode(BaseModel):  # pylint: disable=R0903
+class LoginCode(ORMBaseModel):  # pylint: disable=R0903
     """Track the login codes that can be exchanged for session JWTs"""
 
     __tablename__ = "logincodes"
@@ -27,11 +26,6 @@ class LoginCode(BaseModel):  # pylint: disable=R0903
     auditmeta = sa.Column(JSONB, nullable=False, server_default="{}")
     used_on = sa.Column(sa.DateTime(timezone=True), nullable=True)
     claims = sa.Column(JSONB, nullable=False, server_default="{}")
-
-    class Config:  # pylint: disable=R0903
-        """Basemodel config"""
-
-        extra = Extra.forbid
 
     @classmethod
     async def use_code(cls, code: str, auditmeta: Optional[Dict[str, Any]] = None) -> str:

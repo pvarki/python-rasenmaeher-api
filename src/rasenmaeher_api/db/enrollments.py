@@ -5,14 +5,12 @@ import secrets
 import logging
 import enum
 import uuid
-from pydantic import Extra
-
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
 
-from .base import BaseModel, utcnow
+from .base import ORMBaseModel, utcnow
 from .people import Person
 from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
 
@@ -22,7 +20,7 @@ CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
 
 
-class EnrollmentPool(BaseModel):  # pylint: disable=R0903
+class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
     """Enrollment pools aka links, pk is UUID and comes from basemodel"""
 
     __tablename__ = "enrollmentpools"
@@ -30,11 +28,6 @@ class EnrollmentPool(BaseModel):  # pylint: disable=R0903
     owner = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=False)  # whos mainly responsible
     active = sa.Column(sa.Boolean(), nullable=False, default=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the enrollments
-
-    class Config:  # pylint: disable=R0903
-        """Basemodel config"""
-
-        extra = Extra.forbid
 
     async def create_enrollment(self, callsign: str) -> "Enrollment":
         """Create enrollment from this pool"""
@@ -58,7 +51,7 @@ class EnrollmentState(enum.IntEnum):
     REJECTED = 2
 
 
-class Enrollment(BaseModel):  # pylint: disable=R0903
+class Enrollment(ORMBaseModel):  # pylint: disable=R0903
     """Enrollments, pk is UUID and comes from basemodel"""
 
     __tablename__ = "enrollments"
@@ -71,11 +64,6 @@ class Enrollment(BaseModel):  # pylint: disable=R0903
     pool = sa.Column(saUUID(), sa.ForeignKey(EnrollmentPool.pk), nullable=True)
     state = sa.Column(sa.Integer(), nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the Persons
-
-    class Config:  # pylint: disable=R0903
-        """Basemodel config"""
-
-        extra = Extra.forbid
 
     async def approve(self, approver: Person) -> Person:
         """Creates the person record, their certs etc"""
