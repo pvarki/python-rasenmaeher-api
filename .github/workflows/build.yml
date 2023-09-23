@@ -9,6 +9,10 @@ on:
 jobs:
   rmlocal:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: write
     steps:
     - uses: actions/checkout@v3
       with:
@@ -64,9 +68,17 @@ jobs:
         verbose: true
         emoji: true
         job-summary: true
-        custom-arguments: 'tests'
+        custom-arguments: '--junitxml=pytest.xml tests'
         click-to-expand: true
         report-title: 'Test Report'
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v4
+      if: success() || failure() # always run even if the previous step fails
+      with:
+        report_paths: '**/pytest*.xml'
+        detailed_summary: true
+        include_passed: true
+        check_name: 'JUnit report (local)'
     - name: docker compose cleanup
       id: compose_clean_2
       run: |
@@ -78,6 +90,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
+      checks: write
     steps:
     - uses: actions/checkout@v3
       with:
@@ -151,9 +165,17 @@ jobs:
         verbose: true
         emoji: true
         job-summary: true
-        custom-arguments: 'tests'
+        custom-arguments: '--junitxml=pytest.xml tests'
         click-to-expand: true
         report-title: 'Test Report'
+    - name: Publish Test Report
+      uses: mikepenz/action-junit-report@v4
+      if: success() || failure() # always run even if the previous step fails
+      with:
+        report_paths: '**/pytest*.xml'
+        detailed_summary: true
+        include_passed: true
+        check_name: 'JUnit report (dev)'
     - name: docker compose cleanup
       id: compose_clean_2
       run: |
