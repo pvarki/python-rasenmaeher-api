@@ -52,6 +52,11 @@ jobs:
         alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
         dcloc up --wait || (dcloc logs && exit 1)
       continue-on-error: true
+    - name: add test users
+      id: add_test_users
+      run: |
+        docker ps
+        docker exec rmlocal-rmapi-1 rasenmaeher_api addtestusers
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
@@ -134,6 +139,11 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: swagger-ui
+    - name: add test users
+      id: add_test_users
+      run: |
+        docker ps
+        docker exec rmdev-rmapi-1 /.venv/bin/rasenmaeher_api addtestusers
     - name: run pytest
       id: run_pytest
       uses: pavelzw/pytest-action@v2
