@@ -22,6 +22,7 @@ from rasenmaeher_api.db.errors import (
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
 from rasenmaeher_api.settings import settings
+from rasenmaeher_api.cfssl.public import get_crl
 
 LOGGER = logging.getLogger(__name__)
 
@@ -225,13 +226,20 @@ async def test_logincodes_crud(ginosession: None) -> None:
 
 @pytest.mark.asyncio
 async def test_person_with_cert(ginosession: None) -> None:
-    """Test the cert creation with the classmethod"""
+    """Test the cert creation with the classmethod (and revocation)"""
     _ = ginosession
     await mtls_init()
     person = await Person.create_with_cert("BINGO01a", {"kissa": "puuma"})
     assert person.privkeyfile.exists()
     assert person.pubkeyfile.exists()
     assert person.certfile.exists()
+    _old_crl = await get_crl()
+    await person.revoke("key_compromise")
+    _new_crl = await get_crl()
+    # TODO: Parse the old and new CRLs and check that the users cert is there
+    refresh = await Person.by_callsign("BINGO01a", allow_deleted=True)
+    assert refresh.deleted
+    assert refresh.revoke_reason
 
 
 @pytest.mark.asyncio

@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import shutil
 
+import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
@@ -14,7 +15,7 @@ from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..settings import settings
-from ..cfssl.private import sign_csr
+from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,6 +34,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
     # Directory with the key, cert and pfx
     certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
+    revoke_reason = sa.Column(sa.String(), nullable=True, index=False)
 
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
@@ -42,8 +44,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
             raise CallsignReserved()
         except NotFound:
             pass
-        async with db.acquire() as conn:  # Cursors need transaction
-            async with conn.transaction():
+        async with db.acquire() as conn:
+            async with conn.transaction():  # do it in a transaction so if something fails we can roll back
                 puuid = uuid.uuid4()
                 certspath = Path(settings.persistent_data_dir) / "private" / "people" / str(puuid)
                 certspath.mkdir(parents=True)
@@ -63,6 +65,27 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
                     raise BackendError(str(exc)) from exc
                 # Return refreshed object if everything went ok
                 return await cls.by_pk(newperson.pk)
+
+    async def revoke(self, reason: ReasonTypes) -> bool:
+        """Revokes the cert with given reason and makes user deleted see validate_reason for info on reasons"""
+        reason = validate_reason(reason)
+        async with db.acquire() as conn:
+            async with conn.transaction():  # do it in a transaction so if CFSSL fails we can roll back
+                try:
+                    await self.update(deleted=utcnow, revoke_reason=str(reason.value)).apply()
+                    await revoke_pem(self.certfile, reason)
+                except Exception as exc:
+                    LOGGER.exception("Something went wrong, rolling back")
+                    raise BackendError(str(exc)) from exc
+                return True
+
+    async def delete(self) -> bool:
+        """Revoke the cert on delete"""
+        if self.certfile.exists():
+            LOGGER.info("Calling self.revoke with reason=privilege_withdrawn")
+            return await self.revoke(cryptography.x509.ReasonFlags.privilege_withdrawn)
+        LOGGER.error("User has not certificate, this indicates someone created user without using create_with_cert")
+        return await super().delete()
 
     @property
     def certsubject(self) -> Dict[str, str]:
