@@ -7,6 +7,7 @@ import pytest
 import pytest_asyncio
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
+import cryptography.x509
 
 from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
 from rasenmaeher_api.db.base import init_db, bind_config
@@ -233,10 +234,13 @@ async def test_person_with_cert(ginosession: None) -> None:
     assert person.privkeyfile.exists()
     assert person.pubkeyfile.exists()
     assert person.certfile.exists()
-    _old_crl = await get_crl()
+    old_crl = cryptography.x509.load_der_x509_crl(await get_crl())
+    old_crl_serials = {revcert.serial_number for revcert in old_crl}
     await person.revoke("key_compromise")
-    _new_crl = await get_crl()
-    # TODO: Parse the old and new CRLs and check that the users cert is there
+    new_crl = cryptography.x509.load_der_x509_crl(await get_crl())
+    new_crl_serials = {revcert.serial_number for revcert in new_crl}
+    LOGGER.debug("old_crl={} new_crl={}".format(old_crl_serials, new_crl_serials))
+    assert old_crl_serials != new_crl_serials
     refresh = await Person.by_callsign("BINGO01a", allow_deleted=True)
     assert refresh.deleted
     assert refresh.revoke_reason

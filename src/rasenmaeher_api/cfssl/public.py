@@ -1,6 +1,7 @@
 """Public things, CA cert, CRL etc"""
-from typing import Dict, Any, cast
+from typing import Dict, Any
 import logging
+import base64
 
 import aiohttp
 
@@ -27,16 +28,18 @@ async def get_ca() -> str:
             raise CFSSLError(str(exc)) from exc
 
 
-async def get_crl() -> str:
+async def get_crl() -> bytes:
     """
     Quick and dirty method to get CRL from CFSSL
-    returns: PEM encoded Certificate Revocation List
+    returns: DER binary encoded Certificate Revocation List
     """
 
     async with (await anon_session()) as session:
         url = f"{base_url()}/api/v1/cfssl/crl"
         try:
             async with session.get(url, params={"expiry": CRL_LIFETIME}, timeout=DEFAULT_TIMEOUT) as response:
-                return cast(str, await get_result(response))
+                crl_b64 = await get_result(response)
+                data = base64.b64decode(crl_b64)
+                return data
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
