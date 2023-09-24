@@ -2,20 +2,28 @@
 from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
 import uuid
 import logging
+from pathlib import Path
+import shutil
 
+import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
-from pydantic import Extra
+from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
+from libpvarki.schemas.product import UserCRUDRequest
+from libpvarki.schemas.generic import OperationResultResponse
 
-from .base import BaseModel, DBModel, utcnow, db
+from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware import MTLSorJWTPayload
-from .errors import NotFound, Deleted
+from .errors import NotFound, Deleted, BackendError, CallsignReserved
+from ..settings import settings
+from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
+from ..prodcutapihelpers import post_to_all_products
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(BaseModel):  # pylint: disable=R0903
+class Person(ORMBaseModel):  # pylint: disable=R0903
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -29,17 +37,96 @@ class Person(BaseModel):  # pylint: disable=R0903
     # Directory with the key, cert and pfx
     certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
-
-    class Config:  # pylint: disable=R0903
-        """Basemodel config"""
-
-        extra = Extra.forbid
+    revoke_reason = sa.Column(sa.String(), nullable=True, index=False)
 
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
         """Create the cert etc and save the person"""
-        # TODO: Have some sort of transaction management so if things go wrong we can clean up
-        raise NotImplementedError()
+        try:
+            await Person.by_callsign(callsign)
+            raise CallsignReserved()
+        except NotFound:
+            pass
+        async with db.acquire() as conn:
+            async with conn.transaction():  # do it in a transaction so if something fails we can roll back
+                puuid = uuid.uuid4()
+                certspath = Path(settings.persistent_data_dir) / "private" / "people" / str(puuid)
+                certspath.mkdir(parents=True)
+                certspath.chmod(PRIVDIR_MODE)
+                try:
+                    newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
+                    await newperson.create()
+                    ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
+                    csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
+                    certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
+                    newperson.certfile.write_text(certpem)
+                except Exception as exc:
+                    LOGGER.exception("Something went wrong, doing cleanup")
+                    shutil.rmtree(certspath)
+                    remaining = list(certspath.rglob("*"))
+                    LOGGER.debug("Remaining files: {}".format(remaining))
+                    raise BackendError(str(exc)) from exc
+                # Return refreshed object if everything went ok
+                refresh = await cls.by_pk(newperson.pk)
+                await user_created(refresh)
+                return refresh
+
+    async def revoke(self, reason: ReasonTypes) -> bool:
+        """Revokes the cert with given reason and makes user deleted see validate_reason for info on reasons"""
+        reason = validate_reason(reason)
+        async with db.acquire() as conn:
+            async with conn.transaction():  # do it in a transaction so if CFSSL fails we can roll back
+                try:
+                    await self.update(deleted=utcnow, revoke_reason=str(reason.value)).apply()
+                    await revoke_pem(self.certfile, reason)
+                    await user_revoked(self)
+                except Exception as exc:
+                    LOGGER.exception("Something went wrong, rolling back")
+                    raise BackendError(str(exc)) from exc
+                return True
+
+    async def delete(self) -> bool:
+        """Revoke the cert on delete"""
+        if self.certfile.exists():
+            LOGGER.info("Calling self.revoke with reason=privilege_withdrawn")
+            return await self.revoke(cryptography.x509.ReasonFlags.privilege_withdrawn)
+        LOGGER.error("User has no certificate, this indicates someone created user without using create_with_cert")
+        return await super().delete()
+
+    @property
+    def productapidata(self) -> UserCRUDRequest:
+        """Return a model that is usable with the product integration APIs"""
+        if not self.certfile.exists():
+            LOGGER.error("User has no certificate, this indicates someone created user without using create_with_cert")
+            cert_pem = "NOCERTFOUND"
+        else:
+            cert_pem = self.certfile.read_text("utf-8")
+        return UserCRUDRequest(uuid=str(self.pk), callsign=self.callsign, x509cert=cert_pem.replace("\n", "\\n"))
+
+    @property
+    def certsubject(self) -> Dict[str, str]:
+        """Return the dict that gets set to cert DN"""
+        return {"CN": self.callsign}
+
+    @property
+    def privkeyfile(self) -> Path:
+        """Path to the private key"""
+        return Path(self.certspath) / "mtls.key"
+
+    @property
+    def certfile(self) -> Path:
+        """Path to the public cert"""
+        return Path(self.certspath) / "mtls.pem"
+
+    @property
+    def csrfile(self) -> Path:
+        """Path to the CSR file"""
+        return Path(self.certspath) / "mtls.csr"
+
+    @property
+    def pubkeyfile(self) -> Path:
+        """Path to the public key"""
+        return Path(self.certspath) / "mtls.pub"
 
     @classmethod
     async def list(cls, include_deleted: bool = False) -> AsyncGenerator["Person", None]:
@@ -114,6 +201,8 @@ class Person(BaseModel):  # pylint: disable=R0903
         role = Role(user=self.pk, role=role)
         await role.create()
         await self.update(updated=utcnow).apply()
+        if role == "admin":
+            await user_promoted(self)
         return True
 
     async def remove_role(self, role: str) -> bool:
@@ -123,6 +212,8 @@ class Person(BaseModel):  # pylint: disable=R0903
             return False
         await obj.delete()
         await self.update(updated=utcnow).apply()
+        if role == "admin":
+            await user_demoted(self)
         return True
 
 
@@ -138,3 +229,36 @@ class Role(DBModel):  # type: ignore[misc] # pylint: disable=R0903
     user = sa.Column(saUUID(), sa.ForeignKey(Person.pk))
     role = sa.Column(sa.String(), nullable=False, index=True)
     _idx = sa.Index("user_role_unique", "user", "role", unique=True)
+
+
+async def post_user_crud(userinfo: UserCRUDRequest, endpoint_suffix: str) -> None:
+    """Wrapper to be more DRY in the basic CRUD things"""
+    endpoint = f"api/v1/users/{endpoint_suffix}"
+
+    responses = await post_to_all_products(
+        endpoint,
+        userinfo.dict(),
+        OperationResultResponse,
+    )
+    LOGGER.debug("got responses: {}".format(responses))
+    # TODO: Check responses and log errors
+
+
+async def user_created(person: Person) -> None:
+    """New user was created"""
+    return await post_user_crud(person.productapidata, "created")
+
+
+async def user_revoked(person: Person) -> None:
+    """Old user was revoked"""
+    return await post_user_crud(person.productapidata, "revoked")
+
+
+async def user_promoted(person: Person) -> None:
+    """Old user was promoted to admin (granted role 'admin')"""
+    return await post_user_crud(person.productapidata, "promoted")
+
+
+async def user_demoted(person: Person) -> None:
+    """Old user was demoted from admin (removed role 'admin')"""
+    return await post_user_crud(person.productapidata, "demoted")

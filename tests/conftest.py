@@ -22,6 +22,7 @@ from rasenmaeher_api.settings import settings
 from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 import rasenmaeher_api.sqlitedatabase
 from rasenmaeher_api.testhelpers import create_test_users
+from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ def verifier() -> Verifier:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def session_env_config(
+def session_env_config(  # pylint: disable=R0915
     monkeysession: pytest.MonkeyPatch, docker_ip: str, docker_services: Services, nice_tmpdir_ses: str
 ) -> Generator[None, None, None]:
     """set the JWT auth config"""
@@ -127,11 +128,15 @@ def session_env_config(
         mpatch.setattr(settings, "cfssl_host", f"http://{docker_ip}")
         mpatch.setenv("RM_CFSSL_HOST", settings.cfssl_host)
 
+        mpatch.setattr(settings, "persistent_data_dir", str(sessionpersistent))
+        mpatch.setenv("RM_PERSISTENT_DATA_DIR", settings.persistent_data_dir)
+
         mpatch.setenv("LOCAL_CA_CERTS_PATH", str(capath))
-        mpatch.setattr(settings, "mtls_client_cert_path", str(sessionfiles / "rmmtlsclient.pem"))
-        mpatch.setenv("RM_MTLS_CLIENT_CERT_PATH", settings.mtls_client_cert_path)
-        mpatch.setattr(settings, "mtls_client_key_path", str(sessionfiles / "rmmtlsclient.key"))
-        mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", settings.mtls_client_key_path)
+        mpatch.setattr(settings, "mtls_client_cert_path", str(sessionpersistent / "public" / f"{CERT_NAME_PREFIX}.pem"))
+        mpatch.setenv("RM_MTLS_CLIENT_CERT_PATH", str(settings.mtls_client_cert_path))
+        mpatch.setattr(settings, "mtls_client_key_path", str(sessionpersistent / "private" / f"{CERT_NAME_PREFIX}.key"))
+        mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", str(settings.mtls_client_key_path))
+        assert not check_settings_clientpaths()
 
         mpatch.setattr(settings, "kraftwerk_manifest_path", str(kfmanifest))
         mpatch.setenv("RM_KRAFTWERK_MANIFEST_PATH", settings.kraftwerk_manifest_path)

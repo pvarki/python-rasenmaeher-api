@@ -23,7 +23,7 @@ DBModel: Gino.Model = db.Model  # workaround mypy being unhappy about using @pro
 LOGGER = logging.getLogger(__name__)
 
 
-class BaseModel(DBModel):  # type: ignore[misc] # pylint: disable=R0903
+class ORMBaseModel(DBModel):  # type: ignore[misc] # pylint: disable=R0903
     """Baseclass with common fields"""
 
     __table_args__ = {"schema": "raesenmaeher"}

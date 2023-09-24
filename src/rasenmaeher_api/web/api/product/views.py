@@ -1,8 +1,6 @@
 """Product registeration API views."""
-from typing import cast, Mapping, Union, Dict, Any
+import logging
 
-
-import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
 from libadvian.binpackers import ensure_utf8, ensure_str
 from libpvarki.middleware.mtlsheader import MTLSHeader
@@ -13,55 +11,14 @@ from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use 
 
 
 from .schema import CertificatesResponse, CertificatesRequest
-from ....settings import settings
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
+from ....cfssl.public import get_ca
+from ....cfssl.private import sign_csr
 
 
 router = APIRouter()
-
-
-async def get_ca() -> str:
-    """
-    Quick and dirty method to get CA from CFSSL
-    returns: CA certificate
-    """
-    async with aiohttp.ClientSession() as session:
-        session.headers.add("Content-Type", "application/json")
-        url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/info"
-        payload: Dict[str, Any] = {}
-
-        # FIXME: Why does this need to be a POST ??
-        async with session.post(url, json=payload, timeout=2.0) as response:
-            data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
-            result = data.get("result")
-            if not result:
-                raise ValueError("CFSSL did not return result")
-            cert = result.get("certificate")
-            if not cert:
-                raise ValueError("CFSSL did not return certificate")
-            return cast(str, cert)
-
-
-async def sign_csr(csr: str) -> str:
-    """
-    Quick and dirty method to sign CSR from CFSSL
-    params: csr
-    returns: certificate
-    """
-    async with aiohttp.ClientSession() as session:
-        session.headers.add("Content-Type", "application/json")
-        url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/sign"
-        payload = {"certificate_request": csr}
-        async with session.post(url, json=payload, timeout=2.0) as response:
-            data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
-            result = data.get("result")
-            if not result:
-                raise ValueError("CFSSL did not return result")
-            cert = result.get("certificate")
-            if not cert:
-                raise ValueError("CFSSL did not return certificate")
-            return cast(str, cert)
+LOGGER = logging.getLogger(__name__)
 
 
 @router.post("/sign_csr", dependencies=[Depends(JWTBearer(auto_error=True))])

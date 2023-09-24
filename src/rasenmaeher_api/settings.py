@@ -89,9 +89,11 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     cfssl_host: str = "http://127.0.0.1"
     cfssl_port: str = "8888"
 
+    persistent_data_dir = "/data/persistent"
+
     # mtls
-    mtls_client_cert_path = "/data/persistent/rmmtlsclient.pem"
-    mtls_client_key_path = "/data/persistent/rmmtlsclient.key"
+    mtls_client_cert_path: Optional[str] = None
+    mtls_client_key_path: Optional[str] = None
     mtls_client_cert_cn = "rasenmaeher"
 
     # Keycloak configuration.

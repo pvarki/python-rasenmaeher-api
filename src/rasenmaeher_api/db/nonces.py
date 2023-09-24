@@ -4,26 +4,20 @@ import logging
 
 from sqlalchemy.dialects.postgresql import JSONB
 import sqlalchemy as sa
-from pydantic import Extra
 
-from .base import BaseModel
+from .base import ORMBaseModel
 from .errors import ForbiddenOperation, NotFound, Deleted, TokenReuse
 
 LOGGER = logging.getLogger(__name__)
 
 
-class SeenToken(BaseModel):  # pylint: disable=R0903
+class SeenToken(ORMBaseModel):  # pylint: disable=R0903
     """Store tokens we should see used only once"""
 
     __tablename__ = "seentokens"
 
     token = sa.Column(sa.String(), nullable=False, index=True, unique=True)
     auditmeta = sa.Column(JSONB, nullable=False, server_default="{}")
-
-    class Config:  # pylint: disable=R0903
-        """Basemodel config"""
-
-        extra = Extra.forbid
 
     @classmethod
     async def use_token(cls, token: str, auditmeta: Optional[Dict[str, Any]] = None) -> None:
