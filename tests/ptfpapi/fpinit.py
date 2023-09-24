@@ -10,6 +10,9 @@ import aiohttp
 from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 from libadvian.logging import init_logging
 
+
+# FIXME: refactor to use the helpers from libpvarki 1.6.0
+
 LOGGER = logging.getLogger(__name__)
 DATAPATH = Path("/data/persistent")
 
