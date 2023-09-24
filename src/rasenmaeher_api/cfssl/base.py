@@ -1,8 +1,10 @@
 """Base helpers etc"""
 from typing import Any, Mapping, Union, cast
 import logging
+import ssl
 
 import aiohttp
+from libpvarki.mtlshelp.context import get_ca_context
 
 from ..settings import settings
 
@@ -57,7 +59,8 @@ def base_url() -> str:
 
 async def anon_session() -> aiohttp.ClientSession:
     """Anonymous session with content-type set"""
-    # FIXME: Add the CA certs that are available
-    session = aiohttp.ClientSession()
+    ctx = get_ca_context(ssl.Purpose.SERVER_AUTH)
+    conn = aiohttp.TCPConnector(ssl=ctx)
+    session = aiohttp.ClientSession(connector=conn)
     session.headers.add("Content-Type", "application/json")
     return session
