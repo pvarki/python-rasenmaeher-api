@@ -1,18 +1,20 @@
 """Utils API views."""
-import base64
-from typing import cast
-from fastapi import APIRouter, Response
-import requests
+import logging
 
-from rasenmaeher_api.web.api.utils.schema import LdapConnString, KeyCloakConnString
+from fastapi import APIRouter, Depends, Response
+from libpvarki.middleware.mtlsheader import MTLSHeader
 
+
+from .schema import LdapConnString, KeyCloakConnString
 from ....settings import settings
+from ....cfssl.public import get_crl
 
 
+LOGGER = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/ldap-conn-string")
+@router.get("/ldap-conn-string", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def request_utils_ldap_conn_string() -> LdapConnString:
     """
     TODO ldap-conn-string
@@ -36,10 +38,10 @@ async def request_utils_ldap_conn_string() -> LdapConnString:
     )
 
 
-@router.get("/keycloak-conn-string")
+@router.get("/keycloak-conn-string", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
     """
-    TODO ldap-conn-string
+    TODO keycloak-conn-string
     """
 
     if None in (
@@ -67,27 +69,8 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
     )
 
 
-async def get_crl() -> bytes:
-    """
-    Quick and dirty method to get CA from CFSSL
-    returns: CA certificate
-    """
-    url = f"{settings.cfssl_host}:{settings.cfssl_port}/api/v1/cfssl/crl"
-
-    response = requests.request("GET", url, timeout=5)
-    data = response.json().get("result")
-    # decode base64
-    data = base64.b64decode(data)
-
-    return cast(bytes, data)
-
-
 @router.get("/crl")
 async def return_crl() -> Response:
-    """
-    Method for TAK sign CSR and request CA
-    params: csr
-    """
-    crl = await get_crl()
-
-    return Response(content=crl, media_type="application/pkix-crl")
+    """Get the CRL from CFSSL"""
+    crl_der = await get_crl()
+    return Response(content=crl_der, media_type="application/pkix-crl")

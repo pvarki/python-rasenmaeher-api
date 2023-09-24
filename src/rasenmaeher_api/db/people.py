@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 import shutil
 
+from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
@@ -112,6 +113,19 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
     def privkeyfile(self) -> Path:
         """Path to the private key"""
         return Path(self.certspath) / "mtls.key"
+
+    @property
+    def pfxfile(self) -> Path:
+        """Return a PKCS12 PFX file"""
+        pfxpath = Path(self.certspath) / "mtls.pfx"
+        if not pfxpath.exists():
+            pfxpath.write_bytes(
+                pem_to_pfx(
+                    self.certfile.read_text("utf-8"),
+                    self.privkeyfile.read_text("utf-8"),
+                )
+            )
+        return pfxpath
 
     @property
     def certfile(self) -> Path:
@@ -262,3 +276,13 @@ async def user_promoted(person: Person) -> None:
 async def user_demoted(person: Person) -> None:
     """Old user was demoted from admin (removed role 'admin')"""
     return await post_user_crud(person.productapidata, "demoted")
+
+
+# FIXME: moving this to libpvarki would be a good idea
+def pem_to_pfx(pem_key: str, pem_cert: str) -> bytes:
+    """Convert PEM data to PFX (PKCS12)."""
+    pfx = crypto.PKCS12()
+    pfx.set_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM, pem_key.encode("utf-8")))
+    pfx.set_certificate(crypto.load_certificate(crypto.FILETYPE_PEM, pem_cert.encode("utf-8")))
+    pfxdata = pfx.export()
+    return pfxdata
