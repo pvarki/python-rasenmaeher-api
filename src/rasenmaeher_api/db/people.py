@@ -1,5 +1,4 @@
 """Abstractions for people"""
-import secrets
 import string
 from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
 import uuid
@@ -28,7 +27,7 @@ CODE_CHAR_COUNT = 12
 CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
-class Person(ORMBaseModel):  # pylint: disable=R0903
+class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db

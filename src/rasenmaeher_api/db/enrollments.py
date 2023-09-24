@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
 
-from .base import ORMBaseModel, utcnow
+from .base import ORMBaseModel, utcnow, db
 from .people import Person
 from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
 
@@ -28,6 +28,7 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
     owner = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=False)  # whos mainly responsible
     active = sa.Column(sa.Boolean(), nullable=False, default=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the enrollments
+    invitecode = sa.Column(sa.String(), nullable=True)
 
     async def create_enrollment(self, callsign: str) -> "Enrollment":
         """Create enrollment from this pool"""

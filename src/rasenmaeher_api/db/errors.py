@@ -22,6 +22,8 @@ class NotFound(DBFetchError, HTTPException):
 
     def __init__(self, *args: Sequence[Any]) -> None:
         """make us also 404 HTTP error"""
+        self.status_code = status.HTTP_404_NOT_FOUND
+        self.detail = "Not found"
         new_args = [status.HTTP_404_NOT_FOUND] + list(args)
         super(HTTPException, self).__init__(*new_args)
 

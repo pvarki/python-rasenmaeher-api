@@ -42,15 +42,16 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop.close()
 
 
-@pytest.fixture(scope="session")
-def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
+# @pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
+async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
     """Create a few test users and work ids returns
     list of work-ids and their corresponding "hashes"
 
     First one has "enrollment" special role
     """
     _ = session_env_config
-    return create_test_users()
+    return await create_test_users()
 
 
 # pylint: disable=redefined-outer-name
@@ -184,7 +185,7 @@ async def kraftwerk_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, 
         yield instance
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_admin_client(
     issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
 ) -> AsyncGenerator[TestClient, None]:
@@ -203,17 +204,50 @@ async def tilauspalvelu_jwt_admin_client(
         yield instance
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_client(
     issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
 ) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
     async with TestClient(get_app()) as instance:
         work_ids, _ = test_user_secrets
-        koira_id = work_ids[2]
+        kissa_id = work_ids[2]
+        token = issuer_cl.issue(
+            {
+                "sub": kissa_id,
+                "anon_admin_session": True,
+                "nonce": str(uuid.uuid4()),
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def tilauspalvelu_jwt_user_koira_client(
+    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
+) -> AsyncGenerator[TestClient, None]:
+    """Client with normal user JWT"""
+    async with TestClient(get_app()) as instance:
+        work_ids, _ = test_user_secrets
+        koira_id = work_ids[3]
         token = issuer_cl.issue(
             {
                 "sub": koira_id,
+                "nonce": str(uuid.uuid4()),
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
+    """Client with normal user JWT"""
+    async with TestClient(get_app()) as instance:
+        token = issuer_cl.issue(
+            {
+                "sub": "nosuchusershouldbefound",
                 "anon_admin_session": True,
                 "nonce": str(uuid.uuid4()),
             }

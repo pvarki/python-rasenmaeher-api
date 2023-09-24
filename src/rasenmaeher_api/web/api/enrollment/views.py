@@ -17,8 +17,6 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentPromoteIn,
     EnrollmentInitIn,
     EnrollmentInitOut,
-    EnrollmentDeliverIn,
-    EnrollmentDeliverOut,
     EnrollmentDemoteIn,
     EnrollmentLockIn,
     EnrollmentIsInvitecodeActiveIn,
@@ -32,8 +30,6 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentInviteCodeDeleteOut,
 )
 from ..middleware import MTLSorJWT
-from ....settings import settings
-from ....sqlitedatabase import sqlite
 
 from ....db import Person
 from ....db import Enrollment, EnrollmentPool
@@ -263,42 +259,6 @@ async def request_enrollment_lock(
     return EnrollmentConfigTaskDone(success_message="Lock task done")
 
 
-@ENROLLMENT_ROUTER.get("/deliver", response_model=EnrollmentDeliverOut)
-async def request_enrollment_status(
-    request: Request,
-    params: EnrollmentDeliverIn = Depends(),
-) -> EnrollmentDeliverOut:
-    """
-    Deliver download url link using work_id_hash
-    """
-
-    _q = settings.sqlite_sel_from_enrollment_where_hash.format(work_id_hash=params.work_id_hash)
-    _success, _result = sqlite.run_command(_q)
-
-    if _success is False:
-        _reason = "Error. Undefined backend error q_sssfewh1"
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=500, detail=_reason)
-
-    if len(_result) == 0:
-        _reason = "Error. 'work_id_hash' not found from database."
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=404, detail=_reason)
-
-    if _result[0][2] != "ReadyForDelivery":
-        _reason = "Enrollment is still in progress or it hasn't been accepted."
-        LOGGER.info("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=202, detail=_reason)
-
-    return EnrollmentDeliverOut(
-        work_id=_result[0][0],
-        work_id_hash=params.work_id_hash,
-        cert_download_link=_result[0][4],
-        howto_download_link=_result[0][5],
-        mtls_test_link=_result[0][6],
-    )
-
-
 @ENROLLMENT_ROUTER.post("/accept", response_model=EnrollmentAcceptOut)
 async def post_enrollment_accept(
     request: Request,
@@ -317,7 +277,6 @@ async def post_enrollment_accept(
 
     _admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
     _pending_enrollment = await Enrollment.by_callsign(callsign=request_in.work_id)
-    print("#####")
     _new_approved_user = await _pending_enrollment.approve(approver=_admin_user)
 
     return EnrollmentAcceptOut(work_id=_new_approved_user.callsign)

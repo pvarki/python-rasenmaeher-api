@@ -15,7 +15,7 @@ from rasenmaeher_api.web.api.firstuser.schema import (
 from ....db import Person
 from ....db import LoginCode
 from ....db import Enrollment
-
+from ....db.errors import NotFound
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -33,7 +33,10 @@ async def get_check_code(
     /check-code?temp_admin_code=xxxx,
     Checks if the given code can be used or not in this /firstuser api route...
     """
-    _res = await LoginCode.by_code(code=params.temp_admin_code)
+    try:
+        _res = await LoginCode.by_code(code=params.temp_admin_code)
+    except NotFound:
+        return FirstuserCheckCodeOut(code_ok=False)
 
     # This error should already be raised in LoginCode
     if not _res:
