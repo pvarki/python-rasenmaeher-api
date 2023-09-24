@@ -2,14 +2,19 @@
 from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
 import uuid
 import logging
+from pathlib import Path
+import shutil
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
+from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
 
 from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware import MTLSorJWTPayload
-from .errors import NotFound, Deleted
+from .errors import NotFound, Deleted, BackendError, CallsignReserved
+from ..settings import settings
+from ..cfssl.private import sign_csr
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,8 +37,57 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
         """Create the cert etc and save the person"""
-        # TODO: Have some sort of transaction management so if things go wrong we can clean up
-        raise NotImplementedError()
+        try:
+            await Person.by_callsign(callsign)
+            raise CallsignReserved()
+        except NotFound:
+            pass
+        async with db.acquire() as conn:  # Cursors need transaction
+            async with conn.transaction():
+                puuid = uuid.uuid4()
+                certspath = Path(settings.persistent_data_dir) / "private" / "people" / str(puuid)
+                certspath.mkdir(parents=True)
+                certspath.chmod(PRIVDIR_MODE)
+                try:
+                    newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
+                    await newperson.create()
+                    ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
+                    csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
+                    certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
+                    newperson.certfile.write_text(certpem)
+                except Exception as exc:
+                    LOGGER.exception("Something went wrong, doing cleanup")
+                    shutil.rmtree(certspath)
+                    remaining = list(certspath.rglob("*"))
+                    LOGGER.debug("Remaining files: {}".format(remaining))
+                    raise BackendError(str(exc)) from exc
+                # Return refreshed object if everything went ok
+                return await cls.by_pk(newperson.pk)
+
+    @property
+    def certsubject(self) -> Dict[str, str]:
+        """Return the dict that gets set to cert DN"""
+        return {"CN": self.callsign}
+
+    @property
+    def privkeyfile(self) -> Path:
+        """Path to the private key"""
+        return Path(self.certspath) / "mtls.key"
+
+    @property
+    def certfile(self) -> Path:
+        """Path to the public cert"""
+        return Path(self.certspath) / "mtls.pem"
+
+    @property
+    def csrfile(self) -> Path:
+        """Path to the CSR file"""
+        return Path(self.certspath) / "mtls.csr"
+
+    @property
+    def pubkeyfile(self) -> Path:
+        """Path to the public key"""
+        return Path(self.certspath) / "mtls.pub"
 
     @classmethod
     async def list(cls, include_deleted: bool = False) -> AsyncGenerator["Person", None]:

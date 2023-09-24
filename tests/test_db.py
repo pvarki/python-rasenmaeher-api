@@ -1,6 +1,7 @@
 """DB specific tests"""
 import logging
 import uuid
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -9,8 +10,18 @@ from multikeyjwt import Verifier
 
 from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
 from rasenmaeher_api.db.base import init_db, bind_config
-from rasenmaeher_api.db.errors import NotFound, Deleted, CallsignReserved, ForbiddenOperation, PoolInactive, TokenReuse
+from rasenmaeher_api.db.errors import (
+    NotFound,
+    Deleted,
+    CallsignReserved,
+    ForbiddenOperation,
+    PoolInactive,
+    TokenReuse,
+    BackendError,
+)
 from rasenmaeher_api.jwtinit import jwt_init
+from rasenmaeher_api.mtlsinit import mtls_init
+from rasenmaeher_api.settings import settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -210,3 +221,51 @@ async def test_logincodes_crud(ginosession: None) -> None:
 
     with pytest.raises(TokenReuse):
         await LoginCode.use_code(code)
+
+
+@pytest.mark.asyncio
+async def test_person_with_cert(ginosession: None) -> None:
+    """Test the cert creation with the classmethod"""
+    _ = ginosession
+    await mtls_init()
+    person = await Person.create_with_cert("BINGO01a", {"kissa": "puuma"})
+    assert person.privkeyfile.exists()
+    assert person.pubkeyfile.exists()
+    assert person.certfile.exists()
+
+
+@pytest.mark.asyncio
+async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test the cert creation with the classmethod with CFSSL failure"""
+    _ = ginosession
+    await mtls_init()
+    peoplepath = Path(settings.persistent_data_dir) / "private" / "people"
+    old_files = set(peoplepath.rglob("*"))
+    with monkeypatch.context() as mpatch:
+        mpatch.setattr(settings, "cfssl_host", "http://nosuchost")
+        mpatch.setenv("RM_CFSSL_HOST", settings.cfssl_host)
+        with pytest.raises(BackendError):
+            await Person.create_with_cert("BONGO01a", {"kissa": "puuma"})
+        new_files = set(peoplepath.rglob("*"))
+        assert new_files == old_files
+        with pytest.raises(NotFound):
+            await Person.by_callsign("BONGO01a")
+
+
+@pytest.mark.asyncio
+async def test_person_with_cert_duplicatename(ginosession: None) -> None:
+    """Test the cert creation with the classmethod but reserved callsign"""
+    _ = ginosession
+    await mtls_init()
+    callsign = "RUOSKA23a"
+    peoplepath = Path(settings.persistent_data_dir) / "private" / "people"
+    person = await Person.create_with_cert(callsign)
+    assert person.privkeyfile.exists()
+    assert person.pubkeyfile.exists()
+    assert person.certfile.exists()
+    old_files = set(peoplepath.rglob("*"))
+    assert old_files
+    with pytest.raises(CallsignReserved):
+        await Person.create_with_cert(callsign)
+    new_files = set(peoplepath.rglob("*"))
+    assert new_files == old_files

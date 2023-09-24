@@ -5,7 +5,15 @@ from starlette import status
 from starlette.exceptions import HTTPException
 
 
-class DBFetchError(ValueError):
+class BackendError(RuntimeError):
+    """Failure from a dependent backend"""
+
+
+class DBError(RuntimeError):
+    """Undefined DB error"""
+
+
+class DBFetchError(ValueError, DBError):
     """Various issues when fetching an object that are input dependent"""
 
 
