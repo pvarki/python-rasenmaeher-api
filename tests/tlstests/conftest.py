@@ -12,6 +12,7 @@ from libpvarki.mtlshelp import get_session
 
 from rasenmaeher_api.cfssl.private import sign_csr
 
+
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621,R0801
