@@ -158,13 +158,13 @@ trio = ["trio (<0.22)"]
 
 [[package]]
 name = "astroid"
-version = "2.15.6"
+version = "2.15.7"
 description = "An abstract syntax tree for Python with inference support."
 optional = false
 python-versions = ">=3.7.2"
 files = [
-    {file = "astroid-2.15.6-py3-none-any.whl", hash = "sha256:389656ca57b6108f939cf5d2f9a2a825a3be50ba9d589670f393236e0a03b91c"},
-    {file = "astroid-2.15.6.tar.gz", hash = "sha256:903f024859b7c7687d7a7f3a3f73b17301f8e42dfd9cc9df9d4418172d3e2dbd"},
+    {file = "astroid-2.15.7-py3-none-any.whl", hash = "sha256:958f280532e36ca84a13023f15cb1556fb6792d193acb87e1f3ca536b6fa6bd2"},
+    {file = "astroid-2.15.7.tar.gz", hash = "sha256:c522f2832a900e27a7d284b9b6ef670d2495f760ede3c8c0b004a5641d3c5987"},
 ]
 
 [package.dependencies]
@@ -1206,7 +1206,7 @@ http = ["frozendict (>=2.3,<3.0)", "requests (>=2.28,<3.0)"]
 
 [[package]]
 name = "libpvarki"
-version = "1.5.0"
+version = "1.6.0"
 description = "Common helpers like standard logging init"
 optional = false
 python-versions = "^3.8"
@@ -1222,12 +1222,13 @@ ecs-logging = "^2.0"
 fastapi = ">0.89,<1.0"
 libadvian = "^1.4"
 pydantic = ">=1.10,<2.0"
+pyopenssl = "^23.2"
 
 [package.source]
 type = "git"
 url = "https://github.com/pvarki/python-libpvarki.git"
-reference = "1.5.0"
-resolved_reference = "024e47a880a8adc8a891228198135935f7140698"
+reference = "1.6.0"
+resolved_reference = "9432d1103880bccc4194e3ad513b95d2dcda5d51"
 
 [[package]]
 name = "markdown-it-py"
@@ -2209,13 +2210,13 @@ cryptography = ">=35.0.0"
 
 [[package]]
 name = "types-requests"
-version = "2.31.0.3"
+version = "2.31.0.4"
 description = "Typing stubs for requests"
 optional = false
 python-versions = "*"
 files = [
-    {file = "types-requests-2.31.0.3.tar.gz", hash = "sha256:d5d7a08965fca12bedf716eaf5430c6e3d0da9f3164a1dba2a7f3885f9ebe3c0"},
-    {file = "types_requests-2.31.0.3-py3-none-any.whl", hash = "sha256:938f51653c757716aeca5d72c405c5e2befad8b0d330e3b385ce7f148e1b10dc"},
+    {file = "types-requests-2.31.0.4.tar.gz", hash = "sha256:a111041148d7e04bf100c476bc4db3ee6b0a1cd0b4018777f6a660b1c4f1318d"},
+    {file = "types_requests-2.31.0.4-py3-none-any.whl", hash = "sha256:c7a9d6b62776f21b169a94a0e9d2dfcae62fa9149f53594ff791c3ae67325490"},
 ]
 
 [package.dependencies]
@@ -2636,4 +2637,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "b55f3a86d2b528b2d37756f05fc91d0fd038ebc6a778f89dd5cc14027bdc5f8c"
+content-hash = "5da1204f05196bb86dfb427541f0b5b253abdfa33e5874a9bc2059454cb13c72"
