@@ -44,7 +44,7 @@ class ValidUser(MTLSorJWT):  # pylint: disable=too-few-public-methods
         if not request.state.person:
             return request.state.person
 
-        roles = {role async for role in request.state.person.roles()}
+        roles = await request.state.person.roles_set()
         required = set(self.require_roles)
         LOGGER.debug("required={} roles={}".format(required, roles))
         if not required.issubset(roles):

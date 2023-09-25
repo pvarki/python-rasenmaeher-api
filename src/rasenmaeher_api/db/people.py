@@ -1,6 +1,5 @@
 """Abstractions for people"""
-import string
-from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
+from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set
 import uuid
 import logging
 from pathlib import Path
@@ -23,8 +22,6 @@ from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
 from ..prodcutapihelpers import post_to_all_products
 
 LOGGER = logging.getLogger(__name__)
-CODE_CHAR_COUNT = 12
-CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
@@ -193,17 +190,13 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
             raise NotFound("No userid defined")
         return await cls.by_callsign(payload.userid, allow_deleted)
 
-    async def get_key_pem(self) -> bytes:
-        """Read the private key from under certspath and return the PEM"""
-        raise NotImplementedError()
-
-    async def get_cert_pem(self) -> bytes:
+    def get_cert_pem(self) -> bytes:
         """Read the cert from under certspath and return the PEM"""
-        raise NotImplementedError()
+        return self.certfile.read_bytes()
 
-    async def get_cert_pfx(self) -> bytes:
+    def get_cert_pfx(self) -> bytes:
         """Read the cert and private key from under certspath and return the PFX container"""
-        raise NotImplementedError()
+        return self.pfxfile.read_bytes()
 
     async def _get_role(self, role: str) -> Optional["Role"]:
         """Internal helper for DRY"""
@@ -240,6 +233,10 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         if role == "admin":
             await user_demoted(self)
         return True
+
+    async def roles_set(self) -> Set[str]:
+        """Shorthand"""
+        return {role async for role in self.roles()}
 
     async def roles(self) -> AsyncGenerator[str, None]:
         """Roles of this person"""
