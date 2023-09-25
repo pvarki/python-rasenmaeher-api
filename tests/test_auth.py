@@ -1,4 +1,5 @@
 """Test the supported authentication methods"""
+import uuid
 from typing import Tuple, Dict, Any, cast
 import logging
 
@@ -125,27 +126,32 @@ async def test_valid_user_mtls(unauth_client: TestClient, two_users: Tuple[Perso
         resp = await client.get("/api/v1/check-auth/validuser")
         payload = check_response(resp, "mtls")
         assert payload["userid"] == user.callsign
+    # Invalid user should fail
+    client.headers.update({"X-ClientCert-DN": f"CN={uuid.uuid4()},O=N/A"})
+    resp = await client.get("/api/v1/check-auth/validuser")
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_valid_user_jwt(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
-    """Test the valid user endpoint with valid and invalid CNs"""
+    """Test the valid user endpoint with valid and invalid subs"""
     client = unauth_client
     for user in two_users:
-        token = Issuer.singleton().issue(
-            {
-                "sub": user.callsign,
-            }
-        )
+        token = Issuer.singleton().issue({"sub": user.callsign})
         client.headers.update({"Authorization": f"Bearer {token}"})
         resp = await client.get("/api/v1/check-auth/validuser")
         payload = check_response(resp, "jwt")
         assert payload["userid"] == user.callsign
+    # Invalid user should fail
+    token = Issuer.singleton().issue({"sub": str(uuid.uuid4())})
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    resp = await client.get("/api/v1/check-auth/validuser")
+    assert resp.status_code == 403
 
 
 @pytest.mark.asyncio
 async def test_valid_admin_mtls(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
-    """Test the valid user endpoint with valid and invalid CNs"""
+    """Test the valid user endpoint with admin and non-admin CNs"""
     client = unauth_client
     for user in two_users:
         client.headers.update({"X-ClientCert-DN": f"CN={user.callsign},O=N/A"})
@@ -155,4 +161,20 @@ async def test_valid_admin_mtls(unauth_client: TestClient, two_users: Tuple[Pers
             assert resp.status_code == 403
             continue
         payload = check_response(resp, "mtls")
+        assert payload["userid"] == user.callsign
+
+
+@pytest.mark.asyncio
+async def test_valid_admin_jwt(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
+    """Test the valid user endpoint with admin and non-admin subs"""
+    client = unauth_client
+    for user in two_users:
+        token = Issuer.singleton().issue({"sub": user.callsign})
+        client.headers.update({"Authorization": f"Bearer {token}"})
+        resp = await client.get("/api/v1/check-auth/validuser/admin")
+        LOGGER.debug("resp={}".format(resp))
+        if user.callsign == "TestNormalUser":
+            assert resp.status_code == 403
+            continue
+        payload = check_response(resp, "jwt")
         assert payload["userid"] == user.callsign
