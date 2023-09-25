@@ -4,7 +4,6 @@ import string
 import secrets
 import logging
 import enum
-import uuid
 import warnings
 
 from sqlalchemy.dialects.postgresql import JSONB
@@ -39,7 +38,7 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
             raise PoolInactive()
         if self.deleted:
             raise Deleted("Can't create enrollments on deleted pools")
-        return await Enrollment.create_for_callsign(callsign, self.pk, self.extra)
+        return await Enrollment.create_for_callsign(callsign, self, self.extra)
 
     async def set_active(self, state: bool) -> Self:
         """Set active and return refreshed object"""
@@ -252,7 +251,7 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
 
     @classmethod
     async def create_for_callsign(
-        cls, callsign: str, pool: Optional[uuid.UUID] = None, extra: Optional[Dict[str, Any]] = None
+        cls, callsign: str, pool: Optional[EnrollmentPool] = None, extra: Optional[Dict[str, Any]] = None
     ) -> Self:
         """Create a new one with random code for the callsign"""
         async with db.acquire() as conn:
@@ -263,12 +262,15 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
                 except NotFound:
                     pass
                 code = await cls._generate_unused_code()
+                poolpk = None
+                if pool:
+                    poolpk = pool.pk
                 obj = Enrollment(
                     approvecode=code,
                     callsign=callsign,
                     state=EnrollmentState.PENDING,
                     extra=extra,
-                    pool=pool,
+                    pool=poolpk,
                 )
                 await obj.create()
                 # refresh
