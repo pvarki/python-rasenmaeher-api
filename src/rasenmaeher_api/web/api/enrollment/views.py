@@ -70,7 +70,7 @@ async def post_generate_verification_code(
     """
     Update/Generate verification_code to database for given jwt/mtls
     """
-    _verification_code = await Enrollment.set_approvecode(callsign=request.state.mtls_or_jwt.userid)
+    _verification_code = await Enrollment.reset_approvecode4callsign(callsign=request.state.mtls_or_jwt.userid)
     return EnrollmentGenVerifiOut(verification_code=f"{_verification_code}")
 
 
@@ -295,7 +295,7 @@ async def post_invite_code(
         raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
-    _pool = await EnrollmentPool.create_or_update_invitecode_for_callsign(callsign=request.state.mtls_or_jwt.userid)
+    _pool = await EnrollmentPool.old_invitecode_for_callsign_tobedeleted(callsign=request.state.mtls_or_jwt.userid)
 
     return EnrollmentInviteCodeCreateOut(invite_code=_pool.invitecode)
 

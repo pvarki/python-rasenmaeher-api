@@ -121,6 +121,7 @@ async def test_person_crud(ginosession: None) -> None:
 async def test_enrollments_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments"""
     _ = ginosession
+    # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
     person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
     await person.create()
     # refresh
@@ -135,6 +136,12 @@ async def test_enrollments_crud(ginosession: None) -> None:
     obj3 = await Enrollment.by_callsign(obj.callsign)
     assert obj3.callsign == obj.callsign
 
+    old_code = str(obj.approvecode)
+    new_code = await obj.reset_approvecode()
+    assert old_code != new_code
+    new_new_code = await Enrollment.reset_approvecode4callsign("PORA22b")
+    assert new_new_code != new_code
+
     with pytest.raises(CallsignReserved):
         await Enrollment.create_for_callsign("PORA22b")
     with pytest.raises(ForbiddenOperation):
@@ -145,15 +152,20 @@ async def test_enrollments_crud(ginosession: None) -> None:
     assert obj4.decided_on
     assert obj4.decided_by == person.pk
     assert obj4.state == EnrollmentState.REJECTED
-    # Approval is missing functionality in person class
+
+    obj5 = await Enrollment.create_for_callsign("ERAPPROVTEST01a")
+    person2 = await obj5.approve(person)
+    assert person2.callsign == "ERAPPROVTEST01a"
 
 
 @pytest.mark.asyncio
 async def test_enrollmentpools_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments and enrollmentpools"""
     _ = ginosession
+    # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
     person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
     await person.create()
+    # Done this way to test low level things, you should always use EnrollmentPool.create_for_owner
     pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
     await pool.create()
     # refresh
@@ -176,6 +188,45 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     pool = await EnrollmentPool.by_pk(pool.pk, allow_deleted=True)
     with pytest.raises(Deleted):
         await pool.create_enrollment(str(uuid.uuid4()))
+
+    pool2 = await EnrollmentPool.create_for_owner(person)
+    assert pool2.invitecode
+    old_code = str(pool2.invitecode)
+    new_code = await pool2.reset_invitecode()
+    assert old_code != new_code
+
+
+@pytest.mark.asyncio
+async def test_enrollmentpools_list(ginosession: None) -> None:
+    """Test list methods"""
+    _ = ginosession
+    # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
+    owner1 = Person(callsign="MASTER666a", certspath=str(uuid.uuid4()))
+    await owner1.create()
+    owner2 = Person(callsign="BLASTER999a", certspath=str(uuid.uuid4()))
+    await owner2.create()
+
+    for _ in range(5):
+        await EnrollmentPool.create_for_owner(owner2)
+        await EnrollmentPool.create_for_owner(owner1)
+
+    all_codes = {pool.invitecode async for pool in EnrollmentPool.list()}
+    owner1_codes = {pool.invitecode async for pool in EnrollmentPool.list(by_owner=owner1)}
+    owner2_codes = {pool.invitecode async for pool in EnrollmentPool.list(by_owner=owner2)}
+    assert len(all_codes) >= 10
+    assert len(owner1_codes) == 5
+    assert len(owner2_codes) == 5
+    assert owner1_codes.issubset(all_codes)
+    assert owner2_codes.issubset(all_codes)
+    assert not owner1_codes.intersection(owner2_codes)
+
+    for code in owner1_codes:
+        pool = await EnrollmentPool.by_invitecode(code)
+        assert pool.owner == owner1.pk
+
+    for code in owner2_codes:
+        pool = await EnrollmentPool.by_invitecode(code)
+        assert pool.owner == owner2.pk
 
 
 @pytest.mark.asyncio
