@@ -230,6 +230,33 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
 
 
 @pytest.mark.asyncio
+async def test_enrollments_list(ginosession: None) -> None:
+    """Test list methods"""
+    _ = ginosession
+    # FIXME: should use fixtures instead of trusting on side effects from previous tests
+    # Created in test_enrollmentpools_list
+    owner = await Person.by_callsign("MASTER666a")
+    active_codes = [pool.invitecode async for pool in EnrollmentPool.list(by_owner=owner) if pool.active]
+    pool1 = await EnrollmentPool.by_invitecode(active_codes[0])
+    pool2 = await EnrollmentPool.by_invitecode(active_codes[1])
+
+    for _ in range(5):
+        await Enrollment.create_for_callsign(str(uuid.uuid4()))
+        await Enrollment.create_for_callsign(str(uuid.uuid4()), pool=pool1)
+        await Enrollment.create_for_callsign(str(uuid.uuid4()), pool=pool2)
+
+    all_codes = {enr.approvecode async for enr in Enrollment.list()}
+    pool1_codes = {enr.approvecode async for enr in Enrollment.list(by_pool=pool1)}
+    pool2_codes = {enr.approvecode async for enr in Enrollment.list(by_pool=pool2)}
+    assert len(all_codes) >= 15
+    assert len(pool1_codes) == 5
+    assert len(pool2_codes) == 5
+    assert pool1_codes.issubset(all_codes)
+    assert pool2_codes.issubset(all_codes)
+    assert not pool1_codes.intersection(pool2_codes)
+
+
+@pytest.mark.asyncio
 async def test_seentokens_crud(ginosession: None) -> None:
     """Test the db abstraction for seen tokens"""
     _ = ginosession
