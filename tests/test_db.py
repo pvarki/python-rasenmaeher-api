@@ -10,7 +10,6 @@ from multikeyjwt import Verifier
 import cryptography.x509
 
 from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
-from rasenmaeher_api.db.base import init_db, bind_config
 from rasenmaeher_api.db.errors import (
     NotFound,
     Deleted,
@@ -24,10 +23,18 @@ from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
 from rasenmaeher_api.settings import settings
 from rasenmaeher_api.cfssl.public import get_crl
+from rasenmaeher_api.db.base import init_db, bind_config
 
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621
+
+
+@pytest_asyncio.fixture(scope="session")
+async def ginosession() -> None:
+    """make sure db is bound etc"""
+    await bind_config()
+    await init_db()
 
 
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -52,13 +59,6 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
     config = DBConfig()
     assert config.port == 5542
     assert config.host == docker_ip
-
-
-@pytest_asyncio.fixture(scope="session")
-async def ginosession() -> None:
-    """make sure db is bound etc"""
-    await bind_config()
-    await init_db()
 
 
 @pytest.mark.asyncio

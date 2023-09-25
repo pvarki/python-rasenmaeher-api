@@ -42,7 +42,6 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop.close()
 
 
-# @pytest.fixture(scope="session")
 @pytest_asyncio.fixture(scope="session")
 async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
     """Create a few test users and work ids returns

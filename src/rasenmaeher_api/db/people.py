@@ -16,7 +16,7 @@ from libpvarki.schemas.product import UserCRUDRequest
 from libpvarki.schemas.generic import OperationResultResponse
 
 from .base import ORMBaseModel, DBModel, utcnow, db
-from ..web.api.middleware import MTLSorJWTPayload
+from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..settings import settings
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
@@ -240,6 +240,13 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         if role == "admin":
             await user_demoted(self)
         return True
+
+    async def roles(self) -> AsyncGenerator[str, None]:
+        """Roles of this person"""
+        async with db.acquire() as conn:  # Cursors need transaction
+            async with conn.transaction():
+                async for role in Role.query.where(Role.user == self.pk).gino.iterate():
+                    yield role.role
 
 
 class Role(DBModel):  # type: ignore[misc] # pylint: disable=R0903

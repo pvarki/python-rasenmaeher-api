@@ -1,9 +1,13 @@
 """Enrollment API views."""  # pylint: disable=too-many-lines
-import logging
 from typing import Dict, List, Any, Union
+import logging
+
+
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from multikeyjwt import Issuer
-from rasenmaeher_api.web.api.enrollment.schema import (
+
+
+from .schema import (
     EnrollmentConfigTaskDone,
     EnrollmentStatusIn,
     EnrollmentStatusOut,
@@ -29,8 +33,7 @@ from rasenmaeher_api.web.api.enrollment.schema import (
     EnrollmentInviteCodeDeactivateIn,
     EnrollmentInviteCodeDeleteOut,
 )
-from ..middleware import MTLSorJWT
-
+from ..middleware.mtls import MTLSorJWT
 from ....db import Person
 from ....db import Enrollment, EnrollmentPool
 from ....db.errors import NotFound
