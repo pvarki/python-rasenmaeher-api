@@ -49,7 +49,7 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
     # temp_admin_code: str
-    work_id: str
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -62,14 +62,14 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
-                        "work_id": "[str] - id/name for new user that is elevated to admin",
+                        "callsign": "[str] - id/name for new user that is elevated to admin",
                     },
                 },
                 {
                     "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** of values.",
-                    "value": {"work_id": "porakoira666"},
+                    "value": {"callsign": "porakoira666"},
                 },
             ]
         }

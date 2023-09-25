@@ -1,6 +1,5 @@
 """Firstuser API views."""
 import logging
-import string
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
 from multikeyjwt.middleware import JWTBearer, JWTPayload
@@ -19,8 +18,6 @@ from ....db.errors import NotFound
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
-CODE_CHAR_COUNT = 12  # TODO: Make configurable ??
-CODE_ALPHABET = string.ascii_uppercase + string.digits
 
 
 # /check-code
@@ -34,18 +31,18 @@ async def get_check_code(
     Checks if the given code can be used or not in this /firstuser api route...
     """
     try:
-        _res = await LoginCode.by_code(code=params.temp_admin_code)
+        res = await LoginCode.by_code(code=params.temp_admin_code)
     except NotFound:
         return FirstuserCheckCodeOut(code_ok=False)
 
     # This error should already be raised in LoginCode
-    if not _res:
+    if not res:
         _reason = "Error. Undefined backend error q_ssjsfjwe1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
     # Code alreay used err.
-    if _res.used_on is not None:
+    if res.used_on is not None:
         _reason = "Code already used"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=403, detail=_reason)
@@ -64,7 +61,7 @@ async def post_admin_add(
     jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserAddAdminOut:
     """
-    Add work_id aka username/identity. This work_id is also elevated to have managing permissions.
+    Add callsign aka username/identity. This callsign is also elevated to have managing permissions.
     """
     if not jwt.get("anon_admin_session", False):
         LOGGER.error("Requesting JWT must have admin session claim")
@@ -78,20 +75,20 @@ async def post_admin_add(
         _ = await _anon_user.assign_role(role="anon_admin")
 
     # Create new admin user enrollment
-    _enrollment = await Enrollment.create_for_callsign(callsign=request_in.work_id, pool=None, extra={})
+    enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
 
     # Get the anon_admin 'user' that will be used to approve the new admin user
     # and approve the user
     _anon_admin_user = await Person.by_callsign(callsign="anon_admin")
-    _new_admin = await _enrollment.approve(approver=_anon_admin_user)
-    _role_add_success = await _new_admin.assign_role(role="admin")
+    _new_admin = await enrollment.approve(approver=_anon_admin_user)
+    role_add_success = await _new_admin.assign_role(role="admin")
 
-    if _role_add_success is False:
+    if role_add_success is False:
         _reason = "Error. User already admin. This shouldn't happen..."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
     # Create JWT token for new admin user
-    _code = await LoginCode.create_for_claims(claims={"sub": request_in.work_id})
+    _code = await LoginCode.create_for_claims(claims={"sub": request_in.callsign})
 
     return FirstuserAddAdminOut(admin_added=True, jwt_exchange_code=_code)

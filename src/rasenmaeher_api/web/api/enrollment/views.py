@@ -45,25 +45,27 @@ NO_JWT_ENROLLMENT_ROUTER = APIRouter()
 
 
 async def check_management_permissions(
-    raise_exeption: bool = True, work_id: str = "", required_role: str = "admin"
+    raise_exeption: bool = True, callsign: str = "", required_role: str = "admin"
 ) -> Union[bool, None]:
     """
     Simple function to check if requester has requested role.
     """
 
-    _user = await Person.by_callsign(callsign=work_id)
-    _is_admin = await _user.has_role(role=required_role)
+    user = await Person.by_callsign(callsign=callsign)
+    is_admin = await user.has_role(role=required_role)
 
     # Raise exeption if
-    if raise_exeption and _is_admin is False:
+    if raise_exeption and is_admin is False:
         _reason = "Error. User doesn't have required permissions. See system logs."
         LOGGER.error(
-            "Missing role from user : '{}'. Required permissions that are missing : '{}'".format(work_id, required_role)
+            "Missing role from user : '{}'. Required permissions that are missing : '{}'".format(
+                callsign, required_role
+            )
         )
         LOGGER.error("{}".format(_reason))
         raise HTTPException(status_code=403, detail=_reason)
 
-    return _is_admin
+    return is_admin
 
 
 @ENROLLMENT_ROUTER.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)
@@ -93,14 +95,14 @@ async def request_show_verification_code(
         raise HTTPException(status_code=400, detail=_reason)
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
-    _obj = await Enrollment.by_approvecode(code=params.verification_code)
+    obj = await Enrollment.by_approvecode(code=params.verification_code)
 
     return EnrollmentShowVerificationCodeOut(
-        work_id=_obj.callsign,
-        state=_obj.state,
+        callsign=obj.callsign,
+        state=obj.state,
         accepted="????",
         locked="????",
     )
@@ -115,10 +117,10 @@ async def request_have_i_been_accepted(
     Return's True/False in 'have_i_been_accepted'
     """
 
-    _enrollment = await Enrollment.by_callsign(callsign=request.state.mtls_or_jwt.userid)
+    enrollment = await Enrollment.by_callsign(callsign=request.state.mtls_or_jwt.userid)
 
     # See state values in db/enrollment.py:EnrollmentState
-    if _enrollment.decided_by:
+    if enrollment.decided_by:
         return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=True)
 
     return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=False)
@@ -129,15 +131,15 @@ async def request_enrolment_status(
     params: EnrollmentStatusIn = Depends(),
 ) -> EnrollmentStatusOut:
     """
-    /status?work_id=xxxx
-    Check the status for given work_id (enrollment). status=-1 means that there is no enrollment with given work_id
+    /status?callsign=xxxx
+    Check the status for given callsign (enrollment). status=-1 means that there is no enrollment with given callsign
     """
     try:
-        _obj = await Enrollment.by_callsign(params.work_id)
+        obj = await Enrollment.by_callsign(params.callsign)
 
-        return EnrollmentStatusOut(work_id=_obj.callsign, status=_obj.state)
+        return EnrollmentStatusOut(callsign=obj.callsign, status=obj.state)
     except NotFound:
-        return EnrollmentStatusOut(work_id="", status=-1)
+        return EnrollmentStatusOut(callsign="", status=-1)
 
 
 @ENROLLMENT_ROUTER.get("/list", response_model=EnrollmentListOut)
@@ -146,21 +148,21 @@ async def request_enrollment_list(
 ) -> EnrollmentListOut:
     """
     /list
-    Return users/work-id's/enrollments. If 'accepted' has something else than '', it has been accepted.
-    Returns a list of dicts, work_id_list = [ {  "work_id":'x', 'work_id_hash':'yy', 'state':'init', 'accepted':'' } ]
+    Return users/callsign/enrollments. If 'accepted' has something else than '', it has been accepted.
+    Returns a list of dicts, callsign_list = [ {  "callsign":'x', 'state':'init', 'approvecode':'' } ]
     """
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
     _enroll_list = Enrollment.list()
 
     _result_list: List[Dict[Any, Any]] = []
     async for _x in _enroll_list:
-        _result_list.append({"work_id": _x.callsign, "approvecode": _x.approvecode, "state": _x.state})
+        _result_list.append({"callsign": _x.callsign, "approvecode": _x.approvecode, "state": _x.state})
 
-    return EnrollmentListOut(work_id_list=_result_list)
+    return EnrollmentListOut(callsign_list=_result_list)
 
 
 @ENROLLMENT_ROUTER.post("/init", response_model=EnrollmentInitOut)
@@ -172,18 +174,18 @@ async def request_enrollment_init(
     ),
 ) -> EnrollmentInitOut:
     """
-    Add new work_id (enrollment) to environment.
+    Add new callsign (enrollment) to environment.
     """
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
     # TODO ADD POOL NAME CHECK
 
-    _new_enrollment = await Enrollment.create_for_callsign(callsign=request_in.work_id, pool=None, extra={})
+    _new_enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
 
-    return EnrollmentInitOut(work_id=_new_enrollment.callsign, jwt="")
+    return EnrollmentInitOut(callsign=_new_enrollment.callsign, jwt="")
 
 
 @ENROLLMENT_ROUTER.post("/promote", response_model=EnrollmentConfigTaskDone)
@@ -195,20 +197,20 @@ async def request_enrollment_promote(
     ),
 ) -> EnrollmentConfigTaskDone:
     """
-    "Promote" work_id/user/enrollment to have 'admin' rights
+    "Promote" callsign/user/enrollment to have 'admin' rights
     """
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
-    _obj = await Person.by_callsign(callsign=request_in.work_id)
+    obj = await Person.by_callsign(callsign=request_in.callsign)
 
-    _role_added = await _obj.assign_role(role="admin")
+    _role_added = await obj.assign_role(role="admin")
     if _role_added:
         return EnrollmentConfigTaskDone(success_message="Promote done")
 
-    _reason = "Given work_id/callsign already has elevated permissions."
+    _reason = "Given callsign/callsign already has elevated permissions."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=400, detail=_reason)
 
@@ -222,19 +224,19 @@ async def request_enrollment_demote(
     ),
 ) -> EnrollmentConfigTaskDone:
     """
-    "Demote" work_id/user/enrollment from having 'admin' rights. work_id_hash can be used too.
+    "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
     """
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
-    _obj = await Person.by_callsign(callsign=request_in.work_id)
-    _role_removed = await _obj.remove_role(role="admin")
+    obj = await Person.by_callsign(callsign=request_in.callsign)
+    _role_removed = await obj.remove_role(role="admin")
     if _role_removed:
         return EnrollmentConfigTaskDone(success_message="Demote done")
 
-    _reason = "Given work_id/work_id_hash doesn't have 'admin' privileges to take away."
+    _reason = "Given callsign/callsign_hash doesn't have 'admin' privileges to take away."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=400, detail=_reason)
 
@@ -248,15 +250,15 @@ async def request_enrollment_lock(
     ),
 ) -> EnrollmentConfigTaskDone:
     """
-    Lock work_id/user/enrollment so it cannot be used anymore.
+    Lock callsign/user/enrollment so it cannot be used anymore.
     """
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
     _admin_person = await Person.by_callsign(request.state.mtls_or_jwt.userid)
-    _usr_enrollment = await Enrollment.by_callsign(callsign=request_in.work_id)
+    _usr_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
     await _usr_enrollment.reject(decider=_admin_person)
 
     return EnrollmentConfigTaskDone(success_message="Lock task done")
@@ -271,18 +273,18 @@ async def post_enrollment_accept(
     ),
 ) -> EnrollmentAcceptOut:
     """
-    Accept work_id_hash (work_id/enrollment)
+    Accept callsign_hash (callsign/enrollment)
     """
 
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
     _admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
-    _pending_enrollment = await Enrollment.by_callsign(callsign=request_in.work_id)
+    _pending_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
     _new_approved_user = await _pending_enrollment.approve(approver=_admin_user)
 
-    return EnrollmentAcceptOut(work_id=_new_approved_user.callsign)
+    return EnrollmentAcceptOut(callsign=_new_approved_user.callsign)
 
 
 @ENROLLMENT_ROUTER.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
@@ -295,7 +297,7 @@ async def post_invite_code(
 
     # Veriy that the user has permissions to create invite codes
     await check_management_permissions(
-        raise_exeption=True, work_id=request.state.mtls_or_jwt.userid, required_role="admin"
+        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
     _pool = await EnrollmentPool.old_invitecode_for_callsign_tobedeleted(callsign=request.state.mtls_or_jwt.userid)
@@ -314,8 +316,8 @@ async def put_activate_invite_code(
     """
     Activate an invite code
     """
-    _obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
-    _activated_obj = await _obj.set_active(state=True)
+    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    _activated_obj = await obj.set_active(state=True)
 
     if _activated_obj.active:
         return EnrollmentInviteCodeActivateOut(invite_code=request_in.invite_code)
@@ -336,8 +338,8 @@ async def put_deactivate_invite_code(
     """
     Deactivate an invite code
     """
-    _obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
-    _deactivated_obj = await _obj.set_active(state=False)
+    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    _deactivated_obj = await obj.set_active(state=False)
 
     if _deactivated_obj.active is False:
         return EnrollmentInviteCodeDeactivateOut(invite_code="DISABLED")
@@ -368,8 +370,8 @@ async def get_invite_codes(
     Returns true/false if the code is usable or not
     """
     try:
-        _obj = await EnrollmentPool.by_invitecode(invitecode=params.invitecode)
-        if _obj.active:
+        obj = await EnrollmentPool.by_invitecode(invitecode=params.invitecode)
+        if obj.active:
             return EnrollmentIsInvitecodeActiveOut(invitecode_is_active=True)
     except NotFound:
         pass
@@ -389,25 +391,25 @@ async def post_enroll_invite_code(
     """
 
     # CHECK IF INVITE CODE CAN BE USED
-    _obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
-    if _obj.active is False:
+    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    if obj.active is False:
         _reason = "Error. invitecode disabled."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
-    # CHECK THAT THE WORK ID CAN BE USED
+    # CHECK THAT THE CALLSIGN CAN BE USED
     try:
-        await Enrollment.by_callsign(callsign=request_in.work_id)
-        _reason = "Error. work_id/callsign already taken."
+        await Enrollment.by_callsign(callsign=request_in.callsign)
+        _reason = "Error. callsign/callsign already taken."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
     except NotFound:
         pass
 
-    _enrollment = await _obj.create_enrollment(callsign=request_in.work_id)
+    enrollment = await obj.create_enrollment(callsign=request_in.callsign)
 
     # Create JWT token for user
-    _claims = {"sub": request_in.work_id}
+    _claims = {"sub": request_in.callsign}
     _new_jwt = Issuer.singleton().issue(_claims)
 
-    return EnrollmentInitOut(work_id=_enrollment.callsign, jwt=_new_jwt)
+    return EnrollmentInitOut(callsign=enrollment.callsign, jwt=_new_jwt)
