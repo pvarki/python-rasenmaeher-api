@@ -74,6 +74,7 @@ jobs:
         check_name: 'JUnit report (local)'
     - name: docker compose cleanup
       id: compose_clean_2
+      if: ${{ !cancelled() }}
       run: |
         shopt -s expand_aliases
         alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
@@ -149,6 +150,7 @@ jobs:
         check_name: 'JUnit report (dev)'
     - name: docker compose cleanup
       id: compose_clean_2
+      if: ${{ !cancelled() }}
       run: |
         shopt -s expand_aliases
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
