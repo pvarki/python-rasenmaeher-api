@@ -33,7 +33,7 @@ jobs:
         with:
           report_paths: '**/pytest*.xml'
           detailed_summary: true
-          check_name: 'JUnit report (api units)'
+          check_name: 'api unit tests'
   rmlocal:
     runs-on: ubuntu-latest
     permissions:
@@ -101,7 +101,7 @@ jobs:
         report_paths: '**/pytest*.xml'
         detailed_summary: true
         include_passed: true
-        check_name: 'JUnit report (local)'
+        check_name: 'rmlocal integration tests'
     - name: docker compose cleanup
       id: compose_clean_2
       if: ${{ !cancelled() }}
@@ -177,7 +177,7 @@ jobs:
         report_paths: '**/pytest*.xml'
         detailed_summary: true
         include_passed: true
-        check_name: 'JUnit report (dev)'
+        check_name: 'rmdev integration tests'
     - name: docker compose cleanup
       id: compose_clean_2
       if: ${{ !cancelled() }}
