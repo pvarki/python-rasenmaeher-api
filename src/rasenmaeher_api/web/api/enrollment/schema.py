@@ -1,7 +1,7 @@
 """Schema for enrollment."""
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 
-from pydantic import BaseModel, Field, Extra
+from pydantic import BaseModel, Extra
 
 
 class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
@@ -14,40 +14,6 @@ class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-metho
 
         extra = Extra.forbid
         schema_extra = {"example": {"verification_code": "[str] Generated verification code for enrollment."}}
-
-
-class EnrollmentConfigSetStateIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config add manager schema in"""
-
-    state: str
-    work_id: str
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
-            "examples": [
-                {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This containts **description** of values.",
-                    "value": {
-                        "state": "[str] - Current state of enrollment",
-                        "work_id": "[str] User defined username/id/workname",
-                    },
-                },
-                {
-                    "name": "with_values",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "state": "somestate",
-                        "work_id": "kissa",
-                    },
-                },
-            ]
-        }
 
 
 class EnrollmentConfigTaskDone(BaseModel):  # pylint: disable=too-few-public-methods
@@ -66,149 +32,17 @@ class EnrollmentConfigTaskDone(BaseModel):  # pylint: disable=too-few-public-met
         }
 
 
-class EnrollmentConfigSetMtlsIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config set mtls schema in"""
-
-    mtls_test_link: str
-    set_for_all: bool
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
-            "examples": [
-                {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This containts **description** of values.",
-                    "value": {
-                        "mtls_test_link": "[str] - Link where mtls can be tested",
-                        "set_for_all": "[bool] - Set mtls test link for everyone?",
-                        "work_id": "[str]",
-                        "work_id_hash": "[str]",
-                    },
-                },
-                {
-                    "name": "with_values",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "mtls_test_link": "https://kuvaton.com/kissa123.jpg",
-                        "set_for_all": False,
-                        "work_id": "kissa",
-                    },
-                },
-                {
-                    "name": "with_values2",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "mtls_test_link": "https://kuvaton.com/kissa123.jpg",
-                        "set_for_all": True,
-                    },
-                },
-            ]
-        }
-
-
-class EnrollmentConfigSetDLCertIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config add manager schema in"""
-
-    cert_download_link: Optional[str]
-    howto_download_link: Optional[str]
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
-            "examples": [
-                {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This containts **description** of values.",
-                    "value": {
-                        "cert_download_link": "[str] - Link where certificate package can be downloaded",
-                        "howto_download_link": "[str] - Link where howto info can be downloaded",
-                        "work_id": "[str] User defined username/id/workname",
-                        "work_id_hash": "[str]",
-                    },
-                },
-                {
-                    "name": "with_values",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "cert_download_link": "https://kuvaton.com/kissa123.jpg",
-                        "howto_download_link": "https://kuvaton.com/kissa123.jpg",
-                        "work_id": "kissa",
-                    },
-                },
-                {
-                    "name": "with_values2",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "cert_download_link": "https://kuvaton.com/kissa123.jpg",
-                        "howto_download_link": "https://kuvaton.com/kissa123.jpg",
-                        "work_id_hash": "kissa123",
-                    },
-                },
-            ]
-        }
-
-
-class EnrollmentAddServiceManagementIn(BaseModel):  # pylint: disable=too-few-public-methods
-    """Enrollment config add manager schema in"""
-
-    new_service_management_hash: str
-    permissions_str: str
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
-            "examples": [
-                {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This containts **description** of values.",
-                    "value": {
-                        "new_service_management_hash": "[str] - Hash string for new 'service_management_hash'",
-                        "permissions_str": "[str] - Set permission string for new management_hash.",
-                    },
-                },
-                {
-                    "name": "with_values",
-                    "summary": "Example values",
-                    "description": "**Example** of values.",
-                    "value": {
-                        "new_service_management_hash": "asdQWEasd2" * 7,  # pragma: allowlist secret
-                        "permissions_str": "[str] - Set permission for new management_hash.",
-                    },
-                },
-            ]
-        }
-
-
 class EnrollmentStatusIn(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Enrollment status in schema"""
 
-    work_id: str
+    callsign: str
 
 
 class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment status check schema"""
 
-    status: str
-    work_id: str
-    work_id_hash: str
+    status: int
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -216,9 +50,8 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
         schema_extra = {
             "example": {
-                "state": "[str] - Current state of enrollment",
-                "work_id": "[str] User defined username/id/workname",
-                "work_id_hash": "[str] - Hash generated for work_id",
+                "state": "[int] - Current state of enrollment",
+                "callsign": "[str] User defined username/id/callsign",
             }
         }
 
@@ -233,8 +66,7 @@ class EnrollmentShowVerificationCodeOut(BaseModel):  # pylint: disable=too-few-p
     """Enrollment status check schema"""
 
     state: str
-    work_id: str
-    work_id_hash: str
+    callsign: str
     accepted: str
     locked: str
 
@@ -245,8 +77,7 @@ class EnrollmentShowVerificationCodeOut(BaseModel):  # pylint: disable=too-few-p
         schema_extra = {
             "example": {
                 "state": "[str] - Current state of enrollment",
-                "work_id": "[str] User defined username/id/workname",
-                "work_id_hash": "[str] - Hash generated for work_id",
+                "callsign": "[str] User defined username/id/callsign",
                 "accepted": "[str] - Has this been already accepted, empty or 'na' == not accepted",
                 "locked": "[str] - Contain info if the enrollment is locked. For unlocked enrollment, it's empty ''",
             }
@@ -272,7 +103,7 @@ class EnrollmentHaveIBeenAcceptedOut(BaseModel):  # pylint: disable=too-few-publ
 class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
-    work_id: str
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -285,7 +116,7 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This containts **description** of values.",
                     "value": {
-                        "work_id": "[str] - Plain text enrollment role id",
+                        "callsign": "[str] - Plain text enrollment role id",
                     },
                 },
                 {
@@ -293,7 +124,7 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Example values",
                     "description": "**Example** of values.",
                     "value": {
-                        "work_id": "taikaponi",
+                        "callsign": "taikaponi",
                     },
                 },
             ]
@@ -303,8 +134,7 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    work_id: str
-    work_id_hash: str
+    callsign: str
     jwt: str
 
     class Config:  # pylint: disable=too-few-public-methods
@@ -313,8 +143,7 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
         schema_extra = {
             "example": {
-                "work_id": "[str] User defined username/id/workname",
-                "work_id_hash": "[str] - Hash string for work_id",
+                "callsign": "[str] User defined username/id/callsign",
                 "jwt": "[str] jwt token needed for later use",
             }
         }
@@ -323,14 +152,14 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentDeliverIn(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Enrollment promote in schema"""
 
-    work_id_hash: str
+    callsign_hash: str
 
 
 class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    work_id: str
-    work_id_hash: str
+    callsign: str
+    callsign_hash: str
     cert_download_link: str
     howto_download_link: str
     mtls_test_link: str
@@ -341,8 +170,8 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
         schema_extra = {
             "example": {
-                "work_id": "[str] User defined username/id/workname",
-                "work_id_hash": "[str] - Hash string for work_id",
+                "callsign": "[str] User defined username/id/callsign",
+                "callsign_hash": "[str] - Hash string for callsign",
                 "cert_download_link": "[str] - Link where certificate package can be downloaded",
                 "howto_download_link": "[str] - Link where certificate install howto can be downloaded",
                 "mtls_test_link": "[str] - Link that can be used to test mtls connection",
@@ -353,7 +182,7 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    work_id_hash: str
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -366,7 +195,7 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This contains **description** of values.",
                     "value": {
-                        "work_id_hash": "[str] - Enrollment hash string.",
+                        "callsign": "[str] - Enrollment callsign.",
                     },
                 },
                 {
@@ -374,7 +203,7 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
-                        "work_id_hash": "kissa123",
+                        "callsign": "kissa123",
                     },
                 },
             ]
@@ -384,7 +213,7 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    work_id_hash: str
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -392,7 +221,7 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
         schema_extra = {
             "example": {
-                "work_id_hash": "[str] - Hash string for work_id",
+                "callsign": "[str] - Username/callsign/callsign",
             }
         }
 
@@ -400,8 +229,7 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment promote in schema"""
 
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -414,8 +242,7 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This contains **description** of values.",
                     "value": {
-                        "work_id": "[str] User defined username/id/workname",
-                        "work_id_hash": "[str] - Hash string for work_id",
+                        "callsign": "[str] User defined username/id/callsign",
                     },
                 },
                 {
@@ -423,7 +250,7 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
-                        "work_id": "kissa123",
+                        "callsign": "kissa123",
                     },
                 },
             ]
@@ -433,8 +260,7 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment demote in schema"""
 
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -447,8 +273,7 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This contains **description** of values.",
                     "value": {
-                        "work_id": "[str] User defined username/id/workname",
-                        "work_id_hash": "[str] - Hash string for work_id",
+                        "callsign": "[str] User defined username/id/callsign",
                     },
                 },
                 {
@@ -456,7 +281,7 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
-                        "work_id": "kissa123",
+                        "callsign": "kissa123",
                     },
                 },
             ]
@@ -467,8 +292,7 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment lock in schema"""
 
     lock_reason: str
-    work_id: Optional[str]
-    work_id_hash: Optional[str]
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -481,8 +305,7 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Description text",
                     "description": "This contains **description** of values.",
                     "value": {
-                        "work_id": "[str] User defined username/id/workname",
-                        "work_id_hash": "[str] - Hash string for work_id",
+                        "callsign": "[str] User defined username/id/callsign",
                     },
                 },
                 {
@@ -490,7 +313,7 @@ class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
-                        "work_id": "kissa123",
+                        "callsign": "kissa123",
                     },
                 },
             ]
@@ -532,9 +355,7 @@ class EnrollmentIsInvitecodeActiveOut(BaseModel):  # pylint: disable=too-few-pub
 class EnrollmentListOut(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Enrollment list out response schema"""
 
-    work_id_list: List[Dict[Any, Any]]
-    success: bool = Field(default=True)
-    reason: str = Field(default="")
+    callsign_list: List[Dict[Any, Any]]
 
 
 class EnrollmentInviteCodeCreateOut(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
@@ -591,7 +412,7 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
     """Enrollment Enrollment Invite code request schema"""
 
     invite_code: str
-    work_id: str
+    callsign: str
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -600,8 +421,8 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
         schema_extra = {
             "examples": [
                 {
-                    "invite_code": "[str] - Code that is used validate enrollment init for work_id",
-                    "work_id": "[str] User defined username/id/workname",
+                    "invite_code": "[str] - Code that is used validate enrollment init for callsign",
+                    "callsign": "[str] User defined username/id/callsign",
                 },
             ]
         }

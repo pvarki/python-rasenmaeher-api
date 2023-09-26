@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends, Request
 from multikeyjwt.middleware import JWTBearer, JWTPayload
 from libpvarki.middleware.mtlsheader import MTLSHeader, DNDict
 
-from ..middleware import MTLSorJWT, MTLSorJWTPayload
+from ..middleware.mtls import MTLSorJWT
+from ..middleware.datatypes import MTLSorJWTPayload
+from ..middleware.user import ValidUser
 
 router = APIRouter()
 
@@ -32,6 +34,18 @@ async def return_mtlsjwt_payload(request: Request) -> MTLSorJWTPayload:
 @router.get("/mtls_or_jwt/permissive", dependencies=[Depends(MTLSorJWT(auto_error=True, disallow_jwt_sub=[]))])
 async def return_mtlsjwt_payload_permissive(request: Request) -> MTLSorJWTPayload:
     """Method for testing mTLS and JWT auth, do not disallow any subjects"""
+    return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
+
+
+@router.get("/validuser", dependencies=[Depends(ValidUser(auto_error=True))])
+async def return_validuser_payload(request: Request) -> MTLSorJWTPayload:
+    """Method for the ValidUser middleware"""
+    return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
+
+
+@router.get("/validuser/admin", dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))])
+async def return_validadmin_payload(request: Request) -> MTLSorJWTPayload:
+    """Method for the ValidUser middleware with required_roles"""
     return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
 
 

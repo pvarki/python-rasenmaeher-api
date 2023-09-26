@@ -1,5 +1,5 @@
 """Abstractions for people"""
-from typing import Self, cast, Optional, AsyncGenerator, Dict, Any
+from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set
 import uuid
 import logging
 from pathlib import Path
@@ -15,7 +15,7 @@ from libpvarki.schemas.product import UserCRUDRequest
 from libpvarki.schemas.generic import OperationResultResponse
 
 from .base import ORMBaseModel, DBModel, utcnow, db
-from ..web.api.middleware import MTLSorJWTPayload
+from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..settings import settings
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
@@ -24,7 +24,7 @@ from ..prodcutapihelpers import post_to_all_products
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(ORMBaseModel):  # pylint: disable=R0903
+class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -176,23 +176,27 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
         return cast(Person, obj)
 
     @classmethod
+    async def is_callsign_available(cls, callsign: str) -> bool:
+        """Is callsign available"""
+        obj = await Person.query.where(Person.callsign == callsign).gino.first()
+        if not obj:
+            return False
+        return True
+
+    @classmethod
     async def by_mtlsjwt_payload(cls, payload: MTLSorJWTPayload, allow_deleted: bool = False) -> Self:
         """Get by MTLSorJWTMiddleWare payload"""
         if not payload.userid:
             raise NotFound("No userid defined")
         return await cls.by_callsign(payload.userid, allow_deleted)
 
-    async def get_key_pem(self) -> bytes:
-        """Read the private key from under certspath and return the PEM"""
-        raise NotImplementedError()
-
-    async def get_cert_pem(self) -> bytes:
+    def get_cert_pem(self) -> bytes:
         """Read the cert from under certspath and return the PEM"""
-        raise NotImplementedError()
+        return self.certfile.read_bytes()
 
-    async def get_cert_pfx(self) -> bytes:
+    def get_cert_pfx(self) -> bytes:
         """Read the cert and private key from under certspath and return the PFX container"""
-        raise NotImplementedError()
+        return self.pfxfile.read_bytes()
 
     async def _get_role(self, role: str) -> Optional["Role"]:
         """Internal helper for DRY"""
@@ -229,6 +233,17 @@ class Person(ORMBaseModel):  # pylint: disable=R0903
         if role == "admin":
             await user_demoted(self)
         return True
+
+    async def roles_set(self) -> Set[str]:
+        """Shorthand"""
+        return {role async for role in self.roles()}
+
+    async def roles(self) -> AsyncGenerator[str, None]:
+        """Roles of this person"""
+        async with db.acquire() as conn:  # Cursors need transaction
+            async with conn.transaction():
+                async for role in Role.query.where(Role.user == self.pk).gino.iterate():
+                    yield role.role
 
 
 class Role(DBModel):  # type: ignore[misc] # pylint: disable=R0903

@@ -1,28 +1,16 @@
-"""Middlewares"""
-from typing import Union, Optional, Sequence
-from dataclasses import dataclass, field
-import enum
+"""Middleware to handle mTLS or JWT auth"""
+from typing import Optional, Sequence
+import logging
 
-from multikeyjwt.middleware.jwtbearer import JWTBearer, JWTPayload
-from libpvarki.middleware.mtlsheader import MTLSHeader, DNDict
+from multikeyjwt.middleware.jwtbearer import JWTBearer
+from libpvarki.middleware.mtlsheader import MTLSHeader
 from fastapi import Request, HTTPException
 from fastapi.security.http import HTTPBase
 
 
-class MTLSorJWTPayloadType(enum.Enum):
-    """Valid payload types"""
+from .datatypes import MTLSorJWTPayload, MTLSorJWTPayloadType
 
-    JWT = "jwt"
-    MTLS = "mtls"
-
-
-@dataclass
-class MTLSorJWTPayload:
-    """payload either from mTLS or JWT auth"""
-
-    type: MTLSorJWTPayloadType = field()
-    userid: Optional[str] = field()
-    payload: Union[DNDict, JWTPayload] = field()
+LOGGER = logging.getLogger(__name__)
 
 
 class MTLSorJWT(HTTPBase):  # pylint: disable=too-few-public-methods
