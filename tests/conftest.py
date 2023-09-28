@@ -86,7 +86,12 @@ def session_env_config(  # pylint: disable=R0915
                         "api": f"https://fake.localmaeher.pvarki.fi:{fakeproduct_port}/",
                         "uri": "https://fake.localmaeher.pvarki.fi:844/",  # Not actually there
                         "certcn": "fake.localmaeher.pvarki.fi",
-                    }
+                    },
+                    "nonexistent": {
+                        "api": "https://localhost:4657/",
+                        "uri": "https://nonexistent.localmaeher.pvarki.fi:844/",  # Not actually there
+                        "certcn": "nonexistent.localmaeher.pvarki.fi",
+                    },
                 },
             }
         )
