@@ -57,11 +57,10 @@ async def _method_to_all_products(
     LOGGER.debug("data={}".format(data))
     async with session as client:
         for name, conf in manifest["products"].items():
-            url = f"{conf['api']}{url_suffix}"
-            LOGGER.debug("calling {}({})".format(methodname, url))
-
-            resp = await getattr(client, methodname)(url, json=data)
             try:
+                url = f"{conf['api']}{url_suffix}"
+                LOGGER.debug("calling {}({})".format(methodname, url))
+                resp = await getattr(client, methodname)(url, json=data)
                 resp.raise_for_status()
                 payload = await resp.json()
                 LOGGER.debug("payload={}".format(payload))
