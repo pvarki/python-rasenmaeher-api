@@ -18,6 +18,7 @@ from rasenmaeher_api.db import base as dbbase
 from rasenmaeher_api.db.config import DBConfig
 from rasenmaeher_api.db.middleware import DBWrapper
 from rasenmaeher_api.web.application import get_app_no_init
+from rasenmaeher_api.db.base import init_db, bind_config
 
 
 LOGGER = logging.getLogger(__name__)
@@ -132,9 +133,16 @@ def add_test_users(ctx: click.Context) -> None:
     """
     Create the test users defined in testhelpers.create_test_users
     """
-    ret = create_test_users()
-    click.echo(pprint.pformat(ret))
-    ctx.exit(0)
+
+    async def call_testusers() -> int:
+        """Start db connection, call the helper"""
+        await bind_config()
+        await init_db()
+        ret = await create_test_users()
+        click.echo(pprint.pformat(ret))
+        return 0
+
+    ctx.exit(ctx.obj["loop"].run_until_complete(call_testusers()))
 
 
 def rasenmaeher_api_cli() -> None:
