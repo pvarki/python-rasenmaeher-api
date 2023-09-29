@@ -96,6 +96,7 @@ async def test_4_invite_code_enroll(
     LOGGER.debug("payload={}".format(payload))
     ValueStorage.call_sign = payload["callsign"]
     ValueStorage.call_sign_jwt = payload["jwt"]
+    ValueStorage.approve_code = payload["approvecode"]
 
 
 @pytest.mark.asyncio
@@ -148,6 +149,7 @@ async def test_7_enrollment_accept_call_sign(
     url = f"{API}/{VER}/enrollment/accept"
     data = {
         "callsign": f"{ValueStorage.call_sign}",
+        "approvecode": f"{ValueStorage.approve_code}",
     }
     LOGGER.debug("Fetching {}".format(url))
     LOGGER.debug("Data: {}".format(data))
@@ -174,7 +176,6 @@ async def test_8_call_sign_accepted(
 
 
 @pytest.mark.asyncio
-@pytest.mark.skip(reason="https://github.com/pvarki/python-rasenmaeher-api/issues/57")
 async def test_9_check_if_enduser_pfx_available(
     session_with_testcas: aiohttp.ClientSession,
 ) -> None:
@@ -185,5 +186,4 @@ async def test_9_check_if_enduser_pfx_available(
     LOGGER.debug("Fetching {}".format(url))
     response = await client.get(url, timeout=DEFAULT_TIMEOUT)
     response.raise_for_status()
-    payload = await response.json()
-    LOGGER.debug("payload={}".format(payload))
+    assert response.content
