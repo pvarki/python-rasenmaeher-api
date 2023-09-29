@@ -48,11 +48,18 @@ async def handle_user_crud(request: web.Request) -> web.Response:
 
 
 async def handle_fragment(request: web.Request) -> web.Response:
-    """Respond with success to all CRUD operations"""
+    """Respond with hello_world for user"""
     check_peer_cert(request)
     # Just to make sure the request itself uses valid schema
-    _req = UserCRUDRequest.parse_raw(await request.text())
-    resp = UserInstructionFragment(html="<p>Hello world!</p>")
+    req = UserCRUDRequest.parse_raw(await request.text())
+    resp = UserInstructionFragment(html=f"<p>Hello {req.callsign}!</p>")
+    return web.json_response(resp.dict())
+
+
+async def handle_admin_fragment(request: web.Request) -> web.Response:
+    """Respond with success to all CRUD operations"""
+    check_peer_cert(request)
+    resp = UserInstructionFragment(html="<p>Hello admin!</p>")
     return web.json_response(resp.dict())
 
 
@@ -80,6 +87,7 @@ def main() -> int:
             web.post("/api/v1/users/demoted", handle_user_crud),
             web.put("/api/v1/users/updated", handle_user_crud),
             web.post("/api/v1/clients/fragment", handle_fragment),
+            web.get("/api/v1/admins/fragment", handle_admin_fragment),
         ]
     )
 

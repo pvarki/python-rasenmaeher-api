@@ -83,7 +83,7 @@ async def test_user_fragment() -> None:
     assert responses
     assert "fake" in responses
     assert isinstance(responses["fake"], UserInstructionFragment)
-    assert responses["fake"].html == "<p>Hello world!</p>"
+    assert responses["fake"].html == "<p>Hello TEST22b!</p>"
 
 
 @pytest.mark.parametrize("endpoint", ["no-such-url", "api/v1/clients/fragment"])
