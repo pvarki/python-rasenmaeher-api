@@ -1,6 +1,6 @@
 """The conftest.py provides fixtures for the entire directory.
 Fixtures defined can be used by any test in that package without needing to import them."""
-from typing import Tuple, Dict, AsyncGenerator
+from typing import Dict, AsyncGenerator
 import platform
 import logging
 import string
@@ -23,6 +23,10 @@ LOGGER = logging.getLogger(__name__)
 CA_PATH = Path(__file__).parent / "testcas"
 JWT_PATH = Path(__file__).parent / "testjwts"
 DEFAULT_TIMEOUT = 5.0
+OPENAPI_VER = "3.1.0"
+FASTAPI_VER = "0.1.0"
+API = "https://localmaeher.pvarki.fi:4439/api"
+VER = "v1"
 
 # pylint: disable=W0621
 
@@ -95,26 +99,7 @@ async def session_with_invalid_tpjwt(
 
 
 @pytest.fixture
-def localmaeher_api() -> Tuple[str, str]:
-    """Return url and version for https API"""
-    return "https://localmaeher.pvarki.fi:4439/api", "v1"
-
-
-@pytest.fixture
-def localhost_api() -> Tuple[str, str]:
-    """Return url and version for http API"""
-    return "http://127.0.0.1:8000/api", "v1"
-
-
-@pytest.fixture
-def openapi_version() -> Tuple[str, str]:
-    """Return expected openapi and fastapi versions"""
-    # OpenAPI version, FastAPI version
-    return "3.1.0", "0.1.0"
-
-
-@pytest.fixture
-def work_id_generator() -> str:
+def call_sign_generator() -> str:
     """Return random work_id"""
     return "".join(random.choice(string.ascii_uppercase + string.digits) for _ in range(6))
 
@@ -137,11 +122,14 @@ def error_messages() -> Dict[str, str]:
         "NO_USERS_FOUND": "No users found...",
         "FIRSTUSER_API_IS_DISABLED": "/firstuser API is disabled",
         "NOT_FOUND": "Not Found",
-        "INVITECODE_NOT_VALID": "Error. invitecode not valid.",
-        "WORK_ID_NOT_FOUND": "Wont do. Requested work_id or work_id_hash not found...",
+        "INVITECODE_NOT_VALID": "Not found",
+        "WORK_ID_NOT_FOUND": "Not found",
         "EXTRA_FIELDS": "extra fields not permitted",
         "FIELD_REQUIRED": "field required",
         "VALUE_MISSING": "value_error.missing",
         "BODY_TEMP_ADMIN_CODE": "body temp_admin_code",
         "BODY_INVITE_CODE": "body invite_code",
+        "FORBIDDEN": "Forbidden",
+        "CODE_ALREADY_USED": "Code already used",
+        "INVITECODE_TAKEN": "Error. callsign/callsign already taken.",
     }

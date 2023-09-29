@@ -1,23 +1,22 @@
 """Test the CRL fetching via Nginx and API container"""
-from typing import Tuple
 import logging
 
 import requests
 import aiohttp
 import pytest
 
-from .conftest import DEFAULT_TIMEOUT
+from .conftest import DEFAULT_TIMEOUT, API, VER
 
 LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
 async def test_localmaeher_fetch_crl(
-    session_with_testcas: aiohttp.ClientSession, localmaeher_api: Tuple[str, str]
+    session_with_testcas: aiohttp.ClientSession,
 ) -> None:
     """Test that we can get CRL via https api dns name"""
     client = session_with_testcas
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/utils/crl"
+    url = f"{API}/{VER}/utils/crl"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.get(url, timeout=DEFAULT_TIMEOUT)
     response.raise_for_status()
@@ -25,18 +24,18 @@ async def test_localmaeher_fetch_crl(
 
 
 @pytest.mark.asyncio
-async def test_localmaeher_fetch_crl_sslfail(localmaeher_api: Tuple[str, str]) -> None:
+async def test_localmaeher_fetch_crl_sslfail() -> None:
     """Make sure the tls check fails when CA certs are not loaded in"""
     async with aiohttp.ClientSession() as client:
-        url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/utils/crl"
+        url = f"{API}/{VER}/utils/crl"
         LOGGER.debug("Fetching {}".format(url))
         with pytest.raises(aiohttp.ClientConnectorCertificateError):
             response = await client.get(url, timeout=DEFAULT_TIMEOUT)
             response.raise_for_status()
 
 
-def test_localhost_fetch_crl(localhost_api: Tuple[str, str]) -> None:
+def test_localhost_fetch_crl() -> None:
     """Test that we can get CRL via the direct localhost access to rasenmaeher"""
-    url = f"{localhost_api[0]}/{localhost_api[1]}/utils/crl"
+    url = f"http://127.0.0.1:8000/api/{VER}/utils/crl"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT)
     assert response.status_code == 200
