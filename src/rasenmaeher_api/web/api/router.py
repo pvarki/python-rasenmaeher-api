@@ -10,6 +10,7 @@ from rasenmaeher_api.web.api import (
     enrollment,
     firstuser,
     tokens,
+    instructions,
 )
 
 
@@ -23,3 +24,4 @@ api_router.include_router(enrollment.ENROLLMENT_ROUTER, prefix="/enrollment", ta
 api_router.include_router(enrollment.NO_JWT_ENROLLMENT_ROUTER, prefix="/enrollment", tags=["now_jwt_enrollment"])
 api_router.include_router(firstuser.router, prefix="/firstuser", tags=["firstuser"])
 api_router.include_router(tokens.router, prefix="/token", tags=["tokens"])
+api_router.include_router(instructions.router, prefix="/instructions", tags=["instructions"])
