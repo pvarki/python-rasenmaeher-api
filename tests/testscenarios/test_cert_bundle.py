@@ -149,11 +149,11 @@ async def test_1_1_check_admin_mtls(first_admin_mtls_session: Tuple[aiohttp.Clie
 
 @pytest.mark.asyncio
 async def test_2_invite_code_create(
-    first_admin_jwt_session: aiohttp.ClientSession,
+    first_admin_mtls_session: Tuple[aiohttp.ClientSession, str],
 ) -> None:
     """Tests that we can create a new invite code"""
-    client = first_admin_jwt_session
-    url = f"{API}/{VER}/enrollment/invitecode/create"
+    client, api = first_admin_mtls_session
+    url = f"{api}/{VER}/enrollment/invitecode/create"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.post(url, json=None, timeout=DEFAULT_TIMEOUT)
     response.raise_for_status()
@@ -205,11 +205,11 @@ async def test_4_invite_code_enroll(
 
 @pytest.mark.asyncio
 async def test_5_enrollment_list_for_available_call_sign(
-    first_admin_jwt_session: aiohttp.ClientSession,
+    first_admin_mtls_session: Tuple[aiohttp.ClientSession, str],
 ) -> None:
     """Tests that we have call_sign available for enrollment"""
-    client = first_admin_jwt_session
-    url = f"{API}/{VER}/enrollment/list"
+    client, api = first_admin_mtls_session
+    url = f"{api}/{VER}/enrollment/list"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.get(url, timeout=DEFAULT_TIMEOUT)
     response.raise_for_status()
@@ -244,13 +244,13 @@ async def test_6_call_sign_not_accepted(
 
 @pytest.mark.asyncio
 async def test_7_enrollment_accept_call_sign(
-    first_admin_jwt_session: aiohttp.ClientSession,
+    first_admin_mtls_session: Tuple[aiohttp.ClientSession, str],
 ) -> None:
     """
     Tests that we can accept call_sign
     """
-    client = first_admin_jwt_session
-    url = f"{API}/{VER}/enrollment/accept"
+    client, api = first_admin_mtls_session
+    url = f"{api}/{VER}/enrollment/accept"
     data = {
         "callsign": f"{ValueStorage.call_sign}",
         "approvecode": f"{ValueStorage.approve_code}",
