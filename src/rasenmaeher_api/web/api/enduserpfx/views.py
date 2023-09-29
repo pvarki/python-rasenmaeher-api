@@ -37,6 +37,7 @@ async def return_enduser_certs(
         _reason = "Error. Callsign missing as last parameter"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
+    LOGGER.debug("Called with callsign={}".format(callsign))
 
     # Check that the JWT has sub claim and it mathes requested callsign
     check_jwt(jwt, callsign)
@@ -61,6 +62,7 @@ async def check_enduser_bundle_available(
         _reason = "Error. Callsign missing as last parameter"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
+    LOGGER.debug("Called with callsign={}".format(callsign))
 
     # Check that the JWT has sub claim and it mathes requested callsign
     check_jwt(jwt, callsign)

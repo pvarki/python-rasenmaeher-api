@@ -1,8 +1,10 @@
 """Test enrollment endpoint"""
-import logging
 from typing import Dict, Any
-import pytest
+import logging
 
+
+import pytest
+import cryptography.hazmat.primitives.serialization.pkcs12
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
 
@@ -520,6 +522,7 @@ async def test_enroll_with_invite_code(tilauspalvelu_jwt_admin_client: TestClien
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
     assert resp_dict["jwt"] != ""
+    enrique_jwt = resp_dict["jwt"]
 
     # ENROLL WITH INVITE CODE - BAD CODE
     json_dict = {"invite_code": "nosuchcode123", "callsign": "asdasds"}
@@ -550,3 +553,20 @@ async def test_enroll_with_invite_code(tilauspalvelu_jwt_admin_client: TestClien
     LOGGER.debug(resp_dict)
     assert resp.status_code == 400
     assert "disabled" in resp_dict["detail"]
+
+    # Accept the enrollment
+    json_dict = {"callsign": "enrollenrique"}
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
+    resp_dict = resp.json()
+    LOGGER.debug(resp_dict)
+    assert resp.status_code == 200
+    assert resp_dict["callsign"] != ""
+
+    # Fetch the PFX
+    unauth_client.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
+    resp = await unauth_client.get("/api/v1/enduserpfx/enrollenrique")
+    resp.raise_for_status()
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, None)
+    assert pfxdata.key
+    assert pfxdata.cert
+    del unauth_client.headers["Authorization"]
