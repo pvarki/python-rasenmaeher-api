@@ -8,6 +8,7 @@ import pytest_asyncio
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
 import cryptography.x509
+import cryptography.hazmat.primitives.serialization.pkcs12
 
 from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
 from rasenmaeher_api.db.errors import (
@@ -359,3 +360,16 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
         await Person.create_with_cert(callsign)
     new_files = set(peoplepath.rglob("*"))
     assert new_files == old_files
+
+
+@pytest.mark.asyncio
+async def test_pfx_parse(ginosession: None) -> None:
+    """Test that the PFX file gets done"""
+    _ = ginosession
+    await mtls_init()
+    person = await Person.create_with_cert("PFXMAN01a")
+    assert person.pfxfile.exists()
+    pfxbytes = person.pfxfile.read_bytes()
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, None)
+    assert pfxdata.key
+    assert pfxdata.cert
