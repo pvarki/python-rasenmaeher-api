@@ -1,19 +1,19 @@
 """Test API get status and set-state (set status)"""
-from typing import Tuple, Dict
+from typing import Dict
 import logging
 
 import pytest
 import requests
 
-from .conftest import DEFAULT_TIMEOUT
+from .conftest import DEFAULT_TIMEOUT, API, VER
 
 LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.skip(reason="Fails due to not checking correct things")
-def test_get_init_status(localmaeher_api: Tuple[str, str], testdata: Dict[str, str]) -> None:
+def test_get_init_status(testdata: Dict[str, str]) -> None:
     """Initialize enrollment"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/status/{testdata['work_id1']}"
+    url = f"{API}/{VER}/enrollment/status/{testdata['work_id1']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT)
     assert response.status_code == 200
     payload = response.json()
@@ -22,9 +22,9 @@ def test_get_init_status(localmaeher_api: Tuple[str, str], testdata: Dict[str, s
 
 
 @pytest.mark.skip(reason="Fails due to not checking correct things")
-def test_set_new_state(localmaeher_api: Tuple[str, str], testdata: Dict[str, str]) -> None:
+def test_set_new_state(testdata: Dict[str, str]) -> None:
     """Start new enrollment"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/config/set-state"
+    url = f"{API}/{VER}/enrollment/config/set-state"
     data = {
         "state": "new",
         "work_id": f"{testdata['work_id1']}",
@@ -39,9 +39,9 @@ def test_set_new_state(localmaeher_api: Tuple[str, str], testdata: Dict[str, str
 
 
 @pytest.mark.skip(reason="Fails due to not checking correct things")
-def test_get_new_status(localmaeher_api: Tuple[str, str], testdata: Dict[str, str]) -> None:
+def test_get_new_status(testdata: Dict[str, str]) -> None:
     """Check status of new enrollment"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/status/{testdata['work_id1']}"
+    url = f"{API}/{VER}/enrollment/status/{testdata['work_id1']}"
     response = requests.get(url, json=None, headers=None, verify=False, timeout=DEFAULT_TIMEOUT)
     assert response.status_code == 200
     payload = response.json()
@@ -50,9 +50,9 @@ def test_get_new_status(localmaeher_api: Tuple[str, str], testdata: Dict[str, st
 
 
 @pytest.mark.skip(reason="Fails due to not checking correct things")
-def test_set_init_state(localmaeher_api: Tuple[str, str], testdata: Dict[str, str]) -> None:
+def test_set_init_state(testdata: Dict[str, str]) -> None:
     """FIXME: Check enrollment state??"""
-    url = f"{localmaeher_api[0]}/{localmaeher_api[1]}/enrollment/config/set-state"
+    url = f"{API}/{VER}/enrollment/config/set-state"
     data = {
         "state": "init",
         "work_id": f"{testdata['work_id1']}",
