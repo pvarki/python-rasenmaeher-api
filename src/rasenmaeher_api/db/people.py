@@ -1,12 +1,18 @@
 """Abstractions for people"""
 from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set
+import asyncio
 import uuid
 import logging
 from pathlib import Path
 import shutil
 
-from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 import cryptography.x509
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.serialization import (
+    load_pem_private_key,
+    pkcs12,
+    NoEncryption,
+)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
@@ -61,6 +67,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                     certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                     newperson.certfile.write_text(certpem)
+                    await newperson.create_pfx()
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, doing cleanup")
                     shutil.rmtree(certspath)
@@ -71,6 +78,27 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                 refresh = await cls.by_pk(newperson.pk)
                 await user_created(refresh)
                 return refresh
+
+    async def create_pfx(self) -> Path:
+        """Put cert and key to PKCS12 container"""
+        if self.pfxfile.exists():
+            return self.pfxfile
+
+        def write_pfx() -> None:
+            """Do the IO"""
+            nonlocal self
+            cert = cryptography.x509.load_pem_x509_certificate(self.certfile.read_bytes())
+            key = cast(
+                rsa.RSAPrivateKey,
+                load_pem_private_key(self.privkeyfile.read_bytes(), None),
+            )
+            p12bytes = pkcs12.serialize_key_and_certificates(
+                self.callsign.encode("utf-8"), key, cert, None, NoEncryption()
+            )
+            self.pfxfile.write_bytes(p12bytes)
+
+        await asyncio.get_event_loop().run_in_executor(None, write_pfx)
+        return self.pfxfile
 
     async def revoke(self, reason: ReasonTypes) -> bool:
         """Revokes the cert with given reason and makes user deleted see validate_reason for info on reasons"""
@@ -117,15 +145,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @property
     def pfxfile(self) -> Path:
         """Return a PKCS12 PFX file"""
-        pfxpath = Path(self.certspath) / "mtls.pfx"
-        if not pfxpath.exists():
-            pfxpath.write_bytes(
-                pem_to_pfx(
-                    self.certfile.read_text("utf-8"),
-                    self.privkeyfile.read_text("utf-8"),
-                )
-            )
-        return pfxpath
+        return Path(self.certspath) / "mtls.pfx"
 
     @property
     def certfile(self) -> Path:
@@ -291,13 +311,3 @@ async def user_promoted(person: Person) -> None:
 async def user_demoted(person: Person) -> None:
     """Old user was demoted from admin (removed role 'admin')"""
     return await post_user_crud(person.productapidata, "demoted")
-
-
-# FIXME: moving this to libpvarki would be a good idea
-def pem_to_pfx(pem_key: str, pem_cert: str) -> bytes:
-    """Convert PEM data to PFX (PKCS12)."""
-    pfx = crypto.PKCS12()
-    pfx.set_privatekey(crypto.load_privatekey(crypto.FILETYPE_PEM, pem_key.encode("utf-8")))
-    pfx.set_certificate(crypto.load_certificate(crypto.FILETYPE_PEM, pem_cert.encode("utf-8")))
-    pfxdata = pfx.export()
-    return pfxdata

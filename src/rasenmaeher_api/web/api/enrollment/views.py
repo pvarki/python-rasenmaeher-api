@@ -183,9 +183,11 @@ async def request_enrollment_init(
 
     # TODO ADD POOL NAME CHECK
 
-    _new_enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
-
-    return EnrollmentInitOut(callsign=_new_enrollment.callsign, jwt="")
+    new_enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
+    # Create JWT token for user
+    claims = {"sub": request_in.callsign}
+    new_jwt = Issuer.singleton().issue(claims)
+    return EnrollmentInitOut(callsign=new_enrollment.callsign, jwt=new_jwt, approvecode=new_enrollment.approvecode)
 
 
 @ENROLLMENT_ROUTER.post("/promote", response_model=EnrollmentConfigTaskDone)
@@ -206,13 +208,13 @@ async def request_enrollment_promote(
 
     obj = await Person.by_callsign(callsign=request_in.callsign)
 
-    _role_added = await obj.assign_role(role="admin")
-    if _role_added:
+    role_added = await obj.assign_role(role="admin")
+    if role_added:
         return EnrollmentConfigTaskDone(success_message="Promote done")
 
-    _reason = "Given callsign/callsign already has elevated permissions."
-    LOGGER.error("{} : {}".format(request.url, _reason))
-    raise HTTPException(status_code=400, detail=_reason)
+    reason = "Given callsign/callsign already has elevated permissions."
+    LOGGER.error("{} : {}".format(request.url, reason))
+    raise HTTPException(status_code=400, detail=reason)
 
 
 @ENROLLMENT_ROUTER.post("/demote", response_model=EnrollmentConfigTaskDone)
@@ -280,11 +282,13 @@ async def post_enrollment_accept(
         raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
     )
 
-    _admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
-    _pending_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
-    _new_approved_user = await _pending_enrollment.approve(approver=_admin_user)
+    admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
+    pending_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
+    if request_in.approvecode != pending_enrollment.approvecode:
+        raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
+    new_approved_user = await pending_enrollment.approve(approver=admin_user)
 
-    return EnrollmentAcceptOut(callsign=_new_approved_user.callsign)
+    return EnrollmentAcceptOut(callsign=new_approved_user.callsign)
 
 
 @ENROLLMENT_ROUTER.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
@@ -409,7 +413,7 @@ async def post_enroll_invite_code(
     enrollment = await obj.create_enrollment(callsign=request_in.callsign)
 
     # Create JWT token for user
-    _claims = {"sub": request_in.callsign}
-    _new_jwt = Issuer.singleton().issue(_claims)
+    claims = {"sub": request_in.callsign}
+    new_jwt = Issuer.singleton().issue(claims)
 
-    return EnrollmentInitOut(callsign=enrollment.callsign, jwt=_new_jwt)
+    return EnrollmentInitOut(callsign=enrollment.callsign, jwt=new_jwt, approvecode=enrollment.approvecode)

@@ -1,8 +1,10 @@
 """Test enrollment endpoint"""
-import logging
 from typing import Dict, Any
-import pytest
+import logging
 
+
+import pytest
+import cryptography.hazmat.primitives.serialization.pkcs12
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
 
@@ -339,8 +341,9 @@ async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
+    assert "approvecode" in resp_dict
 
-    json_dict = {"callsign": "acceptme"}
+    json_dict = {"callsign": "acceptme", "approvecode": resp_dict["approvecode"]}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -360,7 +363,7 @@ async def test_accept_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - accept, no permissions -> fail
     """
-    json_dict: Dict[Any, Any] = {"callsign": "koira"}
+    json_dict: Dict[Any, Any] = {"callsign": "koira", "approvecode": "nocode"}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -375,7 +378,7 @@ async def test_accept_no_such_user(tilauspalvelu_jwt_admin_client: TestClient) -
     """
     Test - accept a ghost
     """
-    json_dict: Dict[Any, Any] = {"callsign": "duhnosuchuser"}
+    json_dict: Dict[Any, Any] = {"callsign": "duhnosuchuser", "approvecode": "nosuchcode"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -503,7 +506,9 @@ async def test_invite_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 # ENROLL WITH INVITE CODE
 @pytest.mark.asyncio
-async def test_enroll_with_invite_code(tilauspalvelu_jwt_admin_client: TestClient, unauth_client: TestClient) -> None:
+async def test_enroll_with_invite_code(  # pylint: disable=R0915
+    tilauspalvelu_jwt_admin_client: TestClient, unauth_client: TestClient
+) -> None:
     """
     Test - enroll with invite code
     """
@@ -520,6 +525,9 @@ async def test_enroll_with_invite_code(tilauspalvelu_jwt_admin_client: TestClien
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
     assert resp_dict["jwt"] != ""
+    assert resp_dict["approvecode"] != ""
+    enrique_jwt = resp_dict["jwt"]
+    enrique_ac = resp_dict["approvecode"]
 
     # ENROLL WITH INVITE CODE - BAD CODE
     json_dict = {"invite_code": "nosuchcode123", "callsign": "asdasds"}
@@ -550,3 +558,20 @@ async def test_enroll_with_invite_code(tilauspalvelu_jwt_admin_client: TestClien
     LOGGER.debug(resp_dict)
     assert resp.status_code == 400
     assert "disabled" in resp_dict["detail"]
+
+    # Accept the enrollment
+    json_dict = {"callsign": "enrollenrique", "approvecode": enrique_ac}
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
+    resp_dict = resp.json()
+    LOGGER.debug(resp_dict)
+    assert resp.status_code == 200
+    assert resp_dict["callsign"] != ""
+
+    # Fetch the PFX
+    unauth_client.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
+    resp = await unauth_client.get("/api/v1/enduserpfx/enrollenrique")
+    resp.raise_for_status()
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, None)
+    assert pfxdata.key
+    assert pfxdata.cert
+    del unauth_client.headers["Authorization"]

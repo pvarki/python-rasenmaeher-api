@@ -1,7 +1,7 @@
 """Schema for enrollment."""
 from typing import List, Dict, Any
 
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, Extra, Field
 
 
 class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
@@ -103,7 +103,7 @@ class EnrollmentHaveIBeenAcceptedOut(BaseModel):  # pylint: disable=too-few-publ
 class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
-    callsign: str
+    callsign: str = Field(description="Callsign to create enrollment for")
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -111,14 +111,6 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
         schema_extra = {
             "examples": [
-                {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This containts **description** of values.",
-                    "value": {
-                        "callsign": "[str] - Plain text enrollment role id",
-                    },
-                },
                 {
                     "name": "with_values",
                     "summary": "Example values",
@@ -134,8 +126,11 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    callsign: str
-    jwt: str
+    callsign: str = Field(description="Callsign for which the enrollment got initialized")
+    approvecode: str = Field(description="Code used to approve the enrollment, must be delivered to an admin")
+    jwt: str = Field(
+        description="JWT that allows client to check enrollment approval status and fetc mTLS certs when approved"
+    )
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -143,8 +138,9 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
         schema_extra = {
             "example": {
-                "callsign": "[str] User defined username/id/callsign",
-                "jwt": "[str] jwt token needed for later use",
+                "callsign": "OTTER01a",
+                "approvecode": "12DFEE34555",
+                "jwt": "...",
             }
         }
 
@@ -182,7 +178,10 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
 class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init out response schema"""
 
-    callsign: str
+    callsign: str = Field(description="Callsign to approve")
+    approvecode: str = Field(
+        description="Approval code for the callsign, this must have been delivered by the person to be enrolled"
+    )
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -191,19 +190,12 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
         schema_extra = {
             "examples": [
                 {
-                    "name": "normal",
-                    "summary": "Description text",
-                    "description": "This contains **description** of values.",
-                    "value": {
-                        "callsign": "[str] - Enrollment callsign.",
-                    },
-                },
-                {
                     "name": "with_values",
                     "summary": "Example values",
                     "description": "**Example** values.",
                     "value": {
                         "callsign": "kissa123",
+                        "approvecode": "HGRTR43267",
                     },
                 },
             ]
