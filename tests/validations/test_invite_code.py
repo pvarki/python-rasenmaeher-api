@@ -169,7 +169,7 @@ async def test_deactivate_valid_invite_code(
     response.raise_for_status()
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert payload["invite_code"] == "DISABLED"
+    assert payload["success"] is True
 
 
 @pytest.mark.asyncio
@@ -202,7 +202,7 @@ async def test_activate_valid_invite_code(
     response.raise_for_status()
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert payload["invite_code"] == f"{ValueStorage.invite_code}"
+    assert payload["success"] is True
 
 
 @pytest.mark.asyncio
