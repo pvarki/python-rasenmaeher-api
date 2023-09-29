@@ -1,12 +1,18 @@
 """Tests in sequence to simulate an end-to-end scenario"""
-from typing import AsyncGenerator
+from typing import AsyncGenerator, cast, Tuple
 import logging
+from pathlib import Path
 
 import aiohttp
 import pytest
 import pytest_asyncio
+from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
+from libadvian.testhelpers import nice_tmpdir  # pylint: disable=W0611
+from libpvarki.mtlshelp import get_session
 
-from ..conftest import DEFAULT_TIMEOUT, API, VER
+from ..conftest import DEFAULT_TIMEOUT, API, VER, CA_PATH
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,6 +24,7 @@ class ValueStorage:
 
     first_user_admin_call_sign = ""
     first_user_admin_jwt_exchange_code = ""
+    first_user_admin_pfx = b""
     tp_logintoken_jwt = ""
     first_user_admin_jwt = ""
     invite_code = ""
@@ -27,13 +34,42 @@ class ValueStorage:
 
 
 @pytest_asyncio.fixture
-async def first_admin_session(
+async def first_admin_jwt_session(
     session_with_testcas: aiohttp.ClientSession,
 ) -> AsyncGenerator[aiohttp.ClientSession, None]:
     """Client with JWT"""
     session = session_with_testcas
     session.headers.update({"Authorization": f"Bearer {ValueStorage.first_user_admin_jwt}"})
     yield session
+
+
+@pytest_asyncio.fixture
+async def first_admin_mtls_session(
+    first_admin_jwt_session: aiohttp.ClientSession,
+    nice_tmpdir: str,
+) -> AsyncGenerator[Tuple[aiohttp.ClientSession, str], None]:
+    """mTLS session for the first admin"""
+    if not ValueStorage.first_user_admin_pfx:
+        jwtclient = first_admin_jwt_session
+        pfxresponse = await jwtclient.get(f"{API}/{VER}/enduserpfx/{ValueStorage.first_user_admin_call_sign}")
+        ValueStorage.first_user_admin_pfx = await pfxresponse.read()
+    datadir = Path(nice_tmpdir)
+    keypath = datadir / "mtls.key"
+    certpath = datadir / "mtls.cert"
+    pfxdata = pkcs12.load_pkcs12(ValueStorage.first_user_admin_pfx, None)
+    private_key = cast(rsa.RSAPrivateKey, pfxdata.key)
+    keypath.write_bytes(
+        private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        )
+    )
+    assert pfxdata.cert
+    cert = pfxdata.cert.certificate
+    certpath.write_bytes(cert.public_bytes(encoding=serialization.Encoding.PEM))
+    async with get_session((certpath, keypath), CA_PATH) as client:
+        yield client, API.replace("localmaeher", "mtls.localmaeher")
 
 
 @pytest.mark.asyncio
@@ -102,11 +138,21 @@ async def test_1_firstuser_add_admin(
 
 
 @pytest.mark.asyncio
+async def test_1_1_check_admin_mtls(first_admin_mtls_session: Tuple[aiohttp.ClientSession, str]) -> None:
+    """Test that the mTLS client session works"""
+    client, api = first_admin_mtls_session
+    url = f"{api}/{VER}/check-auth/validuser/admin"
+    resp = await client.get(url)
+    payload = await resp.json()
+    assert payload["type"] == "mtls"
+
+
+@pytest.mark.asyncio
 async def test_2_invite_code_create(
-    first_admin_session: aiohttp.ClientSession,
+    first_admin_jwt_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we can create a new invite code"""
-    client = first_admin_session
+    client = first_admin_jwt_session
     url = f"{API}/{VER}/enrollment/invitecode/create"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.post(url, json=None, timeout=DEFAULT_TIMEOUT)
@@ -159,10 +205,10 @@ async def test_4_invite_code_enroll(
 
 @pytest.mark.asyncio
 async def test_5_enrollment_list_for_available_call_sign(
-    first_admin_session: aiohttp.ClientSession,
+    first_admin_jwt_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we have call_sign available for enrollment"""
-    client = first_admin_session
+    client = first_admin_jwt_session
     url = f"{API}/{VER}/enrollment/list"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.get(url, timeout=DEFAULT_TIMEOUT)
@@ -198,12 +244,12 @@ async def test_6_call_sign_not_accepted(
 
 @pytest.mark.asyncio
 async def test_7_enrollment_accept_call_sign(
-    first_admin_session: aiohttp.ClientSession,
+    first_admin_jwt_session: aiohttp.ClientSession,
 ) -> None:
     """
     Tests that we can accept call_sign
     """
-    client = first_admin_session
+    client = first_admin_jwt_session
     url = f"{API}/{VER}/enrollment/accept"
     data = {
         "callsign": f"{ValueStorage.call_sign}",
