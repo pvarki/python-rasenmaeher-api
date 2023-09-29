@@ -18,6 +18,7 @@ class ValueStorage:
 
     first_user_admin_call_sign = ""
     first_user_admin_jwt_exchange_code = ""
+    tp_logintoken_jwt = ""
     first_user_admin_jwt = ""
     invite_code = ""
     call_sign = ""
@@ -36,13 +37,49 @@ async def first_admin_session(
 
 
 @pytest.mark.asyncio
-async def test_1_firstuser_add_admin(
+async def test_0_create_login_token_for_first_admin(
     session_with_tpjwt: aiohttp.ClientSession,
+    session_with_testcas: aiohttp.ClientSession,
+) -> None:
+    """Create a token the first admin can exhcnage for anon_admin jwt to create themselves an user"""
+    client = session_with_tpjwt
+    url = f"{API}/{VER}/token/code/generate"
+    data = {
+        "claims": {
+            "anon_admin_session": True,
+        }
+    }
+    response = await client.post(url, json=data, timeout=DEFAULT_TIMEOUT)
+    payload = await response.json()
+    ValueStorage.first_user_admin_jwt_exchange_code = payload["code"]
+    client2 = session_with_testcas
+    resp2 = await client2.post(
+        f"{API}/{VER}/token/code/exchange",
+        json={"code": ValueStorage.first_user_admin_jwt_exchange_code},
+        timeout=DEFAULT_TIMEOUT,
+    )
+    payload2 = await resp2.json()
+    ValueStorage.tp_logintoken_jwt = payload2["jwt"]
+
+
+@pytest_asyncio.fixture
+async def session_with_logintoken_jwt(
+    session_with_testcas: aiohttp.ClientSession,
+) -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """Use first_user_admin_jwt_exchange_code to get anon_admin JWT to create the first user"""
+    client = session_with_testcas
+    client.headers.update({"Authorization": f"Bearer {ValueStorage.tp_logintoken_jwt}"})
+    yield client
+
+
+@pytest.mark.asyncio
+async def test_1_firstuser_add_admin(
+    session_with_logintoken_jwt: aiohttp.ClientSession,
     session_with_testcas: aiohttp.ClientSession,
     call_sign_generator: str,
 ) -> None:
     """Tests that we can create new work_id"""
-    client = session_with_tpjwt
+    client = session_with_logintoken_jwt
     url = f"{API}/{VER}/firstuser/add-admin"
     data = {
         "callsign": f"{call_sign_generator}",
@@ -56,19 +93,20 @@ async def test_1_firstuser_add_admin(
     assert payload["admin_added"] is True
     assert payload["jwt_exchange_code"] != ""
     ValueStorage.first_user_admin_call_sign = call_sign_generator
-    ValueStorage.first_user_admin_jwt_exchange_code = payload["jwt_exchange_code"]
     client2 = session_with_testcas
-    resp2 = await client2.post(f"{API}/{VER}/token/code/exchange", json={"code": payload["jwt_exchange_code"]})
+    resp2 = await client2.post(
+        f"{API}/{VER}/token/code/exchange", json={"code": payload["jwt_exchange_code"]}, timeout=DEFAULT_TIMEOUT
+    )
     payload2 = await resp2.json()
     ValueStorage.first_user_admin_jwt = payload2["jwt"]
 
 
 @pytest.mark.asyncio
 async def test_2_invite_code_create(
-    session_with_tpjwt: aiohttp.ClientSession,
+    first_admin_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we can create a new invite code"""
-    client = session_with_tpjwt
+    client = first_admin_session
     url = f"{API}/{VER}/enrollment/invitecode/create"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.post(url, json=None, timeout=DEFAULT_TIMEOUT)
@@ -121,10 +159,10 @@ async def test_4_invite_code_enroll(
 
 @pytest.mark.asyncio
 async def test_5_enrollment_list_for_available_call_sign(
-    session_with_tpjwt: aiohttp.ClientSession,
+    first_admin_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we have call_sign available for enrollment"""
-    client = session_with_tpjwt
+    client = first_admin_session
     url = f"{API}/{VER}/enrollment/list"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.get(url, timeout=DEFAULT_TIMEOUT)
