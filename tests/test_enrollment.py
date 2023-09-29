@@ -348,7 +348,6 @@ async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
-    assert resp_dict["callsign"] != ""
 
     # ACCEPT - ALREADY ACCEPTED
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
@@ -565,7 +564,6 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
-    assert resp_dict["callsign"] != ""
 
     # Fetch the PFX
     unauth_client.headers.update({"Authorization": f"Bearer {enrique_jwt}"})

@@ -6,13 +6,11 @@ import logging
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from multikeyjwt import Issuer
 
-
+from libpvarki.schemas.generic import OperationResultResponse
 from .schema import (
-    EnrollmentConfigTaskDone,
     EnrollmentStatusIn,
     EnrollmentStatusOut,
     EnrollmentAcceptIn,
-    EnrollmentAcceptOut,
     EnrollmentGenVerifiOut,
     EnrollmentShowVerificationCodeIn,
     EnrollmentShowVerificationCodeOut,
@@ -27,9 +25,7 @@ from .schema import (
     EnrollmentIsInvitecodeActiveOut,
     EnrollmentInviteCodeCreateOut,
     EnrollmentInviteCodeEnrollIn,
-    EnrollmentInviteCodeActivateOut,
     EnrollmentInviteCodeActivateIn,
-    EnrollmentInviteCodeDeactivateOut,
     EnrollmentInviteCodeDeactivateIn,
     EnrollmentInviteCodeDeleteOut,
 )
@@ -120,6 +116,7 @@ async def request_have_i_been_accepted(
     enrollment = await Enrollment.by_callsign(callsign=request.state.mtls_or_jwt.userid)
 
     # See state values in db/enrollment.py:EnrollmentState
+
     if enrollment.decided_by:
         return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=True)
 
@@ -190,14 +187,14 @@ async def request_enrollment_init(
     return EnrollmentInitOut(callsign=new_enrollment.callsign, jwt=new_jwt, approvecode=new_enrollment.approvecode)
 
 
-@ENROLLMENT_ROUTER.post("/promote", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/promote", response_model=OperationResultResponse)
 async def request_enrollment_promote(
     request: Request,
     request_in: EnrollmentPromoteIn = Body(
         None,
         examples=[EnrollmentPromoteIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigTaskDone:
+) -> OperationResultResponse:
     """
     "Promote" callsign/user/enrollment to have 'admin' rights
     """
@@ -210,21 +207,21 @@ async def request_enrollment_promote(
 
     role_added = await obj.assign_role(role="admin")
     if role_added:
-        return EnrollmentConfigTaskDone(success_message="Promote done")
+        return OperationResultResponse(success=True, extra="Promote done")
 
     reason = "Given callsign/callsign already has elevated permissions."
     LOGGER.error("{} : {}".format(request.url, reason))
     raise HTTPException(status_code=400, detail=reason)
 
 
-@ENROLLMENT_ROUTER.post("/demote", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/demote", response_model=OperationResultResponse)
 async def request_enrollment_demote(
     request: Request,
     request_in: EnrollmentDemoteIn = Body(
         None,
         examples=[EnrollmentDemoteIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigTaskDone:
+) -> OperationResultResponse:
     """
     "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
     """
@@ -236,21 +233,21 @@ async def request_enrollment_demote(
     obj = await Person.by_callsign(callsign=request_in.callsign)
     _role_removed = await obj.remove_role(role="admin")
     if _role_removed:
-        return EnrollmentConfigTaskDone(success_message="Demote done")
+        return OperationResultResponse(success=True, extra="Demote done")
 
     _reason = "Given callsign/callsign_hash doesn't have 'admin' privileges to take away."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=400, detail=_reason)
 
 
-@ENROLLMENT_ROUTER.post("/lock", response_model=EnrollmentConfigTaskDone)
+@ENROLLMENT_ROUTER.post("/lock", response_model=OperationResultResponse)
 async def request_enrollment_lock(
     request: Request,
     request_in: EnrollmentLockIn = Body(
         None,
         examples=[EnrollmentLockIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentConfigTaskDone:
+) -> OperationResultResponse:
     """
     Lock callsign/user/enrollment so it cannot be used anymore.
     """
@@ -263,17 +260,17 @@ async def request_enrollment_lock(
     _usr_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
     await _usr_enrollment.reject(decider=_admin_person)
 
-    return EnrollmentConfigTaskDone(success_message="Lock task done")
+    return OperationResultResponse(success=True, extra="Lock task done")
 
 
-@ENROLLMENT_ROUTER.post("/accept", response_model=EnrollmentAcceptOut)
+@ENROLLMENT_ROUTER.post("/accept", response_model=OperationResultResponse)
 async def post_enrollment_accept(
     request: Request,
     request_in: EnrollmentAcceptIn = Body(
         None,
         examples=[EnrollmentAcceptIn.Config.schema_extra["examples"]],
     ),
-) -> EnrollmentAcceptOut:
+) -> OperationResultResponse:
     """
     Accept callsign_hash (callsign/enrollment)
     """
@@ -288,7 +285,7 @@ async def post_enrollment_accept(
         raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
     new_approved_user = await pending_enrollment.approve(approver=admin_user)
 
-    return EnrollmentAcceptOut(callsign=new_approved_user.callsign)
+    return OperationResultResponse(success=True, extra=f"Approved {new_approved_user.callsign}")
 
 
 @ENROLLMENT_ROUTER.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
@@ -309,14 +306,14 @@ async def post_invite_code(
     return EnrollmentInviteCodeCreateOut(invite_code=_pool.invitecode)
 
 
-@ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=EnrollmentInviteCodeActivateOut)
+@ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=OperationResultResponse)
 async def put_activate_invite_code(
     request: Request,
     request_in: EnrollmentInviteCodeActivateIn = Body(
         None,
         examples=EnrollmentInviteCodeActivateIn.Config.schema_extra["examples"],
     ),
-) -> EnrollmentInviteCodeActivateOut:
+) -> OperationResultResponse:
     """
     Activate an invite code
     """
@@ -324,21 +321,21 @@ async def put_activate_invite_code(
     _activated_obj = await obj.set_active(state=True)
 
     if _activated_obj.active:
-        return EnrollmentInviteCodeActivateOut(invite_code=request_in.invite_code)
+        return OperationResultResponse(success=True, extra=f"Activated {request_in.invite_code}")
 
     _reason = "Error. Unable to activate given invitecode."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=500, detail=_reason)
 
 
-@ENROLLMENT_ROUTER.put("/invitecode/deactivate", response_model=EnrollmentInviteCodeDeactivateOut)
+@ENROLLMENT_ROUTER.put("/invitecode/deactivate", response_model=OperationResultResponse)
 async def put_deactivate_invite_code(
     request: Request,
     request_in: EnrollmentInviteCodeDeactivateIn = Body(
         None,
         examples=EnrollmentInviteCodeDeactivateIn.Config.schema_extra["examples"],
     ),
-) -> EnrollmentInviteCodeDeactivateOut:
+) -> OperationResultResponse:
     """
     Deactivate an invite code
     """
@@ -346,7 +343,7 @@ async def put_deactivate_invite_code(
     _deactivated_obj = await obj.set_active(state=False)
 
     if _deactivated_obj.active is False:
-        return EnrollmentInviteCodeDeactivateOut(invite_code="DISABLED")
+        return OperationResultResponse(success=True, extra=f"Disabled {request_in.invite_code}")
 
     _reason = "Error. Unable to deactivate given invitecode."
     LOGGER.error("{} : {}".format(request.url, _reason))
