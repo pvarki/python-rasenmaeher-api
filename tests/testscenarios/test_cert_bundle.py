@@ -1,12 +1,16 @@
 """Tests in sequence to simulate an end-to-end scenario"""
+from typing import AsyncGenerator
 import logging
 
 import aiohttp
 import pytest
+import pytest_asyncio
 
 from ..conftest import DEFAULT_TIMEOUT, API, VER
 
 LOGGER = logging.getLogger(__name__)
+
+# pylint: disable=W0621
 
 # pylint: disable=too-few-public-methods
 class ValueStorage:
@@ -14,15 +18,27 @@ class ValueStorage:
 
     first_user_admin_call_sign = ""
     first_user_admin_jwt_exchange_code = ""
+    first_user_admin_jwt = ""
     invite_code = ""
     call_sign = ""
     call_sign_jwt = ""
     approve_code = ""
 
 
+@pytest_asyncio.fixture
+async def first_admin_session(
+    session_with_testcas: aiohttp.ClientSession,
+) -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """Client with JWT"""
+    session = session_with_testcas
+    session.headers.update({"Authorization": f"Bearer {ValueStorage.first_user_admin_jwt}"})
+    yield session
+
+
 @pytest.mark.asyncio
 async def test_1_firstuser_add_admin(
     session_with_tpjwt: aiohttp.ClientSession,
+    session_with_testcas: aiohttp.ClientSession,
     call_sign_generator: str,
 ) -> None:
     """Tests that we can create new work_id"""
@@ -39,8 +55,12 @@ async def test_1_firstuser_add_admin(
     LOGGER.debug("payload={}".format(payload))
     assert payload["admin_added"] is True
     assert payload["jwt_exchange_code"] != ""
-    ValueStorage.first_user_admin_jwt_exchange_code = payload["jwt_exchange_code"]
     ValueStorage.first_user_admin_call_sign = call_sign_generator
+    ValueStorage.first_user_admin_jwt_exchange_code = payload["jwt_exchange_code"]
+    client2 = session_with_testcas
+    resp2 = await client2.post(f"{API}/{VER}/token/code/exchange", json={"code": payload["jwt_exchange_code"]})
+    payload2 = await resp2.json()
+    ValueStorage.first_user_admin_jwt = payload2["jwt"]
 
 
 @pytest.mark.asyncio
@@ -140,12 +160,12 @@ async def test_6_call_sign_not_accepted(
 
 @pytest.mark.asyncio
 async def test_7_enrollment_accept_call_sign(
-    session_with_tpjwt: aiohttp.ClientSession,
+    first_admin_session: aiohttp.ClientSession,
 ) -> None:
     """
     Tests that we can accept call_sign
     """
-    client = session_with_tpjwt
+    client = first_admin_session
     url = f"{API}/{VER}/enrollment/accept"
     data = {
         "callsign": f"{ValueStorage.call_sign}",
