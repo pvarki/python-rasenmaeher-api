@@ -42,8 +42,15 @@ async def put_to_all_products(
     return await _method_to_all_products("put", url_suffix, data, respose_schema)
 
 
+async def get_from_all_products(
+    url_suffix: str, respose_schema: Type[pydantic.BaseModel]
+) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
+    """Call given GET endpoint on call products in the manifest"""
+    return await _method_to_all_products("get", url_suffix, None, respose_schema)
+
+
 async def _method_to_all_products(
-    methodname: str, url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    methodname: str, url_suffix: str, data: Optional[Mapping[str, Any]], respose_schema: Type[pydantic.BaseModel]
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
     if not check_kraftwerk_manifest():
@@ -60,7 +67,10 @@ async def _method_to_all_products(
             try:
                 url = f"{conf['api']}{url_suffix}"
                 LOGGER.debug("calling {}({})".format(methodname, url))
-                resp = await getattr(client, methodname)(url, json=data)
+                if data is None:
+                    resp = await getattr(client, methodname)(url)
+                else:
+                    resp = await getattr(client, methodname)(url, json=data)
                 resp.raise_for_status()
                 payload = await resp.json()
                 LOGGER.debug("payload={}".format(payload))
