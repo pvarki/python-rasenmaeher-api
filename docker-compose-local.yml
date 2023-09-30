@@ -49,8 +49,8 @@ x-cfssl_env: &cfssl_env
   CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
   CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-8889}
   CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
-  NGINX_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
-  NGINX_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
+  OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
+  OCSP_PORT: ${NGINX_HTTPS_PORT:-4439}
   CFSSL_PERSISTENT_FOLDER: /data/persistent
 
 services:
@@ -96,7 +96,7 @@ services:
       dockerfile: Dockerfile
       target: ocsp
     networks:
-      - canet
+      - ocspnet
     environment:
       <<: *cfssl_env
     volumes:
@@ -294,15 +294,19 @@ services:
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
+      <<: *cfssl_env
       NGINX_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
       NGINX_HTTP_PORT: ${NGINX_HTTP_PORT:-8015}
       NGINX_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
+      NGINX_CRL_UPSTREAM: "cfssl"
+      NGINX_OCSP_UPSTREAM: "ocsp"
     networks:
       - apinet
       - kcnet
       - intranet
+      - ocspnet
     ports:
       - "${NGINX_HTTP_PORT:-8015}:${NGINX_HTTP_PORT:-8015}"
       - "${NGINX_HTTPS_PORT:-4439}:${NGINX_HTTPS_PORT:-4439}"
@@ -314,6 +318,8 @@ services:
       rmapi:
         condition: service_healthy
       ocsp:
+        condition: service_healthy
+      cfssl:
         condition: service_healthy
     healthcheck:
       test: 'true'  # FIXME
@@ -426,6 +432,7 @@ networks:
   apinet:
   kcnet:
   canet:
+  ocspnet:
   dbnet:
   intranet:
 
