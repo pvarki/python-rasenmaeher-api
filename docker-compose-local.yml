@@ -43,6 +43,16 @@ x-keycloakinit_users_env: &keycloakinit_users_env
   KEYCLOAK_USER: *lcadminuser # pragma: allowlist secret
   KEYCLOAK_PASSWORD: *kcadminpass # pragma: allowlist secret
 
+x-cfssl_env: &cfssl_env
+  INT_SHARED_CERT_FOLDER: /ca_public
+  CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+  CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
+  CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-8889}
+  CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
+  OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
+  OCSP_PORT: ${NGINX_HTTPS_PORT:-4439}
+  CFSSL_PERSISTENT_FOLDER: /data/persistent
+
 services:
   fakewerk:
     image: pvarki/fakewerk:latest
@@ -60,16 +70,35 @@ services:
       - ./tests/testjwts:/test_jwts
 
   cfssl:
-    image: pvarki/cfssl:latest
+    image: pvarki/cfssl:api-latest
     build:
       context: ./cfssl
       dockerfile: Dockerfile
+      target: api
     networks:
       - canet
     environment:
-      INT_SHARED_CERT_FOLDER: /ca_public
-      CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
-      CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
+      <<: *cfssl_env
+    volumes:
+      - cfssl_data:/data/persistent
+      - ca_public:/ca_public
+    healthcheck:
+      test: 'cfssl info -remote http://127.0.0.1:8888'
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  ocsp:
+    image: pvarki/cfssl:ocsp-latest
+    build:
+      context: ./cfssl
+      dockerfile: Dockerfile
+      target: ocsp
+    networks:
+      - ocspnet
+    environment:
+      <<: *cfssl_env
     volumes:
       - cfssl_data:/data/persistent
       - ca_public:/ca_public
@@ -79,6 +108,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    depends_on:
+      cfssl:
+        condition: service_healthy
 
   rmmkcert:
     image: pvarki/mkcert:latest
@@ -257,20 +289,24 @@ services:
   rmnginx:
     image: nginx
     volumes:
-      - ./nginx/templates:/etc/nginx/templates
+      - ./nginx/templates_rasenmaeher:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
+      <<: *cfssl_env
       NGINX_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
       NGINX_HTTP_PORT: ${NGINX_HTTP_PORT:-8015}
       NGINX_HTTPS_PORT: ${NGINX_HTTPS_PORT:-4439}
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
+      NGINX_CRL_UPSTREAM: "cfssl"
+      NGINX_OCSP_UPSTREAM: "ocsp"
     networks:
       - apinet
       - kcnet
       - intranet
+      - ocspnet
     ports:
       - "${NGINX_HTTP_PORT:-8015}:${NGINX_HTTP_PORT:-8015}"
       - "${NGINX_HTTPS_PORT:-4439}:${NGINX_HTTPS_PORT:-4439}"
@@ -280,6 +316,10 @@ services:
       keycloak:
         condition: service_healthy
       rmapi:
+        condition: service_healthy
+      ocsp:
+        condition: service_healthy
+      cfssl:
         condition: service_healthy
     healthcheck:
       test: 'true'  # FIXME
@@ -359,7 +399,7 @@ services:
   fpnginx:
     image: nginx
     volumes:
-      - ./nginx/templates_onlymtls:/etc/nginx/templates
+      - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
       - ca_public:/ca_public
       - le_certs:/le_certs
@@ -392,6 +432,7 @@ networks:
   apinet:
   kcnet:
   canet:
+  ocspnet:
   dbnet:
   intranet:
 

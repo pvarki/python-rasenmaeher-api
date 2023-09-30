@@ -24,7 +24,6 @@ CA_PATH = Path(__file__).parent / "testcas"
 JWT_PATH = Path(__file__).parent / "testjwts"
 DEFAULT_TIMEOUT = 5.0
 OPENAPI_VER = "3.1.0"
-FASTAPI_VER = "0.1.0"
 API = "https://localmaeher.pvarki.fi:4439/api"
 VER = "v1"
 
@@ -72,9 +71,24 @@ async def session_with_tpjwt(
     session = session_with_testcas
     token = tp_issuer.issue(
         {
-            "sub": "pyteststuff",
+            "sub": "tpadminsession",
             "anon_admin_session": True,
             "nonce": str(uuid.uuid4()),
+        }
+    )
+    session.headers.update({"Authorization": f"Bearer {token}"})
+    yield session
+
+
+@pytest_asyncio.fixture
+async def admin_jwt_session(
+    session_with_testcas: aiohttp.ClientSession, tp_issuer: Issuer
+) -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """JWT session for existing test user"""
+    session = session_with_testcas
+    token = tp_issuer.issue(
+        {
+            "sub": "pyteststuff",
         }
     )
     session.headers.update({"Authorization": f"Bearer {token}"})
