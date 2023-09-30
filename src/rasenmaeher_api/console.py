@@ -109,6 +109,28 @@ def get_pfx(ctx: click.Context, callsign: str, admin: bool) -> None:
     ctx.exit(ctx.obj["loop"].run_until_complete(do_the_needful()))
 
 
+@cli_group.command(name="revokeuser")
+@click.pass_context
+@click.option("--reason", type=str, help="Reason", default="unspecified")
+@click.argument("callsign", required=True, type=str)
+def revoke_user(ctx: click.Context, callsign: str, reason: str) -> None:
+    """Revoke user by callsign"""
+
+    async def do_the_needful() -> int:
+        """Do what is needed"""
+        nonlocal callsign, reason
+        await bind_config()
+        await init_db()
+
+        person = await Person.by_callsign(callsign)
+        await person.revoke(reason)
+        click.echo(f"{callsign} revoked")
+
+        return 0
+
+    ctx.exit(ctx.obj["loop"].run_until_complete(do_the_needful()))
+
+
 @cli_group.command(name="getjwt")
 @click.pass_context
 @click.option("--nonce", is_flag=True, help="Add nonce field with UUID as value")
