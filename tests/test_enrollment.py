@@ -126,7 +126,7 @@ async def test_show_verifcode_sub_is_bonkers(tilauspalvelu_jwt_without_proper_us
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 # HAVE I BEEN ACCEPTED - YES
@@ -326,7 +326,7 @@ async def test_lock_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
-    assert resp.status_code == 422
+    assert resp.status_code == 403
 
 
 # ACCEPT
