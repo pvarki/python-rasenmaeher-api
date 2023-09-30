@@ -142,6 +142,7 @@ async def main() -> int:
     certpem2 = (await sign_csr(csr_path2.read_text())).replace("\\n", "\n")
     cert_path2 = DATAPATH / "public" / "client.pem"
     cert_path2.write_text(certpem2, encoding="ascii")
+    LOGGER.info("All done")
 
     return 0
 
