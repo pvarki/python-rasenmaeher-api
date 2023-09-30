@@ -5,6 +5,7 @@ import json
 import asyncio
 import pprint
 import uuid
+from pathlib import Path
 
 import click
 from libadvian.logging import init_logging
@@ -19,7 +20,8 @@ from rasenmaeher_api.db.config import DBConfig
 from rasenmaeher_api.db.middleware import DBWrapper
 from rasenmaeher_api.web.application import get_app_no_init
 from rasenmaeher_api.db.base import init_db, bind_config
-
+from rasenmaeher_api.db import Person
+from rasenmaeher_api.db.errors import NotFound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +37,7 @@ def cli_group(ctx: click.Context, loglevel: int, verbose: int) -> None:
         loglevel = 20
     if verbose >= 2:
         loglevel = 10
+    init_logging(loglevel)
 
     LOGGER.setLevel(loglevel)
     ctx.ensure_object(dict)
@@ -76,6 +79,34 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
         return 0
 
     ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
+
+
+@cli_group.command(name="getpfx")
+@click.pass_context
+@click.option("--admin", is_flag=True, help="If a new user, make admin")
+@click.argument("callsign", required=True, type=str)
+def get_pfx(ctx: click.Context, callsign: str, admin: bool) -> None:
+    """Get PFX for cert+key for the given user, will create the user if needed"""
+
+    async def do_the_needful() -> int:
+        """Do what is needed"""
+        nonlocal callsign, admin
+        await bind_config()
+        await init_db()
+
+        try:
+            person = await Person.by_callsign(callsign)
+        except NotFound:
+            person = await Person.create_with_cert(callsign)
+            if admin:
+                await person.assign_role("admin")
+        tgtfile = Path(f"{callsign}.pfx")
+        tgtfile.write_bytes(person.pfxfile.read_bytes())
+        click.echo(f"Wrote {tgtfile}")
+
+        return 0
+
+    ctx.exit(ctx.obj["loop"].run_until_complete(do_the_needful()))
 
 
 @cli_group.command(name="getjwt")

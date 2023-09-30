@@ -1,5 +1,5 @@
 """Private apis"""
-from typing import Union, Optional
+from typing import Union, Optional, Any
 import logging
 import binascii
 from pathlib import Path
@@ -24,10 +24,26 @@ async def sign_csr(csr: str) -> str:
     """
     async with (await mtls_session()) as session:
         url = f"{base_url()}/api/v1/cfssl/sign"
-        payload = {"certificate_request": csr}
+        payload = {"certificate_request": csr, "profile": "client", "bundle": True}
         try:
+            LOGGER.debug("Calling {}".format(url))
             async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
                 return await get_result_cert(response)
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(str(exc)) from exc
+
+
+async def sign_ocsp(cert: str, status: str = "good") -> Any:
+    """
+    Call ocspsign endpoint
+    """
+
+    async with (await mtls_session()) as session:
+        url = f"{base_url()}/api/v1/cfssl/ocspsign"
+        payload = {"certificate": cert, "status": status}
+        try:
+            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+                return await get_result(response)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 
