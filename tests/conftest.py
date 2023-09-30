@@ -24,7 +24,6 @@ CA_PATH = Path(__file__).parent / "testcas"
 JWT_PATH = Path(__file__).parent / "testjwts"
 DEFAULT_TIMEOUT = 5.0
 OPENAPI_VER = "3.1.0"
-FASTAPI_VER = "0.1.0"
 API = "https://localmaeher.pvarki.fi:4439/api"
 VER = "v1"
 

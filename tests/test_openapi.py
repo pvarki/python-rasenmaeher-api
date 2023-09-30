@@ -4,7 +4,7 @@ import logging
 import aiohttp
 import pytest
 
-from .conftest import DEFAULT_TIMEOUT, API, VER, OPENAPI_VER, FASTAPI_VER
+from .conftest import DEFAULT_TIMEOUT, API, VER, OPENAPI_VER
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,7 +24,6 @@ async def test_get_openapi_json(
     assert payload["openapi"] == f"{OPENAPI_VER}"
     assert payload["info"] is not None
     assert payload["info"]["title"] == "FastAPI"
-    assert payload["info"]["version"] == f"{FASTAPI_VER}"
     assert payload["paths"] is not None
     assert payload["paths"][f"/api/{VER}/healthcheck"] is not None
     assert payload["components"] is not None
@@ -32,3 +31,4 @@ async def test_get_openapi_json(
     assert payload["components"]["schemas"]["CertificatesRequest"] is not None
     assert payload["components"]["securitySchemes"] is not None
     assert payload["components"]["securitySchemes"]["JWTBearer"] is not None
+    # TODO: Read version from api submodule if we want to check the fastapi version
