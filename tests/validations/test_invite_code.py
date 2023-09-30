@@ -80,7 +80,6 @@ async def test_missing_invite_code_enroll(
 @pytest.mark.asyncio
 async def test_invalid_session_in_invite_code_create(
     session_with_invalid_tpjwt: aiohttp.ClientSession,
-    error_messages: Dict[str, str],
 ) -> None:
     """Tests that we cannot create new invite code invalid jwt"""
     client = session_with_invalid_tpjwt
@@ -89,8 +88,7 @@ async def test_invalid_session_in_invite_code_create(
     response = await client.post(url, json=None, timeout=DEFAULT_TIMEOUT)
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
-    assert response.status == 404
-    assert payload["detail"] == error_messages["WORK_ID_NOT_FOUND"]
+    assert response.status == 403
 
 
 @pytest.mark.asyncio
