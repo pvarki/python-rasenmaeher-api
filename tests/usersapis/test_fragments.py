@@ -17,7 +17,12 @@ async def test_admin_fragment(admin_mtls_client: TestClient) -> None:
     LOGGER.debug("payload={}".format(payload))
     assert payload
     assert "fragments" in payload
-    # TODO: Check that fake key has "hello world"
+    assert "fake" in payload["fragments"]
+    assert payload["fragments"]["fake"]
+    fpl = payload["fragments"]["fake"]
+    assert "html" in fpl
+    assert fpl["html"]
+    assert fpl["html"] == "<p>Hello admin!</p>"
 
 
 @pytest.mark.asyncio
@@ -30,4 +35,9 @@ async def test_user_fragment(user_mtls_client: TestClient) -> None:
     LOGGER.debug("payload={}".format(payload))
     assert payload
     assert "fragments" in payload
-    # TODO: Check that fake key has "hello world"
+    assert "fake" in payload["fragments"]
+    assert payload["fragments"]["fake"]
+    fpl = payload["fragments"]["fake"]
+    assert "html" in fpl
+    assert fpl["html"]
+    assert fpl["html"] == "<p>Hello ENROLLUSERa!</p>"
