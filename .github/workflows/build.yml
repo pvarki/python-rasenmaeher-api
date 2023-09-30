@@ -28,6 +28,8 @@ jobs:
           cd api && poetry install
       - name: Test with pytest
         run: |
+          rm -rf api/tests/data/cfssl/*
+          rm -rf api/tests/data/ca_public/*
           cd api && poetry run py.test -v --junitxml=pytest-apiunit.xml tests/
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4
