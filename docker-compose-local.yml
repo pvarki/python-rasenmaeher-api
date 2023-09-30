@@ -83,10 +83,10 @@ services:
       - cfssl_data:/data/persistent
       - ca_public:/ca_public
     healthcheck:
-      test: 'test -f "/ca_public/ca_chain.pem"'  # FIXME
+      test: 'cfssl info -remote http://127.0.0.1:8888'
       interval: 5s
       timeout: 5s
-      retries: 3
+      retries: 5
       start_period: 5s
 
   ocsp:

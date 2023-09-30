@@ -32,6 +32,9 @@ jobs:
           rm -rf api/tests/data/ca_public/*
           docker system prune --all --volumes --force
           cd api/tests && docker compose -f docker-compose.yml build --pull
+          docker compose -f docker-compose.yml pull --ignore-buildable
+          docker compose -f docker-compose.yml up -d --wait || docker compose -f docker-compose.yml logs
+          docker compose -f docker-compose.yml down -v
       - name: Test with pytest
         run: |
           cd api && poetry run py.test -v --junitxml=pytest-apiunit.xml tests/
@@ -67,7 +70,9 @@ jobs:
       run: |
         shopt -s expand_aliases
         alias dcloc="docker compose -p rmlocal -f docker-compose-local.yml"
-        dcloc build
+        docker system prune --all --volumes --force
+        dcloc build --pull
+        dcloc pull --ignore-buildable
     - name: docker compose cleanup
       id: compose_clean_1
       run: |
@@ -143,7 +148,9 @@ jobs:
       run: |
         shopt -s expand_aliases
         alias dcdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
-        dcdev build
+        docker system prune --all --volumes --force
+        dcdev build --pull
+        dcdev pull --ignore-buildable
     - name: docker compose cleanup
       id: compose_clean_1
       run: |
