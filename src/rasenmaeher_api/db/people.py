@@ -1,5 +1,5 @@
 """Abstractions for people"""
-from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set, List
+from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set
 import asyncio
 import uuid
 import logging
@@ -175,11 +175,9 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                         Person.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
                     )
                 async for person in query.order_by(Person.callsign).gino.iterate():
-                    person.roles = [
-                        str(role) async for role in person.roles() if role is not None
-                    ]
+                    person.roles = [str(role) async for role in person.roles() if role is not None]
                     yield person
-    
+
     @classmethod
     async def by_role(cls, role: str) -> AsyncGenerator["Person", None]:
         """List people that have given role, if role is None list all people"""
