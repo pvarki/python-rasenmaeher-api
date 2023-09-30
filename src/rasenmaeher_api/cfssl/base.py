@@ -52,6 +52,15 @@ async def get_result_cert(response: aiohttp.ClientResponse) -> str:
     return cast(str, cert)
 
 
+async def get_result_bundle(response: aiohttp.ClientResponse) -> str:
+    """Shorthand for checking the response and getting the cert"""
+    result = await get_result(response)
+    cert = result.get("bundle")
+    if not cert:
+        raise NoValue("CFSSL did not return certificate bundle")
+    return cast(str, cert)
+
+
 def base_url() -> str:
     """Construct the base url"""
     return f"{settings.cfssl_host}:{settings.cfssl_port}"

@@ -12,17 +12,26 @@ x-postgres_env: &postgres_env
   POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
   RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
 
+x-cfssl_env: &cfssl_env
+    INT_SHARED_CERT_FOLDER: /ca_public
+    CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+    CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
+    CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-7778}  # different from default on purpose
+    CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
+    OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
+    OCSP_PORT: ${NGINX_HTTPS_PORT:-4440}
+    CFSSL_PERSISTENT_FOLDER: /data/persistent
+
 
 services:
   cfssl:
-    image: pvarki/cfssl:latest
+    image: pvarki/cfssl:api-latest
     build:
       context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
       dockerfile: Dockerfile
+      target: api
     environment:
-      INT_SHARED_CERT_FOLDER: /ca_public
-      CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
-      CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
+      <<: *cfssl_env
     ports:
       - '7777:7777'
     networks:

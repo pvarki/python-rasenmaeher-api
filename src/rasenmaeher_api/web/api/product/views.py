@@ -13,7 +13,7 @@ from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use 
 from .schema import CertificatesResponse, CertificatesRequest
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
-from ....cfssl.public import get_ca
+from ....cfssl.public import get_ca, get_bundle
 from ....cfssl.private import sign_csr
 
 
@@ -43,13 +43,14 @@ async def return_ca_and_sign_csr(
     # PONDER: Should we check jwtpayload["sub"] is among the products in KRAFTWERK manifest ??
 
     cachain = await get_ca()
-    certificate = await sign_csr(certs.csr)
+    certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
+    bundlepem = await get_bundle(certpem)
 
     await SeenToken.use_token(jwtpayload["nonce"])
 
     return CertificatesResponse(
         ca=cachain,
-        certificate=certificate,
+        certificate=bundlepem,
     )
 
 
@@ -67,11 +68,12 @@ async def renew_csr(
         raise HTTPException(403, "Renewal must be for same name")
 
     cachain = await get_ca()
-    certificate = await sign_csr(certs.csr)
+    certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
+    bundlepem = await get_bundle(certpem)
 
     return CertificatesResponse(
         ca=cachain,
-        certificate=certificate,
+        certificate=bundlepem,
     )
 
 

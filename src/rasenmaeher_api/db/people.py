@@ -25,6 +25,7 @@ from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..settings import settings
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
+from ..cfssl.public import get_bundle
 from ..prodcutapihelpers import post_to_all_products
 
 LOGGER = logging.getLogger(__name__)
@@ -66,7 +67,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                     certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
-                    newperson.certfile.write_text(certpem)
+                    bundlepem = (await get_bundle(certpem)).replace("\\n", "\n")
+                    newperson.certfile.write_text(bundlepem)
                     await newperson.create_pfx()
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, doing cleanup")

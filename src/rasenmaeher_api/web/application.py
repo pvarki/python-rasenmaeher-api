@@ -13,6 +13,7 @@ from ..jwtinit import jwt_init
 from ..db import base as dbbase
 from ..db.config import DBConfig
 from ..db.middleware import DBConnectionMiddleware, DBWrapper
+from .. import __version__
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 def get_app_no_init() -> FastAPI:
     """Retunr the app without logging etc inits"""
-    app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan)
+    app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan, version=__version__)
     app.include_router(router=api_router, prefix="/api/v1")
     app.add_middleware(DBConnectionMiddleware, gino=dbbase.db, config=DBConfig.singleton())
     return app
