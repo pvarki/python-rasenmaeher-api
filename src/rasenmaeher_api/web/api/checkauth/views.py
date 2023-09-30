@@ -3,17 +3,17 @@ from typing import cast
 
 
 from fastapi import APIRouter, Depends, Request
-from multikeyjwt.middleware import JWTBearer, JWTPayload
 from libpvarki.middleware.mtlsheader import MTLSHeader, DNDict
 
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.datatypes import MTLSorJWTPayload
 from ..middleware.user import ValidUser
+from ..middleware.jwt import JWTwNonceSubFilter, JWTPayload
 
 router = APIRouter()
 
 
-@router.get("/jwt", dependencies=[Depends(JWTBearer(auto_error=True))])
+@router.get("/jwt", dependencies=[Depends(JWTwNonceSubFilter(auto_error=True))])
 async def return_jwt_payload(request: Request) -> JWTPayload:
     """Method for testing JWT"""
     return cast(JWTPayload, request.state.jwt)

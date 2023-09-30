@@ -3,11 +3,12 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Depends
 from multikeyjwt import Verifier, Issuer
-from multikeyjwt.middleware import JWTBearer, JWTPayload
 
 
 from .schema import JWTExchangeRequestResponse, LoginCodeCreateRequest, LoginCodeRequestResponse
 from ....db import SeenToken, LoginCode
+from ..middleware.jwt import JWTwNonceSubFilter, JWTPayload
+
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ async def exchange_token(req: JWTExchangeRequestResponse) -> JWTExchangeRequestR
 
 
 @router.get("/jwt/refresh", tags=["tokens"], response_model=JWTExchangeRequestResponse)
-async def refresh_token(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -> JWTExchangeRequestResponse:
+async def refresh_token(jwt: JWTPayload = Depends(JWTwNonceSubFilter(auto_error=True))) -> JWTExchangeRequestResponse:
     """Refresh your JWT"""
     # Copy all claims to fresh token
     LOGGER.debug("Called")
@@ -54,7 +55,7 @@ async def refresh_token(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -
 
 @router.post("/code/generate", tags=["tokens"], response_model=LoginCodeRequestResponse)
 async def create_code(
-    req: LoginCodeCreateRequest, jwt: JWTPayload = Depends(JWTBearer(auto_error=True))
+    req: LoginCodeCreateRequest, jwt: JWTPayload = Depends(JWTwNonceSubFilter(auto_error=True))
 ) -> LoginCodeRequestResponse:
     """Generate an alphanumeric code that can be exchanged for JWT with the given claims"""
     LOGGER.debug("Called")

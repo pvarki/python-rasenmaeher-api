@@ -2,19 +2,18 @@
 import logging
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
-from multikeyjwt.middleware import JWTBearer, JWTPayload
 
-from rasenmaeher_api.web.api.firstuser.schema import (
+from ..middleware.jwt import JWTwNonceSubFilter, JWTPayload
+from ....db import Person
+from ....db import LoginCode
+from ....db import Enrollment
+from ....db.errors import NotFound
+from .schema import (
     FirstuserCheckCodeIn,
     FirstuserCheckCodeOut,
     FirstuserAddAdminIn,
     FirstuserAddAdminOut,
 )
-
-from ....db import Person
-from ....db import LoginCode
-from ....db import Enrollment
-from ....db.errors import NotFound
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -58,7 +57,7 @@ async def post_admin_add(
         None,
         examples=[FirstuserAddAdminIn.Config.schema_extra["examples"]],
     ),
-    jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
+    jwt: JWTPayload = Depends(JWTwNonceSubFilter(auto_error=True)),
 ) -> FirstuserAddAdminOut:
     """
     Add callsign aka username/identity. This callsign is also elevated to have managing permissions.
