@@ -31,7 +31,8 @@ jobs:
           rm -rf api/tests/data/cfssl/*
           rm -rf api/tests/data/ca_public/*
           docker system prune --all --volumes --force
-          cd api && poetry run py.test -v --junitxml=pytest-apiunit.xml tests/
+          cd api/tests && docker compose -f docker-compose.yml build && docker compose -f docker-compose.yml pull
+          cd .. && poetry run py.test -v --junitxml=pytest-apiunit.xml tests/
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v4
         if: success() || failure() # always run even if the previous step fails
