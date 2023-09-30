@@ -107,3 +107,37 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
                     pass
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
+
+
+async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
+    """Read the serial number from the PEM cert and call certadd
+    endpoint
+
+    If path is given it's read_text()d
+    """
+    if isinstance(pem, Path):
+        pem = pem.read_text("utf-8")
+    cert = cryptography.x509.load_pem_x509_certificate(pem.encode("utf-8"))
+    kid: Optional[str] = None
+    for extension in cert.extensions:
+        if extension.oid.dotted_string != "2.5.29.35":  # oid=2.5.29.35, name=authorityKeyIdentifier
+            continue
+        kid = binascii.hexlify(extension.value.key_identifier).decode("ascii")
+    if not kid:
+        raise ValueError("Cannot resolve authority_key_id from the cert")
+
+    async with (await mtls_session()) as session:
+        url = f"{base_url()}/api/v1/cfssl/certadd"
+        payload = {
+            "pem": pem,
+            "status": status,
+            "serial_number": str(cert.serial_number),
+            "authority_key_identifier": kid,
+            "expiry": cert.not_valid_after.isoformat() + "Z",
+        }
+        try:
+            LOGGER.debug("POSTing {} to {}".format(payload, url))
+            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+                return await get_result(response)
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(str(exc)) from exc

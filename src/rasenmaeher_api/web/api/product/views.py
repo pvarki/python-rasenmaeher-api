@@ -14,7 +14,7 @@ from .schema import CertificatesResponse, CertificatesRequest
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....cfssl.public import get_ca, get_bundle
-from ....cfssl.private import sign_csr, sign_ocsp
+from ....cfssl.private import sign_csr
 
 
 router = APIRouter()
@@ -44,7 +44,6 @@ async def return_ca_and_sign_csr(
 
     cachain = await get_ca()
     certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
-    await sign_ocsp(certpem)
     bundlepem = await get_bundle(certpem)
 
     await SeenToken.use_token(jwtpayload["nonce"])
@@ -70,7 +69,6 @@ async def renew_csr(
 
     cachain = await get_ca()
     certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
-    await sign_ocsp(certpem)
     bundlepem = await get_bundle(certpem)
 
     return CertificatesResponse(
