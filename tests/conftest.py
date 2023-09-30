@@ -193,7 +193,6 @@ async def tilauspalvelu_jwt_admin_client(
             {
                 "sub": pyteststuff_id,
                 "anon_admin_session": True,
-                "nonce": str(uuid.uuid4()),
             }
         )
         instance.headers.update({"Authorization": f"Bearer {token}"})
@@ -212,7 +211,6 @@ async def tilauspalvelu_jwt_user_client(
             {
                 "sub": kissa_id,
                 "anon_admin_session": True,
-                "nonce": str(uuid.uuid4()),
             }
         )
         instance.headers.update({"Authorization": f"Bearer {token}"})
@@ -230,7 +228,6 @@ async def tilauspalvelu_jwt_user_koira_client(
         token = issuer_cl.issue(
             {
                 "sub": koira_id,
-                "nonce": str(uuid.uuid4()),
             }
         )
         instance.headers.update({"Authorization": f"Bearer {token}"})
@@ -245,7 +242,6 @@ async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> Asy
             {
                 "sub": "nosuchusershouldbefound",
                 "anon_admin_session": True,
-                "nonce": str(uuid.uuid4()),
             }
         )
         instance.headers.update({"Authorization": f"Bearer {token}"})
