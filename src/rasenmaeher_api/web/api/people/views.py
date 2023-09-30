@@ -1,11 +1,12 @@
 """People API views."""  # pylint: disable=too-many-lines
-from typing import Dict, List, Any, Union
+from typing import List, Union
 import logging
 
 
 from fastapi import APIRouter, Request, Depends, HTTPException
 
 from .schema import (
+    CallSignPerson,
     PeopleListOut,
 )
 from ..middleware.mtls import MTLSorJWT
@@ -56,8 +57,10 @@ async def request_people_list(
 
     _people_list = Person.list()
 
-    _result_list: List[Dict[Any, Any]] = []
+    _result_list: List[CallSignPerson] = []
     async for _x in _people_list:
-        _result_list.append({"callsign": _x.callsign, "roles": _x.roles, "extra": _x.extra})
+        _roles = [str(role) async for role in _x.roles() if role is not None]
+        _person = CallSignPerson(callsign=_x.callsign, roles=_roles, extra=_x.extra)
+        _result_list.append(_person)
 
     return PeopleListOut(callsign_list=_result_list)

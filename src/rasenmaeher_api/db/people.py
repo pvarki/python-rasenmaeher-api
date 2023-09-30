@@ -175,7 +175,6 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                         Person.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
                     )
                 async for person in query.order_by(Person.callsign).gino.iterate():
-                    person.roles = [str(role) async for role in person.roles() if role is not None]
                     yield person
 
     @classmethod
