@@ -32,7 +32,7 @@ jobs:
           docker system prune --all --volumes --force
           cd tests && docker compose -f docker-compose.yml build --pull
           docker compose -f docker-compose.yml pull --ignore-buildable
-          docker compose -f docker-compose.yml up -d --wait || ( docker compose -f docker-compose.yml logs && exit 1 )
+          docker compose -f docker-compose.yml up -d --wait || docker compose -f docker-compose.yml logs
           docker compose -f docker-compose.yml down -v
       - name: Test with pytest
         run: |
