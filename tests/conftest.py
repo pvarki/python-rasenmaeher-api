@@ -71,9 +71,24 @@ async def session_with_tpjwt(
     session = session_with_testcas
     token = tp_issuer.issue(
         {
-            "sub": "pyteststuff",
+            "sub": "tpadminsession",
             "anon_admin_session": True,
             "nonce": str(uuid.uuid4()),
+        }
+    )
+    session.headers.update({"Authorization": f"Bearer {token}"})
+    yield session
+
+
+@pytest_asyncio.fixture
+async def admin_jwt_session(
+    session_with_testcas: aiohttp.ClientSession, tp_issuer: Issuer
+) -> AsyncGenerator[aiohttp.ClientSession, None]:
+    """JWT session for existing test user"""
+    session = session_with_testcas
+    token = tp_issuer.issue(
+        {
+            "sub": "pyteststuff",
         }
     )
     session.headers.update({"Authorization": f"Bearer {token}"})

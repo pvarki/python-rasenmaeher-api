@@ -36,11 +36,11 @@ async def test_not_used_invite_code(
 
 @pytest.mark.asyncio
 async def test_invalid_invite_code_enroll(
-    session_with_tpjwt: aiohttp.ClientSession,
+    admin_jwt_session: aiohttp.ClientSession,
     error_messages: Dict[str, str],
 ) -> None:
     """Tests that we cannot enroll non-existent work_id and invite_code"""
-    client = session_with_tpjwt
+    client = admin_jwt_session
     url = f"{API}/{VER}/enrollment/invitecode/enroll"
     data = {
         "invite_code": "adf32423sfa432",
@@ -56,11 +56,11 @@ async def test_invalid_invite_code_enroll(
 
 @pytest.mark.asyncio
 async def test_missing_invite_code_enroll(
-    session_with_tpjwt: aiohttp.ClientSession,
+    admin_jwt_session: aiohttp.ClientSession,
     error_messages: Dict[str, str],
 ) -> None:
     """Tests that we cannot enroll if invite_code is missing"""
-    client = session_with_tpjwt
+    client = admin_jwt_session
     url = f"{API}/{VER}/enrollment/invitecode/enroll"
     data = {
         "invitecode": "adf32423sfa432",
@@ -95,13 +95,14 @@ async def test_invalid_session_in_invite_code_create(
 
 @pytest.mark.asyncio
 async def test_valid_invite_code_create(
-    session_with_tpjwt: aiohttp.ClientSession,
+    admin_jwt_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we can create a new invite code using jwt"""
-    client = session_with_tpjwt
+    client = admin_jwt_session
     url = f"{API}/{VER}/enrollment/invitecode/create"
     LOGGER.debug("Fetching {}".format(url))
-    response = await client.post(url, json=None, timeout=DEFAULT_TIMEOUT)
+    response = await client.post(url, timeout=DEFAULT_TIMEOUT)
+    LOGGER.debug("response={}".format(response))
     response.raise_for_status()
     payload = await response.json()
     LOGGER.debug("payload={}".format(payload))
@@ -156,10 +157,10 @@ async def test_validity_of_valid_invite_code(
 
 @pytest.mark.asyncio
 async def test_deactivate_valid_invite_code(
-    session_with_tpjwt: aiohttp.ClientSession,
+    admin_jwt_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we can deactivate valid invite code"""
-    client = session_with_tpjwt
+    client = admin_jwt_session
     url = f"{API}/{VER}/enrollment/invitecode/deactivate"
     data = {
         "invite_code": f"{ValueStorage.invite_code}",
@@ -189,10 +190,10 @@ async def test_valid_invite_code_is_not_active(
 
 @pytest.mark.asyncio
 async def test_activate_valid_invite_code(
-    session_with_tpjwt: aiohttp.ClientSession,
+    admin_jwt_session: aiohttp.ClientSession,
 ) -> None:
     """Tests that we can activate valid invite code"""
-    client = session_with_tpjwt
+    client = admin_jwt_session
     url = f"{API}/{VER}/enrollment/invitecode/activate"
     data = {
         "invite_code": f"{ValueStorage.invite_code}",
