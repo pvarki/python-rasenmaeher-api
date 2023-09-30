@@ -1,5 +1,5 @@
 """Enrollment API views."""  # pylint: disable=too-many-lines
-from typing import Dict, List, Any, Union
+from typing import Dict, List, Any
 import logging
 
 
@@ -30,6 +30,7 @@ from .schema import (
     EnrollmentInviteCodeDeleteOut,
 )
 from ..middleware.mtls import MTLSorJWT
+from ..middleware.user import ValidUser
 from ....db import Person
 from ....db import Enrollment, EnrollmentPool
 from ....db.errors import NotFound
@@ -38,30 +39,6 @@ LOGGER = logging.getLogger(__name__)
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 NO_JWT_ENROLLMENT_ROUTER = APIRouter()
-
-
-async def check_management_permissions(
-    raise_exeption: bool = True, callsign: str = "", required_role: str = "admin"
-) -> Union[bool, None]:
-    """
-    Simple function to check if requester has requested role.
-    """
-
-    user = await Person.by_callsign(callsign=callsign)
-    is_admin = await user.has_role(role=required_role)
-
-    # Raise exeption if
-    if raise_exeption and is_admin is False:
-        _reason = "Error. User doesn't have required permissions. See system logs."
-        LOGGER.error(
-            "Missing role from user : '{}'. Required permissions that are missing : '{}'".format(
-                callsign, required_role
-            )
-        )
-        LOGGER.error("{}".format(_reason))
-        raise HTTPException(status_code=403, detail=_reason)
-
-    return is_admin
 
 
 @ENROLLMENT_ROUTER.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)
@@ -75,10 +52,13 @@ async def post_generate_verification_code(
     return EnrollmentGenVerifiOut(verification_code=f"{_verification_code}")
 
 
-@ENROLLMENT_ROUTER.get("/show-verification-code-info", response_model=EnrollmentShowVerificationCodeOut)
+@ENROLLMENT_ROUTER.get(
+    "/show-verification-code-info",
+    response_model=EnrollmentShowVerificationCodeOut,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def request_show_verification_code(
-    request: Request,
-    params: EnrollmentShowVerificationCodeIn = Depends(),
+    request: Request, params: EnrollmentShowVerificationCodeIn = Depends()
 ) -> EnrollmentShowVerificationCodeOut:
     """
     /show-verification-code-info?verification_code=jaddajaa
@@ -89,10 +69,6 @@ async def request_show_verification_code(
         _reason = "Verification code cannot be empty or na"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
-
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
 
     obj = await Enrollment.by_approvecode(code=params.verification_code)
 
@@ -139,19 +115,17 @@ async def request_enrolment_status(
         return EnrollmentStatusOut(callsign="", status=-1)
 
 
-@ENROLLMENT_ROUTER.get("/list", response_model=EnrollmentListOut)
-async def request_enrollment_list(
-    request: Request,
-) -> EnrollmentListOut:
+@ENROLLMENT_ROUTER.get(
+    "/list",
+    response_model=EnrollmentListOut,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
+async def request_enrollment_list() -> EnrollmentListOut:
     """
     /list
     Return users/callsign/enrollments. If 'accepted' has something else than '', it has been accepted.
     Returns a list of dicts, callsign_list = [ {  "callsign":'x', 'state':'init', 'approvecode':'' } ]
     """
-
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
 
     _enroll_list = Enrollment.list()
 
@@ -162,9 +136,12 @@ async def request_enrollment_list(
     return EnrollmentListOut(callsign_list=_result_list)
 
 
-@ENROLLMENT_ROUTER.post("/init", response_model=EnrollmentInitOut)
+@ENROLLMENT_ROUTER.post(
+    "/init",
+    response_model=EnrollmentInitOut,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def request_enrollment_init(
-    request: Request,
     request_in: EnrollmentInitIn = Body(
         None,
         examples=[EnrollmentInitIn.Config.schema_extra["examples"]],
@@ -173,10 +150,6 @@ async def request_enrollment_init(
     """
     Add new callsign (enrollment) to environment.
     """
-
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
 
     # TODO ADD POOL NAME CHECK
 
@@ -187,7 +160,11 @@ async def request_enrollment_init(
     return EnrollmentInitOut(callsign=new_enrollment.callsign, jwt=new_jwt, approvecode=new_enrollment.approvecode)
 
 
-@ENROLLMENT_ROUTER.post("/promote", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.post(
+    "/promote",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def request_enrollment_promote(
     request: Request,
     request_in: EnrollmentPromoteIn = Body(
@@ -198,10 +175,6 @@ async def request_enrollment_promote(
     """
     "Promote" callsign/user/enrollment to have 'admin' rights
     """
-
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
 
     obj = await Person.by_callsign(callsign=request_in.callsign)
 
@@ -214,7 +187,11 @@ async def request_enrollment_promote(
     raise HTTPException(status_code=400, detail=reason)
 
 
-@ENROLLMENT_ROUTER.post("/demote", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.post(
+    "/demote",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def request_enrollment_demote(
     request: Request,
     request_in: EnrollmentDemoteIn = Body(
@@ -226,10 +203,6 @@ async def request_enrollment_demote(
     "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
     """
 
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
-
     obj = await Person.by_callsign(callsign=request_in.callsign)
     _role_removed = await obj.remove_role(role="admin")
     if _role_removed:
@@ -240,7 +213,11 @@ async def request_enrollment_demote(
     raise HTTPException(status_code=400, detail=_reason)
 
 
-@ENROLLMENT_ROUTER.post("/lock", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.post(
+    "/lock",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def request_enrollment_lock(
     request: Request,
     request_in: EnrollmentLockIn = Body(
@@ -252,10 +229,6 @@ async def request_enrollment_lock(
     Lock callsign/user/enrollment so it cannot be used anymore.
     """
 
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
-
     _admin_person = await Person.by_callsign(request.state.mtls_or_jwt.userid)
     _usr_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
     await _usr_enrollment.reject(decider=_admin_person)
@@ -263,7 +236,11 @@ async def request_enrollment_lock(
     return OperationResultResponse(success=True, extra="Lock task done")
 
 
-@ENROLLMENT_ROUTER.post("/accept", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.post(
+    "/accept",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def post_enrollment_accept(
     request: Request,
     request_in: EnrollmentAcceptIn = Body(
@@ -275,10 +252,6 @@ async def post_enrollment_accept(
     Accept callsign_hash (callsign/enrollment)
     """
 
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
-
     admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
     pending_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
     if request_in.approvecode != pending_enrollment.approvecode:
@@ -288,18 +261,15 @@ async def post_enrollment_accept(
     return OperationResultResponse(success=True, extra=f"Approved {new_approved_user.callsign}")
 
 
-@ENROLLMENT_ROUTER.post("/invitecode/create", response_model=EnrollmentInviteCodeCreateOut)
-async def post_invite_code(
-    request: Request,
-) -> EnrollmentInviteCodeCreateOut:
+@ENROLLMENT_ROUTER.post(
+    "/invitecode/create",
+    response_model=EnrollmentInviteCodeCreateOut,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
+async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
     """
     Create a new invite code
     """
-
-    # Veriy that the user has permissions to create invite codes
-    await check_management_permissions(
-        raise_exeption=True, callsign=request.state.mtls_or_jwt.userid, required_role="admin"
-    )
 
     _pool = await EnrollmentPool.old_invitecode_for_callsign_tobedeleted(callsign=request.state.mtls_or_jwt.userid)
 
