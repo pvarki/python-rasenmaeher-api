@@ -40,11 +40,10 @@ class MTLSorJWT(HTTPBase):  # pylint: disable=too-few-public-methods
             )
             return request.state.mtls_or_jwt
         if jwtrep := await jwtdep(request=request):
-            if jwtrep["sub"] in self.disallow_jwt_sub:
+            jwt_sub = jwtrep.get("sub")
+            if jwt_sub in self.disallow_jwt_sub:
                 raise HTTPException(status_code=403, detail="Subject not allowed")
-            request.state.mtls_or_jwt = MTLSorJWTPayload(
-                type=MTLSorJWTPayloadType.JWT, userid=jwtrep.get("sub"), payload=jwtrep
-            )
+            request.state.mtls_or_jwt = MTLSorJWTPayload(type=MTLSorJWTPayloadType.JWT, userid=jwt_sub, payload=jwtrep)
             return request.state.mtls_or_jwt
         if self.auto_error:
             raise HTTPException(status_code=403, detail="Not authenticated")
