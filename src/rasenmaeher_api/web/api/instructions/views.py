@@ -6,7 +6,7 @@ from fastapi import Depends, APIRouter, Request
 from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 
 
-from .schema import AllProdcutsInstructionFragments
+from .schema import AllProdcutsInstructionFragments, ProductFileList, AllProdcutsInstructionFiles
 from ..middleware.user import ValidUser
 from ....prodcutapihelpers import get_from_all_products, post_to_all_products
 from ....db import Person
@@ -33,19 +33,17 @@ async def admin_instruction_fragment() -> AllProdcutsInstructionFragments:
 
 @router.get(
     "/user",
-    response_model=AllProdcutsInstructionFragments,
+    response_model=AllProdcutsInstructionFiles,
     dependencies=[Depends(ValidUser(auto_error=True))],
 )
-async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionFragments:
-    """Return end-user instructions"""
+async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionFiles:
+    """Return end-user files"""
     person = cast(Person, request.state.person)
     user = UserCRUDRequest(
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
     LOGGER.debug("person={}, user={}".format(person, user))
-    responses = await post_to_all_products("api/v1/clients/fragment", user.dict(), UserInstructionFragment)
+    responses = await post_to_all_products("api/v1/clients/fragment", user.dict(), ProductFileList)
     if responses is None:
         raise ValueError("Everything is broken")
-    return AllProdcutsInstructionFragments(
-        fragments={key: cast(UserInstructionFragment, val) for key, val in responses.items()}
-    )
+    return AllProdcutsInstructionFiles(files={key: cast(ProductFileList, val) for key, val in responses.items()})

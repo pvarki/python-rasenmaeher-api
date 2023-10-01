@@ -5,11 +5,15 @@ import uuid
 import pytest
 import aiohttp
 from libpvarki.schemas.generic import OperationResultResponse
-from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
+from libpvarki.schemas.product import UserCRUDRequest
 
 
 from rasenmaeher_api.settings import settings
 from rasenmaeher_api.prodcutapihelpers import post_to_all_products, put_to_all_products
+from rasenmaeher_api.web.api.instructions.schema import (
+    ProductFileList,
+)
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -78,12 +82,11 @@ async def test_user_fragment() -> None:
             callsign="TEST22b",
             x509cert="FIXME: needs cert",
         ).dict(),
-        UserInstructionFragment,
+        ProductFileList,
     )
     assert responses
     assert "fake" in responses
-    assert isinstance(responses["fake"], UserInstructionFragment)
-    assert responses["fake"].html == "<p>Hello TEST22b!</p>"
+    assert isinstance(responses["fake"], ProductFileList)
 
 
 @pytest.mark.parametrize("endpoint", ["no-such-url", "api/v1/clients/fragment"])
@@ -93,7 +96,7 @@ async def test_failure_is_none(endpoint: str) -> None:
     responses = await post_to_all_products(
         endpoint,
         {},  # Invalid data for fragment
-        UserInstructionFragment,
+        ProductFileList,
     )
     assert responses
     assert "fake" in responses

@@ -4,6 +4,9 @@ from os import environ
 import sys
 import ssl
 from pathlib import Path
+import io
+import zipfile
+import base64
 
 
 from aiohttp import web
@@ -16,6 +19,14 @@ from libpvarki.schemas.product import (
 )
 
 LOGGER = logging.getLogger(__name__)
+
+
+def zip_pem(pem: str, filename: str) -> bytes:
+    """in-memory zip of the pem"""
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+        zip_file.writestr(filename, pem)
+    return zip_buffer.getvalue()
 
 
 def check_peer_cert(request: web.Request) -> None:
@@ -50,10 +61,24 @@ async def handle_user_crud(request: web.Request) -> web.Response:
 async def handle_fragment(request: web.Request) -> web.Response:
     """Respond with hello_world for user"""
     check_peer_cert(request)
-    # Just to make sure the request itself uses valid schema
-    req = UserCRUDRequest.parse_raw(await request.text())
-    resp = UserInstructionFragment(html=f"<p>Hello {req.callsign}!</p>")
-    return web.json_response(resp.dict())
+    user = UserCRUDRequest.parse_raw(await request.text())
+    zip1_bytes = zip_pem(user.x509cert, f"{user.callsign}_1.pem")
+    zip2_bytes = zip_pem(user.x509cert, f"{user.callsign}_2.pem")
+
+    return web.json_response(
+        [
+            {
+                "title": "iTAK",
+                "data": f"data:application/zip;base64,{base64.b64encode(zip1_bytes).decode('ascii')}",
+                "filename": f"{user.callsign}_1.zip",
+            },
+            {
+                "title": "ATAK",
+                "data": f"data:application/zip;base64,{base64.b64encode(zip2_bytes).decode('ascii')}",
+                "filename": f"{user.callsign}_2.zip",
+            },
+        ]
+    )
 
 
 async def handle_admin_fragment(request: web.Request) -> web.Response:
