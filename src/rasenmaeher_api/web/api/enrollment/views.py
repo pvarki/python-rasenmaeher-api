@@ -1,6 +1,7 @@
 """Enrollment API views."""  # pylint: disable=too-many-lines
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import logging
+import uuid
 
 
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
@@ -28,6 +29,8 @@ from .schema import (
     EnrollmentInviteCodeActivateIn,
     EnrollmentInviteCodeDeactivateIn,
     EnrollmentInviteCodeDeleteOut,
+    EnrollmentPoolListOut,
+    EnrollmentPoolListItem,
 )
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
@@ -39,6 +42,32 @@ LOGGER = logging.getLogger(__name__)
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 NO_JWT_ENROLLMENT_ROUTER = APIRouter()
+
+
+@ENROLLMENT_ROUTER.get(
+    "/pools",
+    response_model=EnrollmentPoolListOut,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
+async def list_pools(owner_cs: Optional[str] = None) -> EnrollmentPoolListOut:
+    """List EnrollmentPools (aka invitecodes)"""
+    owner: Optional[Person] = None
+    if owner_cs:
+        owner = await Person.by_callsign(owner_cs)
+    pools: List[EnrollmentPoolListItem] = []
+    owner_cache: Dict[uuid.UUID, Person] = {}
+    async for pool in EnrollmentPool.list(owner):
+        if pool.owner not in owner_cache:
+            owner_cache[pool.owner] = await Person.by_pk(pool.owner)
+        pools.append(
+            EnrollmentPoolListItem(
+                invitecode=pool.invitecode,
+                active=pool.active,
+                owner_cs=owner_cache[pool.owner].callsign,
+                created=pool.created.isoformat(),
+            )
+        )
+    return EnrollmentPoolListOut(pools=pools)
 
 
 @ENROLLMENT_ROUTER.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)

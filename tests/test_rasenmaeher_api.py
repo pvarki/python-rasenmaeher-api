@@ -10,7 +10,7 @@ from rasenmaeher_api import __version__
 
 def test_version() -> None:
     """Make sure version matches expected"""
-    assert __version__ == "0.6.4"
+    assert __version__ == "0.7.0"
 
 
 @pytest.mark.asyncio
