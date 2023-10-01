@@ -3,20 +3,35 @@ import logging
 from typing import Any, Dict, List
 from fastapi import APIRouter
 
+from .schema import HealthCheckResponse
 from ....db import Person
+from ....settings import settings
+from ....prodcutapihelpers import check_kraftwerk_manifest
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
 
 @router.get("")
-async def request_healthcheck() -> Dict[Any, Any]:
+async def request_healthcheck() -> HealthCheckResponse:
     """
     Basic health check. Success = 200. Checks the following things.
-    - Local db connection
+    - Person list from database
+    - Domain name from manifest
     """
-    Person.list()
-    return {"healthcheck": "success"}
+    # Do at least little bit something to check backend functionality
+    async for _ in Person.list():
+        break
+
+    # Get the DNS from manifest
+    my_dn: str = "Manifest not defined"
+
+    if check_kraftwerk_manifest():
+        if "dns" in settings.kraftwerk_manifest_dict:
+            my_dn = settings.kraftwerk_manifest_dict["dns"]
+        else:
+            my_dn = "DNS not defined in manifest"
+    return HealthCheckResponse(healthcheck="success", dns=my_dn)
 
 
 # Keep / needed?

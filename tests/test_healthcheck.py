@@ -19,6 +19,7 @@ async def test_get_healthcheck(app_client: TestClient) -> None:
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["healthcheck"] == "success"
+    assert resp_dict["dns"] != ""
 
 
 @pytest.mark.asyncio
