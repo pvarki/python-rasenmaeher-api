@@ -2,6 +2,7 @@
 from typing import AsyncGenerator, cast, Tuple
 import logging
 from pathlib import Path
+import base64
 
 import aiohttp
 import pytest
@@ -286,8 +287,39 @@ async def test_9_check_if_enduser_pfx_available(
     """Tests that we can check if the pfx bundle is available for the given callsign"""
     client = session_with_testcas
     client.headers.update({"Authorization": f"Bearer {ValueStorage.call_sign_jwt}"})
-    url = f"{API}/{VER}/enduserpfx/{ValueStorage.call_sign}"
+    url = f"{API}/{VER}/enduserpfx/{ValueStorage.call_sign}.pfx"
     LOGGER.debug("Fetching {}".format(url))
     response = await client.get(url, timeout=DEFAULT_TIMEOUT)
     response.raise_for_status()
     assert response.content
+
+
+@pytest.mark.asyncio
+async def test_9_check_if_enduser_instructions(
+    session_with_testcas: aiohttp.ClientSession,
+) -> None:
+    """Check that we can get files from fpaoi"""
+    client = session_with_testcas
+    client.headers.update({"Authorization": f"Bearer {ValueStorage.call_sign_jwt}"})
+    url = f"{API}/{VER}/instructions/user"
+    LOGGER.debug("Fetching {}".format(url))
+    response = await client.get(url, timeout=DEFAULT_TIMEOUT)
+    response.raise_for_status()
+    payload = await response.json()
+    LOGGER.debug("payload={}".format(payload))
+    assert payload
+    assert "files" in payload
+    assert "fake" in payload["files"]
+    if not payload["files"]["fake"]:
+        LOGGER.error("Did not get payload from fakeproduct but living with it")
+        return
+    fake = payload["files"]["fake"]
+    for fpl in fake:
+        assert fpl["title"]
+        assert fpl["filename"]
+        assert fpl["data"]
+        data = str(fpl["data"])
+        assert data.startswith("data:")
+        _, b64data = data.split(",")
+        dec = base64.b64decode(b64data)
+        assert dec

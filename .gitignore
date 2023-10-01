@@ -9,6 +9,9 @@
 *.crt
 *.key
 
+# or env definitions
+*env*.sh
+
 # VSCode and pytest settings
 .vscode/*
 
