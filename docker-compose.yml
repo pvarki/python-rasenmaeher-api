@@ -62,10 +62,10 @@ x-cfssl_env: &cfssl_env
   CFSSL_PERSISTENT_FOLDER: /data/persistent
 
 services:
-  miniwerk: # FIXME: we need "miniwerk" that can get LE certs for us
-    image: pvarki/fakewerk:latest
+  miniwerk:
+    image: pvarki/miniwerk:latest
     build:
-      context: ./fakewerk
+      context: ./miniwerk
       dockerfile: Dockerfile
       target: production
     environment:
@@ -75,7 +75,7 @@ services:
     volumes:
       - kraftwerk_shared:/pvarki
       - kraftwerk_data:/data/persistent
-      - ./tests/testjwts:/test_jwts
+      - le_certs:/le_certs
 
   cfssl:
     image: pvarki/cfssl:api-latest

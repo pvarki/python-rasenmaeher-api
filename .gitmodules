@@ -19,3 +19,6 @@
 [submodule "kw_product_init"]
 	path = kw_product_init
 	url = git@github.com:pvarki/golang-kraftwerk-init-helper-cli.git
+[submodule "miniwerk"]
+	path = miniwerk
+	url = git@github.com:pvarki/python-rasenmaeher-miniwerk.git
