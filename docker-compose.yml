@@ -1,0 +1,422 @@
+version: '3.4'
+
+x-kc_dbconfig_env: &kcdbconfig_env
+  KEYCLOAK_DATABASE_NAME: &kcdbname ${KEYCLOAK_DATABASE_NAME:-keycloak}
+  KEYCLOAK_DATABASE_HOST: postgres
+  KEYCLOAK_DATABASE_USER: &kcdbuser
+  # FIXME: take from env (which should be set to random)
+  KEYCLOAK_DATABASE_PASSWORD: &kcdbpass ${KEYCLOAK_DATABASE_PASSWORD:?must be defined} # pragma: allowlist secret
+
+x-raesenmaeher_dbconfig_env: &rmdbconfig_env
+  RM_DATABASE_NAME: &rmdbname ${RM_DATABASE_NAME:-raesenmaeher}
+  RM_DATABASE_HOST: postgres
+  RM_DATABASE_USER: &rmdbuser ${RM_DATABASE_USER:-raesenmaeher}
+  # FIXME: take from env (which should be set to random)
+  RM_DATABASE_PASSWORD: &rmdbpass ${RM_DATABASE_PASSWORD:?must be defined} # pragma: allowlist secret
+
+
+x-postgres_env: &postgres_env
+  KEYCLOAK_PASSWORD: *kcdbpass # pragma: allowlist secret
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?must be defined} # pragma: allowlist secret
+  RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
+
+
+x-ldap_admin_env: &ldap_admin_env
+  # FIXME: take from env (which should be set to random)
+  LDAP_ADMIN_PASSWORD: &ldapadminpass ${LDAP_ADMIN_PASSWORD:?must be defined} # pragma: allowlist secret
+  LDAP_ADMIN_USERNAME: &ldapadminuser ${LDAP_ADMIN_USERNAME:-admin}
+
+x-keycloak_users_env: &keycloak_users_env
+  KEYCLOAK_CREATE_ADMIN_USER: "true"
+  KEYCLOAK_ADMIN_USER: &lcadminuser admin
+  KEYCLOAK_MANAGEMENT_USER: damager
+  # FIXME: take from env (which should be set to random)
+  KEYCLOAK_ADMIN_PASSWORD: &kcadminpass ${KEYCLOAK_ADMIN_PASSWORD:?must be defined} # pragma: allowlist secret
+  KEYCLOAK_MANAGEMENT_PASSWORD: ${KEYCLOAK_MANAGEMENT_PASSWORD:?must be defined} # pragma: allowlist secret
+
+x-keycloak_profile_env: &keycloak_profile_env
+  # These can be expanded in keycloak-config/profile.json
+  KCP_REALM: "RASENMAEHER"
+  KCP_MAIN_ID: "4f88fe8c-ffa5-4ae4-97c9-3831a500d502"  # FIXME: get from env or something
+
+x-keycloakinit_users_env: &keycloakinit_users_env
+  KEYCLOAK_USER: *lcadminuser # pragma: allowlist secret
+  KEYCLOAK_PASSWORD: *kcadminpass # pragma: allowlist secret
+
+x-domains_env:
+  SERVER_DOMAIN: &serverdomain ${SERVER_DOMAIN:?domain must be defined}
+  MTLS_DOMAIN: &mtlsdomein "mtls.${SERVER_DOMAIN:?domain must be defined}"
+  API_HTTPS_PORT: &apiport ${NGINX_HTTPS_PORT:-443}
+  PRODUCT_HTTPS_PORT: &productport ${NGINX_HTTPS_PRODUCT_PORT:-4625}
+  PRODUCT_DOMAIN: &productdomain "fake.${SERVER_DOMAIN:?domain must be defined}"
+
+
+x-cfssl_env: &cfssl_env
+  INT_SHARED_CERT_FOLDER: /ca_public
+  CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+  CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
+  CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-8889}
+  CFSSL_CA_NAME: ${CFSSL_CA_NAME:?ca name must be defined}
+  OCSP_HOST: *serverdomain
+  OCSP_PORT: *apiport
+  CFSSL_PERSISTENT_FOLDER: /data/persistent
+
+services:
+  miniwerk: # FIXME: we need "miniwerk" that can get LE certs for us
+    image: pvarki/fakewerk:latest
+    build:
+      context: ./fakewerk
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      RASENMAEHER_HOST: *serverdomain
+      RASENMAEHER_HTTPS_PORT: *apiport
+      PRODUCT_HTTPS_PORT: *productport
+    volumes:
+      - kraftwerk_shared:/pvarki
+      - kraftwerk_data:/data/persistent
+      - ./tests/testjwts:/test_jwts
+
+  cfssl:
+    image: pvarki/cfssl:api-latest
+    build:
+      context: ./cfssl
+      dockerfile: Dockerfile
+      target: api
+    networks:
+      - canet
+    environment:
+      <<: *cfssl_env
+    volumes:
+      - cfssl_data:/data/persistent
+      - ca_public:/ca_public
+    healthcheck:
+      test: 'cfssl info -remote http://127.0.0.1:8888'
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  ocsp:
+    image: pvarki/cfssl:ocsp-latest
+    build:
+      context: ./cfssl
+      dockerfile: Dockerfile
+      target: ocsp
+    networks:
+      - ocspnet
+    environment:
+      <<: *cfssl_env
+    volumes:
+      - cfssl_data:/data/persistent
+      - ca_public:/ca_public
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      cfssl:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:12
+    networks:
+      - dbnet
+    volumes:
+      - ./pg_init:/docker-entrypoint-initdb.d
+      - pg_data:/var/lib/postgresql/data
+      - ca_public:/ca_public
+    environment:
+      <<: *postgres_env
+    depends_on:
+      cfssl:
+        condition: service_healthy
+    healthcheck:
+      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  openldap:
+    image: pvarki/openldap:latest
+    build:
+      context: ./openldap
+      dockerfile: Dockerfile
+    networks:
+      - kcnet
+      - dbnet
+    ports:
+      - '1636:1636'  # LDAPs
+    environment:
+      <<: *ldap_admin_env
+      LDAP_SKIP_DEFAULT_TREE: "yes"
+      LDAP_ALLOW_ANON_BINDING: "no"
+      # FIXME: get from env ??
+      LDAP_ROOT: "dc=example,dc=org"  # Probably needs to match the custom ldfis
+      LDAP_LOGLEVEL: 0
+      LDAP_ENABLE_TLS: "yes"
+      LDAP_TLS_CERT_FILE: /le_certs/${SERVER_DOMAIN:?domain must be defined}/fullchain.pem
+      LDAP_TLS_KEY_FILE: /le_certs/${SERVER_DOMAIN:?domain must be defined}/privkey.pem
+      LDAP_TLS_CA_FILE: /ca_public/ca_chain.pem
+      LDAP_TLS_DH_PARAM_FILENAME: /dhparam.pem
+    volumes:
+      - openldap_data:/bitnami/openldap
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+      - ./nginx/includes/dhparam.pem:/dhparam.pem
+    depends_on:
+      miniwerk:
+        condition: service_completed_successfully
+      cfssl:
+        condition: service_healthy
+    healthcheck:
+      # This started returning: No such object (32)
+      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf'
+      test: "true" # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  keycloak:
+    image: bitnami/keycloak:21.0.2
+    environment:
+      <<: [*kcdbconfig_env, *keycloak_users_env]
+      KC_HEALTH_ENABLED: "true"
+    networks:
+      - kcnet
+      - dbnet
+    volumes:
+      - ca_public:/ca
+    depends_on:
+      openldap:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: "curl -s localhost:8080/health/ready | grep status | grep UP"
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # init container that sets up profile with realm on keycloak instance
+  keycloak-init:
+    image: adorsys/keycloak-config-cli:latest-21.0.1
+    networks:
+      - kcnet
+    volumes:
+      - ./keycloak/keycloak-config:/config
+      - ca_public:/ca
+    environment:
+      <<: [*keycloak_profile_env, *ldap_admin_env, *keycloakinit_users_env]
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_SSL-VERIFY: "false"  # We are using the internal port
+      KEYCLOAK_AVAILABILITYCHECK_ENABLED: "true"
+      KEYCLOAK_AVAILABILITYCHECK_TIMEOUT: 30s
+      IMPORT_VAR_SUBSTITUTION_ENABLED: "true"
+      LDAP_CONNECTION_URL: ldap://openldap:1389
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  rmapipathsinit:
+    image: pvarki/mkcert:latest  # FIXME: use some other image
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - rmapi_data:/data/persistent
+    command: ["/bin/bash", "-c", "ls -R /data/persistent ; test -d /data/persistent/private || mkdir -p /data/persistent/private ; test -d /data/persistent/public || mkdir -p /data/persistent/public"]
+
+  rmapi:
+    image: pvarki/rmapi:latest
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      target: production
+    environment:
+      <<: [*rmdbconfig_env]
+      JWT_PUBKEY_PATH: "/data/persistent/public"
+      JWT_PRIVKEY_PATH: "/data/persistent/private/rm_jwtsign.key"
+      JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
+      RM_CFSSL_HOST: "http://cfssl"
+      RM_CFSSL_PORT: ${CFSSL_BIND_PORT:-8888}
+      RM_SQLITE_FILEPATH_PROD: "/data/persistent/private/data.db"
+      RM_SQLITE_FILEPATH_DEV: "/data/persistent/private/data.db"
+    networks:
+      - apinet
+      - kcnet
+      - canet
+      - intranet
+      - dbnet
+    volumes:
+      - ca_public:/ca_public
+      - rmapi_data:/data/persistent
+      - kraftwerk_shared:/pvarki
+    depends_on:
+      rmapipathsinit:
+        condition: service_completed_successfully
+      cfssl:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      postgres:  # keycloak already depends on pg but for completenes' sake
+        condition: service_healthy
+      keycloak-init:
+        condition: service_completed_successfully
+      miniwerk:
+        condition: service_completed_successfully
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  rmnginx:
+    image: nginx
+    volumes:
+      - ./nginx/templates_rasenmaeher:/etc/nginx/templates
+      - ./nginx/includes:/etc/nginx/includes
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    environment:
+      <<: *cfssl_env
+      NGINX_HOST: *serverdomain
+      NGINX_HTTP_PORT: ${NGINX_HTTP_PORT:-80}
+      NGINX_HTTPS_PORT: *apiport
+      NGINX_UPSTREAM: "rmapi"
+      NGINX_UPSTREAM_PORT: "8000"
+      NGINX_CRL_UPSTREAM: "cfssl"
+      NGINX_OCSP_UPSTREAM: "ocsp"
+    networks:
+      - apinet
+      - kcnet
+      - intranet
+      - ocspnet
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:${NGINX_HTTP_PORT:-80}"
+      - "${NGINX_HTTPS_PORT:-443}:${NGINX_HTTPS_PORT:-443}"
+    depends_on:
+      keycloak:
+        condition: service_healthy
+      rmapi:
+        condition: service_healthy
+      ocsp:
+        condition: service_healthy
+      cfssl:
+        condition: service_healthy
+      miniwerk:
+        condition: service_completed_successfully
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  kwinit:  # Mostly to make sure it's built
+    image: pvarki/kw_product_init:latest
+    build:
+      context: ./kw_product_init
+      dockerfile: Dockerfile
+      target: production
+    command: ["help"]
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+      - kraftwerk_shared:/pvarki
+      - kwinit_data:/data/persistent
+
+  rmfpapi:
+    image: pvarki/rmfpapi:latest
+    build:
+      context: ./fpintegration
+      dockerfile: Dockerfile
+      target: production
+    networks:
+      - productnet
+      - intranet
+    volumes:
+      - ca_public:/ca_public
+      - kraftwerk_shared:/pvarki
+      - rmfpapi_data:/data/persistent
+    depends_on:
+      rmnginx:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  certscopy:
+    image: pvarki/mkcert:latest
+    build:
+      context: ./mkcert
+      dockerfile: Dockerfile
+      target: production
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/certs
+      - ./tests/testcas:/testcas
+    command: ["/bin/bash", "-c", "cp -r /ca_public/* /testcas/"]
+    depends_on:
+      miniwerk:
+        condition: service_completed_successfully
+
+  fpnginx:
+    image: nginx
+    volumes:
+      - ./nginx/templates_productapi:/etc/nginx/templates
+      - ./nginx/includes:/etc/nginx/includes
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    environment:
+      NGINX_HOST: *productdomain
+      NGINX_HTTP_PORT: ${NGINX_HTTP_PRODUCT_PORT:-8080}
+      NGINX_HTTPS_PORT: *productport
+      NGINX_UPSTREAM: "rmfpapi"
+      NGINX_UPSTREAM_PORT: "8001"
+    networks:
+      - productnet
+      - intranet
+    ports:
+      - "${NGINX_HTTP_PRODUCT_PORT:-8080}:${NGINX_HTTP_PRODUCT_PORT:-8080}"
+      - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
+    depends_on:
+      rmfpapi:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+networks:
+  productnet:
+  apinet:
+  kcnet:
+  canet:
+  ocspnet:
+  dbnet:
+  intranet:
+
+volumes:
+  kraftwerk_data:
+  kwinit_data:
+  kraftwerk_shared:
+  pg_data:
+  cfssl_data:
+  openldap_data:
+  rmapi_data:
+  rmfpapi_data:
+  ca_public:
+  le_certs:
