@@ -1712,6 +1712,21 @@ dotenv = ["python-dotenv (>=0.10.4)"]
 email = ["email-validator (>=1.0.3)"]
 
 [[package]]
+name = "pydantic-collections"
+version = "0.5.1"
+description = "Collections of pydantic models"
+optional = false
+python-versions = "*"
+files = [
+    {file = "pydantic-collections-0.5.1.tar.gz", hash = "sha256:8b4d2f5a7052dab8d8036cc3d5b013dba20809fd4f43599002a90f40da4653bd"},
+    {file = "pydantic_collections-0.5.1-py3-none-any.whl", hash = "sha256:b58f5b17946d997d14f2d92a4d6a0a31b10940dc9e40fcda1ae31bd2d7e62e22"},
+]
+
+[package.dependencies]
+pydantic = ">=1.8.2,<3.0"
+typing-extensions = ">=4.7.1"
+
+[[package]]
 name = "pygments"
 version = "2.16.1"
 description = "Pygments is a syntax highlighting package written in Python."
@@ -2637,4 +2652,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "5da1204f05196bb86dfb427541f0b5b253abdfa33e5874a9bc2059454cb13c72"
+content-hash = "21e1c7dd5be82e21a9013cbcb46653f09d06d2aa50ebef56cb7b302ccce893fe"
