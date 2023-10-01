@@ -64,6 +64,7 @@ jobs:
       id: pre_commit
       run: |
         export SKIP=no-commit-to-branch
+        source example_env.sh
         pre-commit run --all-files
     - name: docker compose build
       id: compose_build
@@ -142,6 +143,7 @@ jobs:
       id: pre_commit
       run: |
         export SKIP=no-commit-to-branch
+        source example_env.sh
         pre-commit run --all-files
     - name: docker compose build
       id: compose_build
