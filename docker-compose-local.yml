@@ -262,6 +262,8 @@ services:
       - canet
       - intranet
       - dbnet
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
@@ -352,6 +354,8 @@ services:
     networks:
       - productnet
       - intranet
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ca_public:/ca_public
       - kraftwerk_shared:/pvarki
