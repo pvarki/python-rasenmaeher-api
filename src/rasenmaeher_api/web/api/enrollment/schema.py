@@ -350,6 +350,21 @@ class EnrollmentListOut(BaseModel, extra=Extra.forbid):  # pylint: disable=too-f
     callsign_list: List[Dict[Any, Any]]
 
 
+class EnrollmentPoolListItem(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
+    """Items for EnrollmentPoolListOut"""
+
+    invitecode: str = Field(description="The invitation code")
+    active: bool = Field(description="Is this pool currently active, ie can it be used")
+    owner_cs: str = Field(description="Pool wwners callsign")
+    created: str = Field(description="ISO datetime of when this pool was created")
+
+
+class EnrollmentPoolListOut(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
+    """Enrollment pools list out response schema"""
+
+    pools: List[EnrollmentPoolListItem] = Field(description="The pools")
+
+
 class EnrollmentInviteCodeCreateOut(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
     """Enrollment Invite code response schema"""
 
