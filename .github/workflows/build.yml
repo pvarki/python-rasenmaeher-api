@@ -102,6 +102,7 @@ jobs:
       run: |
         docker ps
         docker exec rmlocal-rmapi-1 rasenmaeher_api addtestusers
+        docker exec rmlocal-rmapi-1 cat /etc/hosts
     - name: Test with pytest
       id: run_pytest
       run: |
