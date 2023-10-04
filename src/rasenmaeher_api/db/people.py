@@ -1,5 +1,5 @@
 """Abstractions for people"""
-from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set
+from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set, Union
 import asyncio
 import uuid
 import logging
@@ -46,6 +46,14 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
     revoke_reason = sa.Column(sa.String(), nullable=True, index=False)
+
+    @classmethod
+    async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID], allow_deleted: bool = False) -> "Person":
+        """Get person by pk or by callsign"""
+        try:
+            return await cls.by_pk(inval, allow_deleted)
+        except ValueError:
+            return await cls.by_callsign(str(inval), allow_deleted)
 
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
