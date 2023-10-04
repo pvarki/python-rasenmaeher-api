@@ -76,6 +76,7 @@ async def test_person_crud(ginosession: None) -> None:
     # Test the get pk or callsign helper
     await Person.by_pk_or_callsign("DOGGO01a")
     await Person.by_pk_or_callsign(str(obj.pk))
+    await Person.by_pk_or_callsign(uuid_to_b64(obj.pk))
     await Person.by_pk_or_callsign(obj.pk)
 
     callsigns = []
@@ -143,6 +144,7 @@ async def test_enrollments_crud(ginosession: None) -> None:
 
     await Enrollment.by_pk_or_callsign("PORA22b")
     await Enrollment.by_pk_or_callsign(str(obj.pk))
+    await Enrollment.by_pk_or_callsign(uuid_to_b64(obj.pk))
     await Enrollment.by_pk_or_callsign(obj.pk)
 
     old_code = str(obj.approvecode)
@@ -183,6 +185,7 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
 
     await EnrollmentPool.by_pk_or_invitecode(pool.invitecode)
     await EnrollmentPool.by_pk_or_invitecode(str(pool.pk))
+    await EnrollmentPool.by_pk_or_invitecode(uuid_to_b64(pool.pk))
     await EnrollmentPool.by_pk_or_invitecode(pool.pk)
 
     pool = await pool.set_active(False)
