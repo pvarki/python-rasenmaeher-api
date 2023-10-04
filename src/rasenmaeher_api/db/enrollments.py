@@ -1,10 +1,11 @@
 """Abstractions for enrollments"""
-from typing import Self, Dict, cast, Any, Optional, AsyncGenerator
+from typing import Self, Dict, cast, Any, Optional, AsyncGenerator, Union
 import string
 import secrets
 import logging
 import enum
 import warnings
+import uuid
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
@@ -31,6 +32,14 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
     invitecode = sa.Column(
         sa.String(), nullable=False, index=True, unique=True
     )  # More human writeable identifier than the UUID
+
+    @classmethod
+    async def by_pk_or_invitecode(cls, inval: Union[str, uuid.UUID], allow_deleted: bool = False) -> "EnrollmentPool":
+        """Get pool by pk or by invitecode"""
+        try:
+            return await cls.by_pk(inval, allow_deleted)
+        except ValueError:
+            return await cls.by_invitecode(str(inval), allow_deleted)
 
     async def create_enrollment(self, callsign: str) -> "Enrollment":
         """Create enrollment from this pool"""
@@ -167,6 +176,14 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
     pool = sa.Column(saUUID(), sa.ForeignKey(EnrollmentPool.pk), nullable=True)
     state = sa.Column(sa.Integer(), nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the Persons
+
+    @classmethod
+    async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID]) -> "Enrollment":
+        """Get enrollment by pk or by callsign"""
+        try:
+            return await cls.by_pk(inval)
+        except ValueError:
+            return await cls.by_callsign(str(inval))
 
     async def approve(self, approver: Person) -> Person:
         """Creates the person record, their certs etc"""

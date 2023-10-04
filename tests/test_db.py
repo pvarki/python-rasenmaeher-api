@@ -73,6 +73,11 @@ async def test_person_crud(ginosession: None) -> None:
     assert not await obj2.has_role("admin")
     assert await obj2.assign_role("admin")
     assert not await obj2.assign_role("admin")  # already assignee, no need to create
+    # Test the get pk or callsign helper
+    await Person.by_pk_or_callsign("DOGGO01a")
+    await Person.by_pk_or_callsign(str(obj.pk))
+    await Person.by_pk_or_callsign(uuid_to_b64(obj.pk))
+    await Person.by_pk_or_callsign(obj.pk)
 
     callsigns = []
     async for user in Person.by_role("admin"):
@@ -137,6 +142,11 @@ async def test_enrollments_crud(ginosession: None) -> None:
     obj3 = await Enrollment.by_callsign(obj.callsign)
     assert obj3.callsign == obj.callsign
 
+    await Enrollment.by_pk_or_callsign("PORA22b")
+    await Enrollment.by_pk_or_callsign(str(obj.pk))
+    await Enrollment.by_pk_or_callsign(uuid_to_b64(obj.pk))
+    await Enrollment.by_pk_or_callsign(obj.pk)
+
     old_code = str(obj.approvecode)
     new_code = await obj.reset_approvecode()
     assert old_code != new_code
@@ -172,6 +182,11 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     # refresh
     pool = await EnrollmentPool.by_pk(pool.pk)
     assert pool.active
+
+    await EnrollmentPool.by_pk_or_invitecode(pool.invitecode)
+    await EnrollmentPool.by_pk_or_invitecode(str(pool.pk))
+    await EnrollmentPool.by_pk_or_invitecode(uuid_to_b64(pool.pk))
+    await EnrollmentPool.by_pk_or_invitecode(pool.pk)
 
     pool = await pool.set_active(False)
     with pytest.raises(PoolInactive):
