@@ -171,6 +171,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 FROM devel_build as test
 COPY . /app
 WORKDIR /app
+COPY ./docker/container-init.sh /container-init.sh
 ENTRYPOINT ["/usr/bin/tini", "--", "docker/entrypoint-test.sh"]
 # Re run install to get the service itself installed
 RUN --mount=type=ssh source /.venv/bin/activate \

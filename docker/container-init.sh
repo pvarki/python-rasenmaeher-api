@@ -3,7 +3,13 @@ set -ex
 # Make sure fakeproduct api endpoint points to correct IP, 127.0.01 is this containers localhost...
 sed 's/.*localmaeher.*//g' /etc/hosts >/etc/hosts.new && cat /etc/hosts.new >/etc/hosts
 echo "$(getent hosts host.docker.internal | awk '{ print $1 }') fake.localmaeher.pvarki.fi" >>/etc/hosts
+
+# Make sure the persistent directories exist
+test -d /data/persistent/private || ( mkdir -p /data/persistent/private && chmod og-rwx /data/persistent/private )
+test -d /data/persistent/public || mkdir -p /data/persistent/public
+
+# Copy JWT public keys
 if [ -d /pvarki/public ]
 then
-  cp /pvarki/public/*werk.pub ${JWT_PUBKEY_PATH:-/data/persistent/public}/
+  cp /pvarki/public/*.pub ${JWT_PUBKEY_PATH:-/data/persistent/public}/
 fi
