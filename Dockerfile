@@ -99,6 +99,7 @@ RUN --mount=type=ssh pip3 install wheel virtualenv \
 FROM builder_base as production_build
 # Copy entrypoint script
 COPY ./docker/entrypoint.sh /docker-entrypoint.sh
+COPY ./docker/container-init.sh /container-init.sh
 # Only files needed by production setup
 COPY ./poetry.lock ./pyproject.toml ./README.rst ./src /app/
 WORKDIR /app
@@ -107,6 +108,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
     && poetry build -f wheel --no-interaction --no-ansi \
     && cp dist/*.whl /tmp/wheelhouse \
     && chmod a+x /docker-entrypoint.sh \
+    && chmod a+x /container-init.sh \
     && true
 
 
@@ -116,6 +118,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 FROM python:3.11-slim-bookworm as production
 COPY --from=production_build /tmp/wheelhouse /tmp/wheelhouse
 COPY --from=production_build /docker-entrypoint.sh /docker-entrypoint.sh
+COPY --from=production_build /container-init.sh /container-init.sh
 WORKDIR /app
 # Install system level deps for running the package (not devel versions for building wheels)
 # and install the wheels we built in the previous step. generate default config
