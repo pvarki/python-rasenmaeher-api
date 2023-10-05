@@ -6,3 +6,5 @@ export KEYCLOAK_ADMIN_PASSWORD="marsu"  # pragma: allowlist secret
 export KEYCLOAK_MANAGEMENT_PASSWORD="alpakka"  # pragma: allowlist secret
 export SERVER_DOMAIN="sleepy-sloth.pvarki.fi"
 export CFSSL_CA_NAME="sleepy-sloth"
+export MW_LE_EMAIL="example@example.com"
+export MW_LE_TEST="true"  # switch to false when you are ready for production

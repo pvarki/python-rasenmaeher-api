@@ -1,6 +1,6 @@
 
-ssl_certificate /le_certs/${NGINX_HOST}/fullchain.pem;
-ssl_certificate_key /le_certs/${NGINX_HOST}/privkey.pem;
+ssl_certificate /le_certs/${NGINX_CERT_NAME}/fullchain.pem;
+ssl_certificate_key /le_certs/${NGINX_CERT_NAME}/privkey.pem;
 
 include /etc/nginx/includes/le_common_settings.conf;
 
