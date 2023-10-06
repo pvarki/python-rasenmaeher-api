@@ -66,6 +66,13 @@ switching between environments.
 The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
 
+pre-commit notes
+----------------
+
+Use "pre-commit run --all-files" liberally (and make sure you have run "pre-commit install"). If you get complaints
+about missing environment variables run "source example_env.sh"
+
+
 Integration tests
 -----------------
 

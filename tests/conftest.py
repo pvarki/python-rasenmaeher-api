@@ -16,7 +16,6 @@ import pytest
 import pytest_asyncio
 from libadvian.logging import init_logging
 from multikeyjwt import Issuer
-from multikeyjwt.config import Secret
 
 
 init_logging(logging.DEBUG)
@@ -54,12 +53,11 @@ async def session_with_testcas() -> AsyncGenerator[aiohttp.ClientSession, None]:
 
 @pytest.fixture(scope="session")
 def tp_issuer() -> Issuer:
-    """Issuer initialized with fake tilauspalvelu keys"""
-    pwfile = JWT_PATH / "tilauspalvelu.pass"
-    keyfile = JWT_PATH / "tilauspalvelu.key"
+    """Issuer initialized with miniwerk key"""
+    keyfile = JWT_PATH / "miniwerk.key"
     issuer = Issuer(
         privkeypath=keyfile,
-        keypasswd=Secret(pwfile.read_text("utf-8")),
+        keypasswd=None,
     )
     return issuer
 
