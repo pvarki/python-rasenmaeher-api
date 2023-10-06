@@ -9,6 +9,7 @@ from pathlib import Path
 import ssl
 import asyncio
 import uuid
+import os
 
 import aiohttp
 import pytest
@@ -24,7 +25,7 @@ CA_PATH = Path(__file__).parent / "testcas"
 JWT_PATH = Path(__file__).parent / "testjwts"
 DEFAULT_TIMEOUT = 5.0
 OPENAPI_VER = "3.1.0"
-API = "https://localmaeher.pvarki.fi:4439/api"
+API = os.environ.get("RM_API_BASE", "https://localmaeher.pvarki.fi:4439/api")  # pylint: disable=E1101
 VER = "v1"
 
 # pylint: disable=W0621

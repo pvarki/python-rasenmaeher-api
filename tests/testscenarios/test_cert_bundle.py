@@ -72,7 +72,11 @@ async def first_admin_mtls_session(
     cert = pfxdata.cert.certificate
     certpath.write_bytes(cert.public_bytes(encoding=serialization.Encoding.PEM))
     async with get_session((certpath, keypath), CA_PATH) as client:
-        yield client, API.replace("localmaeher", "mtls.localmaeher")
+        if "localmaeher" in API:
+            newapi = API.replace("localmaeher", "mtls.localmaeher")
+        else:
+            newapi = API.replace("https://", "https://mtls.")
+        yield client, newapi
 
 
 @pytest.mark.asyncio
