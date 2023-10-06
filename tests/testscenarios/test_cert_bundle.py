@@ -57,7 +57,9 @@ async def first_admin_mtls_session(
     datadir = Path(nice_tmpdir)
     keypath = datadir / "mtls.key"
     certpath = datadir / "mtls.cert"
-    pfxdata = pkcs12.load_pkcs12(ValueStorage.first_user_admin_pfx, None)
+    pfxdata = pkcs12.load_pkcs12(
+        ValueStorage.first_user_admin_pfx, ValueStorage.first_user_admin_call_sign.encode("utf-8")
+    )
     private_key = cast(rsa.RSAPrivateKey, pfxdata.key)
     keypath.write_bytes(
         private_key.private_bytes(
