@@ -36,6 +36,7 @@ Directories that are submodules
   - kw_product_init https://github.com/pvarki/golang-kraftwerk-init-helper-cli
   - openldap https://github.com/pvarki/docker-openldap
   - mkcert https://github.com/pvarki/docker-mkcert
+  - miniwerk https://github.com/pvarki/ https://github.com/pvarki/python-rasenmaeher-miniwerk
 
 
 Running in local development mode
