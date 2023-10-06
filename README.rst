@@ -65,6 +65,9 @@ switching between environments.
 The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
 
+If rasenmaeher-ui devel server complains make sure to delete ui/node_modules -directory from host first
+the dockder node distribution probably is not compatible with whatever you have installed on the host.
+
 pre-commit notes
 ----------------
 
