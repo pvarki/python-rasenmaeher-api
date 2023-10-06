@@ -37,6 +37,7 @@ Directories that are submodules
   - openldap https://github.com/pvarki/docker-openldap
   - mkcert https://github.com/pvarki/docker-mkcert
   - miniwerk https://github.com/pvarki/ https://github.com/pvarki/python-rasenmaeher-miniwerk
+  - ui https://github.com/pvarki/rasenmaeher-ui
 
 
 Running in local development mode
