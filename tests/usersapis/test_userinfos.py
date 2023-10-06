@@ -17,6 +17,6 @@ async def test_user_pfx(user_mtls_client: TestClient, fname: str) -> None:
     resp = await client.get(url)
     LOGGER.debug(resp)
     resp.raise_for_status()
-    pfxdata = pkcs12.load_pkcs12(resp.content, None)
+    pfxdata = pkcs12.load_pkcs12(resp.content, fname.replace(".pfx", "").encode("utf-8"))
     assert pfxdata.key
     assert pfxdata.cert

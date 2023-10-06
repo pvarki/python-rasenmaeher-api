@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import (
     load_pem_private_key,
     pkcs12,
-    NoEncryption,
+    BestAvailableEncryption,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
@@ -103,7 +103,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                 load_pem_private_key(self.privkeyfile.read_bytes(), None),
             )
             p12bytes = pkcs12.serialize_key_and_certificates(
-                self.callsign.encode("utf-8"), key, cert, None, NoEncryption()
+                self.callsign.encode("utf-8"), key, cert, None, BestAvailableEncryption(self.callsign.encode("utf-8"))
             )
             self.pfxfile.write_bytes(p12bytes)
 

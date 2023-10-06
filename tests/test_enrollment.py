@@ -569,7 +569,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     unauth_client.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client.get("/api/v1/enduserpfx/enrollenrique")
     resp.raise_for_status()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, None)
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"enrollenrique")
     assert pfxdata.key
     assert pfxdata.cert
     del unauth_client.headers["Authorization"]

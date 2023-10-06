@@ -385,6 +385,6 @@ async def test_pfx_parse(ginosession: None) -> None:
     person = await Person.create_with_cert("PFXMAN01a")
     assert person.pfxfile.exists()
     pfxbytes = person.pfxfile.read_bytes()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, None)
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, b"PFXMAN01a")
     assert pfxdata.key
     assert pfxdata.cert
