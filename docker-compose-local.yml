@@ -274,6 +274,25 @@ services:
       retries: 3
       start_period: 5s
 
+  rmui: # When actual production build works we don't even really have to run this proxy
+    image: pvarki/rmui:latest
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      #target: production # Does not work due to https://github.com/pvarki/rasenmaeher-ui/issues/3
+      target: devel_shell
+    command: ["-c", "npm install && npm run dev -- --port 8002 --host 0.0.0.0"] # Remove when production works
+    networks:
+      - intranet
+    ports:  # REMINDER Do not expose these in production
+      - "${NGINX_UI_UPSTREAM_PORT:-8002}:${NGINX_UI_UPSTREAM_PORT:-8002}"
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
   rmnginx:
     image: nginx
     volumes:
@@ -290,6 +309,8 @@ services:
       NGINX_UPSTREAM_PORT: "8000"
       NGINX_CRL_UPSTREAM: "cfssl"
       NGINX_OCSP_UPSTREAM: "ocsp"
+      NGINX_UI_UPSTREAM: "rmui"
+      NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
     networks:
       - apinet
       - kcnet
@@ -304,6 +325,8 @@ services:
       keycloak:
         condition: service_healthy
       rmapi:
+        condition: service_healthy
+      rmui:
         condition: service_healthy
       ocsp:
         condition: service_healthy
