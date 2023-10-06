@@ -35,7 +35,6 @@ Directories that are submodules
   - keycloak https://github.com/pvarki/docker-keycloak
   - kw_product_init https://github.com/pvarki/golang-kraftwerk-init-helper-cli
   - openldap https://github.com/pvarki/docker-openldap
-  - mkcert https://github.com/pvarki/docker-mkcert
   - miniwerk https://github.com/pvarki/ https://github.com/pvarki/python-rasenmaeher-miniwerk
   - ui https://github.com/pvarki/rasenmaeher-ui
 
