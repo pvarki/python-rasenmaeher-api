@@ -162,10 +162,10 @@ services:
       start_period: 5s
 
   openldap_cert_perms:  # FIXME: make a separate volume or something and copy the certs for correct user under it
-    image: pvarki/miniwerk:latest
+    image: bash:latest
     volumes:
       - le_certs:/le_certs
-    command: ["/bin/bash", "-c", "chmod a+rwx -R /le_certs"]
+    command: ["/usr/local/bin/bash", "-c", "chmod a+rwx -R /le_certs"]
     depends_on:
       miniwerk:
         condition: service_completed_successfully
