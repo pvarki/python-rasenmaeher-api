@@ -148,6 +148,7 @@ CMD ["rasenmaeher_api", "openapi"]
 FROM builder_base as devel_build
 # Install deps
 WORKDIR /pysetup
+COPY ./docker/container-init.sh /container-init.sh
 RUN --mount=type=ssh source /.venv/bin/activate \
     && apt-get update && apt-get install -y \
         git \
@@ -171,7 +172,6 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 FROM devel_build as test
 COPY . /app
 WORKDIR /app
-COPY ./docker/container-init.sh /container-init.sh
 ENTRYPOINT ["/usr/bin/tini", "--", "docker/entrypoint-test.sh"]
 # Re run install to get the service itself installed
 RUN --mount=type=ssh source /.venv/bin/activate \
@@ -191,8 +191,6 @@ RUN apt-get update && apt-get install -y zsh jq \
     && sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" \
     && echo "source /root/.profile" >>/root/.zshrc \
     && pip3 install git-up \
-    # Map the special names to docker host internal ip because 127.0.0.1 is *container* localhost on login
-    && echo "sed 's/.*localmaeher.*//g' /etc/hosts >/etc/hosts.new && cat /etc/hosts.new >/etc/hosts" >>/root/.profile \
-    && echo "echo \"\$(getent hosts host.docker.internal | awk '{ print $1 }') fake.localmaeher.pvarki.fi\" >>/etc/hosts" >>/root/.profile \
+    && echo "source /container-init.sh" >>/root/.profile \
     && true
 ENTRYPOINT ["/bin/zsh", "-l"]
