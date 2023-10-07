@@ -9,7 +9,7 @@ test -d /data/persistent/private || ( mkdir -p /data/persistent/private && chmod
 test -d /data/persistent/public || mkdir -p /data/persistent/public
 
 # Copy JWT public keys
-if [ -d /pvarki/public ]
+if [ -d /pvarki/publickeys ]
 then
-  cp /pvarki/public/*.pub ${JWT_PUBKEY_PATH:-/data/persistent/public}/
+  cp /pvarki/publickeys/*.pub ${JWT_PUBKEY_PATH:-/data/persistent/public}/
 fi
