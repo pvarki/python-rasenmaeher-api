@@ -69,13 +69,15 @@ services:
       target: production
     environment:
       MW_DOMAIN: *serverdomain
-      MW_RM_HTTPS_PORT: *apiport
-      MW_PRODUCT_HTTPS_PORT: *productport
+      MW_RASENMAEHER__API_PORT: *apiport
+      MW_FAKE__API_PORT: *productport
       CAROOT: "/data/persistent/mkcert"
       MW_LE_EMAIL: "notusedwithmkcert@example.com"
       MW_MKCERT: "true"
     volumes:
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_fake:/pvarkishares/fake
+      - kraftwerk_shared_tak:/pvarkishares/tak
+      - kraftwerk_shared_rasenmaeher:/pvarkishares/rasenmaeher
       - kraftwerk_data:/data/persistent
       - le_certs:/le_certs
       - ca_public:/ca_public
@@ -279,7 +281,7 @@ services:
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_rasenmaeher:/pvarki
     depends_on:
       cfssl:
         condition: service_healthy
@@ -374,7 +376,7 @@ services:
     volumes:
       - ca_public:/ca_public
       - le_certs:/le_certs
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_fake:/pvarki
       - kwinit_data:/data/persistent
 
   rmfpapi:
@@ -392,7 +394,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ca_public:/ca_public
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_fake:/pvarki
       - rmfpapi_data:/data/persistent
     depends_on:
       rmnginx:
@@ -448,7 +450,9 @@ networks:
 volumes:
   kraftwerk_data:
   kwinit_data:
-  kraftwerk_shared:
+  kraftwerk_shared_fake:
+  kraftwerk_shared_tak:
+  kraftwerk_shared_rasenmaeher:
   pg_data:
   cfssl_data:
   openldap_data:
