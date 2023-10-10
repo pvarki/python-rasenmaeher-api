@@ -69,6 +69,7 @@ services:
       target: production
     environment:
       MW_DOMAIN: *serverdomain
+      MW_PRODUCTS: "fake"
       MW_RASENMAEHER__API_PORT: *apiport
       MW_FAKE__API_PORT: *productport
       CAROOT: "/data/persistent/mkcert"
