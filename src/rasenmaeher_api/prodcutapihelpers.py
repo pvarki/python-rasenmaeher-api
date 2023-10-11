@@ -50,18 +50,20 @@ async def _method_to_all_products(
     if "products" not in manifest:
         LOGGER.error("Manifest does not have products key")
         return None
+    rmconf = RMSettings.singleton()
     ret: Dict[str, Optional[pydantic.BaseModel]] = {}
     session = await get_session_winit()
     LOGGER.debug("data={}".format(data))
     async with session as client:
         for name, conf in manifest["products"].items():
+            # FIXME: Instead of doing these sequentially use asyncio.collect on coroutines
             try:
                 url = f"{conf['api']}{url_suffix}"
                 LOGGER.debug("calling {}({})".format(methodname, url))
                 if data is None:
-                    resp = await getattr(client, methodname)(url)
+                    resp = await getattr(client, methodname)(url, timeout=rmconf.integration_api_timeout)
                 else:
-                    resp = await getattr(client, methodname)(url, json=data)
+                    resp = await getattr(client, methodname)(url, json=data, timeout=rmconf.integration_api_timeout)
                 resp.raise_for_status()
                 payload = await resp.json()
                 LOGGER.debug("payload={}".format(payload))

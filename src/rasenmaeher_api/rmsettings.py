@@ -64,6 +64,7 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     kraftwerk_manifest_path: str = "/pvarki/kraftwerk-rasenmaeher-init.json"
     kraftwerk_manifest_bool: bool = False
     kraftwerk_manifest_dict: Dict[Any, Any] = {}
+    integration_api_timeout: float = 1.0
 
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
