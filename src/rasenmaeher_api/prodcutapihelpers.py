@@ -1,15 +1,13 @@
 """Product integration API helpers"""
 from typing import Dict, Optional, Type, Any, Mapping
 import logging
-from pathlib import Path
-import json
 
 import aiohttp
 import pydantic
 from libpvarki.schemas.generic import OperationResultResponse
 
 
-from .rmsettings import switchme_to_singleton_call
+from .rmsettings import RMSettings
 from .mtlsinit import get_session_winit
 
 LOGGER = logging.getLogger(__name__)
@@ -17,15 +15,8 @@ LOGGER = logging.getLogger(__name__)
 
 def check_kraftwerk_manifest() -> bool:
     """Check that settings has manifest"""
-    if not switchme_to_singleton_call.kraftwerk_manifest_bool or not switchme_to_singleton_call.kraftwerk_manifest_dict:
-        LOGGER.warning("KRAFTWERK manifest file not read, it should have been done on init")
-        pth = Path(switchme_to_singleton_call.kraftwerk_manifest_path)
-        if not pth.exists():
-            LOGGER.error("KRAFTWERK manifest file not found")
-            return False
-        switchme_to_singleton_call.kraftwerk_manifest_dict = json.loads(pth.read_text(encoding="utf-8"))
-        switchme_to_singleton_call.kraftwerk_manifest_bool = True
-    return switchme_to_singleton_call.kraftwerk_manifest_bool
+    RMSettings.singleton().load_manifest()
+    return RMSettings.singleton().kraftwerk_manifest_bool
 
 
 async def post_to_all_products(
@@ -55,7 +46,7 @@ async def _method_to_all_products(
     """Call given POST endpoint on call products in the manifest"""
     if not check_kraftwerk_manifest():
         return None
-    manifest = switchme_to_singleton_call.kraftwerk_manifest_dict
+    manifest = RMSettings.singleton().kraftwerk_manifest_dict
     if "products" not in manifest:
         LOGGER.error("Manifest does not have products key")
         return None

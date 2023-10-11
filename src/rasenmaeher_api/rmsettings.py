@@ -1,7 +1,7 @@
 """ Application settings. """
-from typing import Optional, Any, Dict, ClassVar
+from typing import Optional, Any, Dict, ClassVar, List
 import enum
-import os
+from pathlib import Path
 import logging
 import json
 
@@ -64,13 +64,6 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     kraftwerk_manifest_path: str = "/pvarki/kraftwerk-rasenmaeher-init.json"
     kraftwerk_manifest_bool: bool = False
     kraftwerk_manifest_dict: Dict[Any, Any] = {}
-    if os.path.exists(kraftwerk_manifest_path):
-        with open(kraftwerk_manifest_path, encoding="utf8") as _f:
-            try:
-                kraftwerk_manifest_dict = json.load(_f)
-                kraftwerk_manifest_bool = True
-            except ValueError as _e:
-                LOGGER.fatal("JSON malformed in kraftwerk_manifest_path {} : {}".format(kraftwerk_manifest_path, _e))
 
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
@@ -114,5 +107,25 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
             RMSettings._singleton = RMSettings()
         return RMSettings._singleton
 
+    def __init__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        # FIXME: When the switchme_to_singleton_call has been removed call load_manifest here
 
-switchme_to_singleton_call = RMSettings()
+    def load_manifest(self) -> None:
+        """Load the kraftwerk manifest file"""
+        if self.kraftwerk_manifest_bool:
+            return
+        pth = Path(self.kraftwerk_manifest_path)
+        if not pth.exists():
+            raise ValueError(f"{self.kraftwerk_manifest_path} does not exist")
+        self.kraftwerk_manifest_dict = json.loads(pth.read_text(encoding="utf-8"))
+        self.kraftwerk_manifest_bool = True
+
+    @property
+    def valid_product_cns(self) -> List[str]:
+        """Get valid CNs for productapi certs"""
+        self.load_manifest()
+        return [product["certcn"] for product in self.kraftwerk_manifest_dict["products"].values()]
+
+
+switchme_to_singleton_call = RMSettings.singleton()  # pylint: disable=C0103
