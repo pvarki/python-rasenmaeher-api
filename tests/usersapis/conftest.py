@@ -94,3 +94,12 @@ async def user_mtls_client(admin_mtls_client: TestClient) -> AsyncGenerator[Test
 
         instance.headers.update({"X-ClientCert-DN": "CN=ENROLLUSERa,O=N/A"})
         yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def product_mtls_client(admin_mtls_client: TestClient) -> AsyncGenerator[TestClient, None]:
+    """Client with mocked NGinx mTLS headers"""
+    _ = admin_mtls_client  # Just make sure the db inits are done
+    async with TestClient(get_app()) as instance:
+        instance.headers.update({"X-ClientCert-DN": "CN=fake.localmaeher.pvarki.fi,O=N/A"})
+        yield instance
