@@ -1,5 +1,6 @@
 """Product integration API helpers"""
-from typing import Dict, Optional, Type, Any, Mapping
+import asyncio
+from typing import Dict, Optional, Type, Any, Mapping, Tuple
 import logging
 
 import aiohttp
@@ -51,12 +52,13 @@ async def _method_to_all_products(
         LOGGER.error("Manifest does not have products key")
         return None
     rmconf = RMSettings.singleton()
-    ret: Dict[str, Optional[pydantic.BaseModel]] = {}
-    session = await get_session_winit()
     LOGGER.debug("data={}".format(data))
-    async with session as client:
-        for name, conf in manifest["products"].items():
-            # FIXME: Instead of doing these sequentially use asyncio.collect on coroutines
+
+    async def handle_one(name: str, conf: Mapping[str, Any]) -> Tuple[str, Optional[pydantic.BaseModel]]:
+        """Do one call"""
+        nonlocal url_suffix, rmconf
+        session = await get_session_winit()
+        async with session as client:
             try:
                 url = f"{conf['api']}{url_suffix}"
                 LOGGER.debug("calling {}({})".format(methodname, url))
@@ -67,17 +69,20 @@ async def _method_to_all_products(
                 resp.raise_for_status()
                 payload = await resp.json()
                 LOGGER.debug("payload={}".format(payload))
-                ret[name] = respose_schema.parse_obj(payload)
+                retval = respose_schema.parse_obj(payload)
                 # Log a commong error case here for DRY
-                if isinstance(ret[name], OperationResultResponse):
-                    if not ret[name].success:  # type: ignore[union-attr]
-                        LOGGER.error("Failure at {}, response: {}".format(url, ret[name]))
+                if isinstance(retval, OperationResultResponse):
+                    if not retval.success:
+                        LOGGER.error("Failure at {}, response: {}".format(url, retval))
+                return name, retval
             except aiohttp.ClientError:
                 LOGGER.exception("Failure to call {}".format(url))
-                ret[name] = None
-                continue
+                return name, None
             except pydantic.ValidationError:
                 LOGGER.exception("Invalid response from {}".format(url))
-                ret[name] = None
-                continue
-    return ret
+                return name, None
+
+    coros = []
+    for name, conf in manifest["products"].items():
+        coros.append(handle_one(name, conf))
+    return dict(await asyncio.gather(*coros))
