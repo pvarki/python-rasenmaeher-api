@@ -6,7 +6,7 @@ import ssl
 import aiohttp
 from libpvarki.mtlshelp.context import get_ca_context
 
-from ..settings import settings
+from ..rmsettings import switchme_to_singleton_call
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = 2.0
@@ -63,7 +63,7 @@ async def get_result_bundle(response: aiohttp.ClientResponse) -> str:
 
 def base_url() -> str:
     """Construct the base url"""
-    return f"{settings.cfssl_host}:{settings.cfssl_port}"
+    return f"{switchme_to_singleton_call.cfssl_host}:{switchme_to_singleton_call.cfssl_port}"
 
 
 async def anon_session() -> aiohttp.ClientSession:

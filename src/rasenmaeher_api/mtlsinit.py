@@ -11,7 +11,7 @@ import filelock
 
 
 from .cfssl.anoncsr import anon_sign_csr
-from .settings import settings
+from .rmsettings import switchme_to_singleton_call
 
 LOGGER = logging.getLogger(__name__)
 CERT_NAME_PREFIX = "rm_mtls_client"
@@ -20,11 +20,15 @@ CERT_NAME_PREFIX = "rm_mtls_client"
 def check_settings_clientpaths() -> bool:
     """Make sure the paths are defined, to defaults if needed, return True if setting was changed"""
     changed = False
-    if not settings.mtls_client_cert_path:
-        settings.mtls_client_cert_path = str(Path(settings.persistent_data_dir) / "public" / f"{CERT_NAME_PREFIX}.pem")
+    if not switchme_to_singleton_call.mtls_client_cert_path:
+        switchme_to_singleton_call.mtls_client_cert_path = str(
+            Path(switchme_to_singleton_call.persistent_data_dir) / "public" / f"{CERT_NAME_PREFIX}.pem"
+        )
         changed = True
-    if not settings.mtls_client_key_path:
-        settings.mtls_client_key_path = str(Path(settings.persistent_data_dir) / "private" / f"{CERT_NAME_PREFIX}.key")
+    if not switchme_to_singleton_call.mtls_client_key_path:
+        switchme_to_singleton_call.mtls_client_key_path = str(
+            Path(switchme_to_singleton_call.persistent_data_dir) / "private" / f"{CERT_NAME_PREFIX}.key"
+        )
         changed = True
     return changed
 
@@ -32,10 +36,10 @@ def check_settings_clientpaths() -> bool:
 def check_mtls_init() -> bool:
     """Check if we have the cert and key"""
     check_settings_clientpaths()
-    assert settings.mtls_client_cert_path is not None
-    assert settings.mtls_client_key_path is not None
-    cert_path = Path(settings.mtls_client_cert_path)
-    key_path = Path(settings.mtls_client_key_path)
+    assert switchme_to_singleton_call.mtls_client_cert_path is not None
+    assert switchme_to_singleton_call.mtls_client_key_path is not None
+    cert_path = Path(switchme_to_singleton_call.mtls_client_cert_path)
+    key_path = Path(switchme_to_singleton_call.mtls_client_key_path)
     LOGGER.debug("cert_path={}  exits={}".format(cert_path, cert_path.exists()))
     LOGGER.debug("key_path={}  exits={}".format(key_path, key_path.exists()))
     if cert_path.exists() and key_path.exists():
@@ -47,14 +51,16 @@ async def mtls_init() -> None:
     """If needed: Create keypair, CSR, and get it signed"""
     if check_mtls_init():
         return
-    privkeypath, pubkeypath, csrpath = resolve_filepaths(Path(settings.persistent_data_dir), CERT_NAME_PREFIX)
+    privkeypath, pubkeypath, csrpath = resolve_filepaths(
+        Path(switchme_to_singleton_call.persistent_data_dir), CERT_NAME_PREFIX
+    )
     check_settings_clientpaths()
-    assert settings.mtls_client_key_path is not None
-    assert settings.mtls_client_cert_path is not None
-    if (pth := Path(settings.mtls_client_key_path)) != privkeypath:
+    assert switchme_to_singleton_call.mtls_client_key_path is not None
+    assert switchme_to_singleton_call.mtls_client_cert_path is not None
+    if (pth := Path(switchme_to_singleton_call.mtls_client_key_path)) != privkeypath:
         privkeypath = pth
     certpath = pubkeypath.parent / f"{CERT_NAME_PREFIX}.pem"
-    if (pth := Path(settings.mtls_client_cert_path)) != certpath:
+    if (pth := Path(switchme_to_singleton_call.mtls_client_cert_path)) != certpath:
         certpath = pth
     lockpath = privkeypath.with_suffix(".lock")
     # Random sleep to avoid race conditions on these file accesses
@@ -67,7 +73,7 @@ async def mtls_init() -> None:
             return None
         LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
         keypair = await async_create_keypair(privkeypath, pubkeypath)
-        csrpem = await async_create_client_csr(keypair, csrpath, {"CN": settings.mtls_client_cert_cn})
+        csrpem = await async_create_client_csr(keypair, csrpath, {"CN": switchme_to_singleton_call.mtls_client_cert_cn})
         certpem = (await anon_sign_csr(csrpem)).replace("\\n", "\n")
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
@@ -83,8 +89,8 @@ async def get_session_winit() -> aiohttp.ClientSession:
     """wrap libpvarki get_session to init checks"""
     await mtls_init()
     check_settings_clientpaths()
-    assert settings.mtls_client_cert_path is not None
-    assert settings.mtls_client_key_path is not None
-    cert_path = Path(settings.mtls_client_cert_path)
-    key_path = Path(settings.mtls_client_key_path)
+    assert switchme_to_singleton_call.mtls_client_cert_path is not None
+    assert switchme_to_singleton_call.mtls_client_key_path is not None
+    cert_path = Path(switchme_to_singleton_call.mtls_client_cert_path)
+    key_path = Path(switchme_to_singleton_call.mtls_client_key_path)
     return libsession((cert_path, key_path))

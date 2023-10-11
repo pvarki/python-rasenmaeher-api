@@ -2,18 +2,18 @@
 
 import uvicorn
 
-from rasenmaeher_api.settings import settings
+from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 
 
 def main() -> None:
     """Entrypoint of the application."""
     uvicorn.run(
         "rasenmaeher_api.web.application:get_app",
-        workers=settings.workers_count,
-        host=settings.host,
-        port=settings.port,
-        reload=settings.reload,
-        log_level=settings.log_level.value.lower(),
+        workers=switchme_to_singleton_call.workers_count,
+        host=switchme_to_singleton_call.host,
+        port=switchme_to_singleton_call.port,
+        reload=switchme_to_singleton_call.reload,
+        log_level=switchme_to_singleton_call.log_level.value.lower(),
         factory=True,
     )
 

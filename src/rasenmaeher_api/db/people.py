@@ -23,7 +23,7 @@ from libpvarki.schemas.generic import OperationResultResponse
 from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
-from ..settings import settings
+from ..rmsettings import switchme_to_singleton_call
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
 from ..cfssl.public import get_bundle
 from ..prodcutapihelpers import post_to_all_products
@@ -66,7 +66,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         async with db.acquire() as conn:
             async with conn.transaction():  # do it in a transaction so if something fails we can roll back
                 puuid = uuid.uuid4()
-                certspath = Path(settings.persistent_data_dir) / "private" / "people" / str(puuid)
+                certspath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people" / str(puuid)
                 certspath.mkdir(parents=True)
                 certspath.chmod(PRIVDIR_MODE)
                 try:

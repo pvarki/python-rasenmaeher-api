@@ -1,14 +1,12 @@
 """ Application settings. """
+from typing import Optional, Any, Dict, ClassVar
 import enum
 import os
 import logging
 import json
-from pathlib import Path
-from tempfile import gettempdir
-from typing import Optional, Any, Dict
+
 from pydantic import BaseSettings
 
-TEMP_DIR = Path(gettempdir())
 LOGGER = logging.getLogger(__name__)
 
 
@@ -23,7 +21,7 @@ class LogLevel(str, enum.Enum):  # noqa: WPS600
     FATAL = "FATAL"
 
 
-class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
+class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     """
     Application settings.
 
@@ -107,8 +105,14 @@ class Settings(BaseSettings):  # pylint: disable=too-few-public-methods
     ldap_username: Optional[str] = None
     ldap_client_secret: Optional[str] = None
 
-    # Initial 'One time' code used to get temporary jwt token for admin account
-    # one_time_admin_code: str = "HackHackHacatoneillaOnPorakoiraNukkumassa"
+    _singleton: ClassVar[Optional["RMSettings"]] = None
+
+    @classmethod
+    def singleton(cls) -> "RMSettings":
+        """Return singleton"""
+        if not RMSettings._singleton:
+            RMSettings._singleton = RMSettings()
+        return RMSettings._singleton
 
 
-settings = Settings()
+switchme_to_singleton_call = RMSettings()

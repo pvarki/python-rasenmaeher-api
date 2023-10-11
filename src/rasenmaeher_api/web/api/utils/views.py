@@ -6,7 +6,7 @@ from libpvarki.middleware.mtlsheader import MTLSHeader
 
 
 from .schema import LdapConnString, KeyCloakConnString
-from ....settings import settings
+from ....rmsettings import switchme_to_singleton_call
 from ....cfssl.public import get_crl
 
 
@@ -20,20 +20,24 @@ async def request_utils_ldap_conn_string() -> LdapConnString:
     TODO ldap-conn-string
     """
 
-    if None in (settings.ldap_conn_string, settings.ldap_username, settings.ldap_client_secret):
+    if None in (
+        switchme_to_singleton_call.ldap_conn_string,
+        switchme_to_singleton_call.ldap_username,
+        switchme_to_singleton_call.ldap_client_secret,
+    ):
         return LdapConnString(
             success=False,
             reason="One or more ldap connection variables are undefined.",
-            ldap_conn_string=settings.ldap_conn_string,
-            ldap_user=settings.ldap_username,
-            ldap_client_secret=settings.ldap_client_secret,
+            ldap_conn_string=switchme_to_singleton_call.ldap_conn_string,
+            ldap_user=switchme_to_singleton_call.ldap_username,
+            ldap_client_secret=switchme_to_singleton_call.ldap_client_secret,
         )
 
     return LdapConnString(
         success=True,
-        ldap_conn_string=settings.ldap_conn_string,
-        ldap_user=settings.ldap_username,
-        ldap_client_secret=settings.ldap_client_secret,
+        ldap_conn_string=switchme_to_singleton_call.ldap_conn_string,
+        ldap_user=switchme_to_singleton_call.ldap_username,
+        ldap_client_secret=switchme_to_singleton_call.ldap_client_secret,
         reason="",
     )
 
@@ -45,10 +49,10 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
     """
 
     if None in (
-        settings.keycloak_server_url,
-        settings.keycloak_client_id,
-        settings.keycloak_realm_name,
-        settings.keycloak_client_secret,
+        switchme_to_singleton_call.keycloak_server_url,
+        switchme_to_singleton_call.keycloak_client_id,
+        switchme_to_singleton_call.keycloak_realm_name,
+        switchme_to_singleton_call.keycloak_client_secret,
     ):
         return KeyCloakConnString(
             success=False,
@@ -61,10 +65,10 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
 
     return KeyCloakConnString(
         success=True,
-        keycloak_server_url=settings.keycloak_server_url,
-        keycloak_client_id=settings.keycloak_client_id,
-        keycloak_realm_name=settings.keycloak_realm_name,
-        keycloak_client_s_sting=settings.keycloak_client_secret,
+        keycloak_server_url=switchme_to_singleton_call.keycloak_server_url,
+        keycloak_client_id=switchme_to_singleton_call.keycloak_client_id,
+        keycloak_realm_name=switchme_to_singleton_call.keycloak_realm_name,
+        keycloak_client_s_sting=switchme_to_singleton_call.keycloak_client_secret,
         reason="",
     )
 

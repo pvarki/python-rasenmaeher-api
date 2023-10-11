@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from libpvarki.logging import init_logging
 
-from ..settings import settings
+from ..rmsettings import switchme_to_singleton_call
 from .api.router import api_router
 from ..mtlsinit import mtls_init
 from ..jwtinit import jwt_init
@@ -43,7 +43,7 @@ def get_app_no_init() -> FastAPI:
 
 def get_app() -> FastAPI:
     """Returns the FastAPI application."""
-    init_logging(settings.log_level_int)
+    init_logging(switchme_to_singleton_call.log_level_int)
     app = get_app_no_init()
-    LOGGER.info("API init done, setting log verbosity to '{}'.".format(settings.log_level))
+    LOGGER.info("API init done, setting log verbosity to '{}'.".format(switchme_to_singleton_call.log_level))
     return app

@@ -8,7 +8,7 @@ from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.schemas.product import UserCRUDRequest
 
 
-from rasenmaeher_api.settings import settings
+from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.prodcutapihelpers import post_to_all_products, put_to_all_products
 from rasenmaeher_api.web.api.instructions.schema import (
     ProductFileList,
@@ -21,7 +21,7 @@ LOGGER = logging.getLogger(__name__)
 @pytest.mark.asyncio
 async def test_hello(mtlsclient: aiohttp.ClientSession) -> None:
     """Quick and dirty test of the mTLS client and server"""
-    url = settings.kraftwerk_manifest_dict["products"]["fake"]["api"]
+    url = switchme_to_singleton_call.kraftwerk_manifest_dict["products"]["fake"]["api"]
     async with mtlsclient as client:
         LOGGER.debug("GETting {}".format(url))
         resp = await client.get(url)
