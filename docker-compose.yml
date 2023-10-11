@@ -3,7 +3,7 @@ version: '3.4'
 x-kc_dbconfig_env: &kcdbconfig_env
   KEYCLOAK_DATABASE_NAME: &kcdbname ${KEYCLOAK_DATABASE_NAME:-keycloak}
   KEYCLOAK_DATABASE_HOST: postgres
-  KEYCLOAK_DATABASE_USER: &kcdbuser
+  KEYCLOAK_DATABASE_USER: &kcdbuser ${KEYCLOAK_DATABASE_USER:-keycloak}
   # FIXME: take from env (which should be set to random)
   KEYCLOAK_DATABASE_PASSWORD: &kcdbpass ${KEYCLOAK_DATABASE_PASSWORD:?must be defined} # pragma: allowlist secret
 
@@ -54,8 +54,8 @@ x-domains_env:
 x-cfssl_env: &cfssl_env
   INT_SHARED_CERT_FOLDER: /ca_public
   CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
-  CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-8888}
-  CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-8889}
+  CFSSL_BIND_PORT: &cfsslport ${CFSSL_BIND_PORT:-8888}
+  CFSSL_OCSP_BIND_PORT: &oscpport ${CFSSL_OCSP_BIND_PORT:-8889}
   CFSSL_CA_NAME: ${CFSSL_CA_NAME:?ca name must be defined}
   OCSP_HOST: *serverdomain
   OCSP_PORT: *apiport
@@ -69,13 +69,20 @@ services:
       dockerfile: Dockerfile
       target: production
     environment:
-      RASENMAEHER_HOST: *serverdomain
-      RASENMAEHER_HTTPS_PORT: *apiport
-      PRODUCT_HTTPS_PORT: *productport
+      MW_DOMAIN: *serverdomain
+      MW_RM_HTTPS_PORT: *apiport
+      MW_PRODUCT_HTTPS_PORT: *productport
+      MW_LE_EMAIL: ${MW_LE_EMAIL?LE contact email must be defined}
+      MW_LE_TEST: ${MW_LE_TEST:-true}  # see example_env.sh
     volumes:
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_fake:/pvarkishares/fake
+      - kraftwerk_shared_tak:/pvarkishares/tak
+      - kraftwerk_shared_rasenmaeher:/pvarkishares/rasenmaeher
       - kraftwerk_data:/data/persistent
+      - ./le_state:/data/persistent/le/conf  # At least during testing we want to keep LE certs outside of the volumes
       - le_certs:/le_certs
+    ports:
+      - "80:80"
 
   cfssl:
     image: pvarki/cfssl:api-latest
@@ -131,6 +138,8 @@ services:
     environment:
       <<: *postgres_env
     depends_on:
+      miniwerk:
+        condition: service_completed_successfully
       cfssl:
         condition: service_healthy
     healthcheck:
@@ -139,6 +148,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+
+  openldap_cert_perms:  # FIXME: make a separate volume or something and copy the certs for correct user under it
+    image: bash:latest
+    volumes:
+      - le_certs:/le_certs
+    command: ["/usr/local/bin/bash", "-c", "chmod a+rwx -R /le_certs"]
+    depends_on:
+      miniwerk:
+        condition: service_completed_successfully
 
   openldap:
     image: pvarki/openldap:latest
@@ -158,8 +176,8 @@ services:
       LDAP_ROOT: "dc=example,dc=org"  # Probably needs to match the custom ldfis
       LDAP_LOGLEVEL: 0
       LDAP_ENABLE_TLS: "yes"
-      LDAP_TLS_CERT_FILE: /le_certs/${SERVER_DOMAIN:?domain must be defined}/fullchain.pem
-      LDAP_TLS_KEY_FILE: /le_certs/${SERVER_DOMAIN:?domain must be defined}/privkey.pem
+      LDAP_TLS_CERT_FILE: /le_certs/rasenmaeher/fullchain.pem
+      LDAP_TLS_KEY_FILE: /le_certs/rasenmaeher/privkey.pem
       LDAP_TLS_CA_FILE: /ca_public/ca_chain.pem
       LDAP_TLS_DH_PARAM_FILENAME: /dhparam.pem
     volumes:
@@ -168,6 +186,8 @@ services:
       - le_certs:/le_certs
       - ./nginx/includes/dhparam.pem:/dhparam.pem
     depends_on:
+      openldap_cert_perms:
+        condition: service_completed_successfully
       miniwerk:
         condition: service_completed_successfully
       cfssl:
@@ -223,16 +243,6 @@ services:
       keycloak:
         condition: service_healthy
 
-  rmapipathsinit:
-    image: pvarki/mkcert:latest  # FIXME: use some other image
-    build:
-      context: ./mkcert
-      dockerfile: Dockerfile
-      target: production
-    volumes:
-      - rmapi_data:/data/persistent
-    command: ["/bin/bash", "-c", "ls -R /data/persistent ; test -d /data/persistent/private || mkdir -p /data/persistent/private ; test -d /data/persistent/public || mkdir -p /data/persistent/public"]
-
   rmapi:
     image: pvarki/rmapi:latest
     build:
@@ -243,11 +253,8 @@ services:
       <<: [*rmdbconfig_env]
       JWT_PUBKEY_PATH: "/data/persistent/public"
       JWT_PRIVKEY_PATH: "/data/persistent/private/rm_jwtsign.key"
-      JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
       RM_CFSSL_HOST: "http://cfssl"
-      RM_CFSSL_PORT: ${CFSSL_BIND_PORT:-8888}
-      RM_SQLITE_FILEPATH_PROD: "/data/persistent/private/data.db"
-      RM_SQLITE_FILEPATH_DEV: "/data/persistent/private/data.db"
+      RM_CFSSL_PORT: *cfsslport
     networks:
       - apinet
       - kcnet
@@ -257,10 +264,8 @@ services:
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_rasenmaeher:/pvarki
     depends_on:
-      rmapipathsinit:
-        condition: service_completed_successfully
       cfssl:
         condition: service_healthy
       keycloak:
@@ -271,6 +276,23 @@ services:
         condition: service_completed_successfully
       miniwerk:
         condition: service_completed_successfully
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  rmui: # When actual production build works we don't even really have to run this proxy
+    image: pvarki/rmui:latest
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+      #target: production # Does not work due to https://github.com/pvarki/rasenmaeher-ui/issues/3
+      target: devel_shell
+    command: ["-c", "npm install && npm run dev -- --port 8002 --host 0.0.0.0"] # Remove when production works
+    networks:
+      - intranet
     healthcheck:
       test: 'true'  # FIXME
       interval: 5s
@@ -294,6 +316,9 @@ services:
       NGINX_UPSTREAM_PORT: "8000"
       NGINX_CRL_UPSTREAM: "cfssl"
       NGINX_OCSP_UPSTREAM: "ocsp"
+      NGINX_CERT_NAME: "rasenmaeher"
+      NGINX_UI_UPSTREAM: "rmui"
+      NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
     networks:
       - apinet
       - kcnet
@@ -306,6 +331,8 @@ services:
       keycloak:
         condition: service_healthy
       rmapi:
+        condition: service_healthy
+      rmui:
         condition: service_healthy
       ocsp:
         condition: service_healthy
@@ -330,7 +357,7 @@ services:
     volumes:
       - ca_public:/ca_public
       - le_certs:/le_certs
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_fake:/pvarki
       - kwinit_data:/data/persistent
 
   rmfpapi:
@@ -344,7 +371,7 @@ services:
       - intranet
     volumes:
       - ca_public:/ca_public
-      - kraftwerk_shared:/pvarki
+      - kraftwerk_shared_fake:/pvarki
       - rmfpapi_data:/data/persistent
     depends_on:
       rmnginx:
@@ -355,21 +382,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-
-  certscopy:
-    image: pvarki/mkcert:latest
-    build:
-      context: ./mkcert
-      dockerfile: Dockerfile
-      target: production
-    volumes:
-      - ca_public:/ca_public
-      - le_certs:/certs
-      - ./tests/testcas:/testcas
-    command: ["/bin/bash", "-c", "cp -r /ca_public/* /testcas/"]
-    depends_on:
-      miniwerk:
-        condition: service_completed_successfully
 
   fpnginx:
     image: nginx
@@ -384,6 +396,7 @@ services:
       NGINX_HTTPS_PORT: *productport
       NGINX_UPSTREAM: "rmfpapi"
       NGINX_UPSTREAM_PORT: "8001"
+      NGINX_CERT_NAME: "rasenmaeher"
     networks:
       - productnet
       - intranet
@@ -412,7 +425,9 @@ networks:
 volumes:
   kraftwerk_data:
   kwinit_data:
-  kraftwerk_shared:
+  kraftwerk_shared_fake:
+  kraftwerk_shared_tak:
+  kraftwerk_shared_rasenmaeher:
   pg_data:
   cfssl_data:
   openldap_data:

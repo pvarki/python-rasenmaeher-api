@@ -13,8 +13,8 @@ server {
     # HTTPS configuration
     listen ${NGINX_HTTPS_PORT} ssl;
 
-    ssl_certificate /le_certs/${NGINX_HOST}/fullchain.pem;
-    ssl_certificate_key /le_certs/${NGINX_HOST}/privkey.pem;
+    ssl_certificate /le_certs/${NGINX_CERT_NAME}/fullchain.pem;
+    ssl_certificate_key /le_certs/${NGINX_CERT_NAME}/privkey.pem;
     include /etc/nginx/includes/le_common_settings.conf;
 
     ssl_client_certificate /ca_public/ca_chain.pem;
@@ -22,7 +22,7 @@ server {
 
     location / {
         if ($ssl_client_verify != SUCCESS) {
-            return 403;
+            return 401;
         }
         proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT};
         proxy_redirect                      off;

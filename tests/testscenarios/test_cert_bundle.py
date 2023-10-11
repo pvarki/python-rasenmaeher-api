@@ -57,7 +57,9 @@ async def first_admin_mtls_session(
     datadir = Path(nice_tmpdir)
     keypath = datadir / "mtls.key"
     certpath = datadir / "mtls.cert"
-    pfxdata = pkcs12.load_pkcs12(ValueStorage.first_user_admin_pfx, None)
+    pfxdata = pkcs12.load_pkcs12(
+        ValueStorage.first_user_admin_pfx, ValueStorage.first_user_admin_call_sign.encode("utf-8")
+    )
     private_key = cast(rsa.RSAPrivateKey, pfxdata.key)
     keypath.write_bytes(
         private_key.private_bytes(
@@ -70,7 +72,11 @@ async def first_admin_mtls_session(
     cert = pfxdata.cert.certificate
     certpath.write_bytes(cert.public_bytes(encoding=serialization.Encoding.PEM))
     async with get_session((certpath, keypath), CA_PATH) as client:
-        yield client, API.replace("localmaeher", "mtls.localmaeher")
+        if "localmaeher" in API:
+            newapi = API.replace("localmaeher", "mtls.localmaeher")
+        else:
+            newapi = API.replace("https://", "https://mtls.")
+        yield client, newapi
 
 
 @pytest.mark.asyncio

@@ -35,7 +35,8 @@ Directories that are submodules
   - keycloak https://github.com/pvarki/docker-keycloak
   - kw_product_init https://github.com/pvarki/golang-kraftwerk-init-helper-cli
   - openldap https://github.com/pvarki/docker-openldap
-  - mkcert https://github.com/pvarki/docker-mkcert
+  - miniwerk https://github.com/pvarki/ https://github.com/pvarki/python-rasenmaeher-miniwerk
+  - ui https://github.com/pvarki/rasenmaeher-ui
 
 
 Running in local development mode
@@ -63,6 +64,16 @@ switching between environments.
 
 The dev version launches all the services and runs rasenmaeher-api in uvicorn reload mode so any edits
 you make under /api will soon be reflected in the running instance.
+
+If rasenmaeher-ui devel server complains make sure to delete ui/node_modules -directory from host first
+the dockder node distribution probably is not compatible with whatever you have installed on the host.
+
+pre-commit notes
+----------------
+
+Use "pre-commit run --all-files" liberally (and make sure you have run "pre-commit install"). If you get complaints
+about missing environment variables run "source example_env.sh"
+
 
 Integration tests
 -----------------
