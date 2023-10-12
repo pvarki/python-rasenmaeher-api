@@ -5,7 +5,7 @@ from fastapi import APIRouter
 
 from .schema import HealthCheckResponse
 from ....db import Person
-from ....settings import settings
+from ....rmsettings import switchme_to_singleton_call
 from ....prodcutapihelpers import check_kraftwerk_manifest
 
 router = APIRouter()
@@ -27,8 +27,8 @@ async def request_healthcheck() -> HealthCheckResponse:
     my_dn: str = "Manifest not defined"
 
     if check_kraftwerk_manifest():
-        if "dns" in settings.kraftwerk_manifest_dict:
-            my_dn = settings.kraftwerk_manifest_dict["dns"]
+        if "dns" in switchme_to_singleton_call.kraftwerk_manifest_dict:
+            my_dn = switchme_to_singleton_call.kraftwerk_manifest_dict["dns"]
         else:
             my_dn = "DNS not defined in manifest"
     return HealthCheckResponse(healthcheck="success", dns=my_dn)

@@ -18,7 +18,7 @@ from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_se
 from pytest_docker.plugin import Services
 
 from rasenmaeher_api.web.application import get_app
-from rasenmaeher_api.settings import settings
+from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
 from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
@@ -127,25 +127,33 @@ def session_env_config(  # pylint: disable=R0915
         mpatch.setenv("JWT_PUBKEY_PATH", str(pubkeydir))
         mpatch.setenv("JWT_PRIVKEY_PATH", str(privkeypath))
         # Apparently we are too late in setting the env for settings to take effect
-        mpatch.setattr(settings, "cfssl_port", docker_services.port_for("cfssl", 7777))
-        mpatch.setenv("RM_CFSSL_PORT", str(settings.cfssl_port))
-        mpatch.setattr(settings, "cfssl_host", f"http://{docker_ip}")
-        mpatch.setenv("RM_CFSSL_HOST", settings.cfssl_host)
+        mpatch.setattr(switchme_to_singleton_call, "cfssl_port", docker_services.port_for("cfssl", 7777))
+        mpatch.setenv("RM_CFSSL_PORT", str(switchme_to_singleton_call.cfssl_port))
+        mpatch.setattr(switchme_to_singleton_call, "cfssl_host", f"http://{docker_ip}")
+        mpatch.setenv("RM_CFSSL_HOST", switchme_to_singleton_call.cfssl_host)
 
-        mpatch.setattr(settings, "persistent_data_dir", str(sessionpersistent))
-        mpatch.setenv("RM_PERSISTENT_DATA_DIR", settings.persistent_data_dir)
+        mpatch.setattr(switchme_to_singleton_call, "persistent_data_dir", str(sessionpersistent))
+        mpatch.setenv("RM_PERSISTENT_DATA_DIR", switchme_to_singleton_call.persistent_data_dir)
 
         mpatch.setenv("LOCAL_CA_CERTS_PATH", str(capath))
-        mpatch.setattr(settings, "mtls_client_cert_path", str(sessionpersistent / "public" / f"{CERT_NAME_PREFIX}.pem"))
-        mpatch.setenv("RM_MTLS_CLIENT_CERT_PATH", str(settings.mtls_client_cert_path))
-        mpatch.setattr(settings, "mtls_client_key_path", str(sessionpersistent / "private" / f"{CERT_NAME_PREFIX}.key"))
-        mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", str(settings.mtls_client_key_path))
+        mpatch.setattr(
+            switchme_to_singleton_call,
+            "mtls_client_cert_path",
+            str(sessionpersistent / "public" / f"{CERT_NAME_PREFIX}.pem"),
+        )
+        mpatch.setenv("RM_MTLS_CLIENT_CERT_PATH", str(switchme_to_singleton_call.mtls_client_cert_path))
+        mpatch.setattr(
+            switchme_to_singleton_call,
+            "mtls_client_key_path",
+            str(sessionpersistent / "private" / f"{CERT_NAME_PREFIX}.key"),
+        )
+        mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", str(switchme_to_singleton_call.mtls_client_key_path))
         assert not check_settings_clientpaths()
 
-        mpatch.setattr(settings, "kraftwerk_manifest_path", str(kfmanifest))
-        mpatch.setenv("RM_KRAFTWERK_MANIFEST_PATH", settings.kraftwerk_manifest_path)
+        mpatch.setattr(switchme_to_singleton_call, "kraftwerk_manifest_path", str(kfmanifest))
+        mpatch.setenv("RM_KRAFTWERK_MANIFEST_PATH", switchme_to_singleton_call.kraftwerk_manifest_path)
         # force manifest reload
-        mpatch.setattr(settings, "kraftwerk_manifest_bool", False)
+        mpatch.setattr(switchme_to_singleton_call, "kraftwerk_manifest_bool", False)
         check_kraftwerk_manifest()
 
         yield None
@@ -293,9 +301,14 @@ async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
         if "xclientcert" in _request_params.keys() and _request_params["xclientcert"] is True:
             LOGGER.debug(
                 "set header '{}:'{}'".format(
-                    settings.api_client_cert_header, settings.test_api_client_cert_header_value
+                    switchme_to_singleton_call.api_client_cert_header,
+                    switchme_to_singleton_call.test_api_client_cert_header_value,
                 )
             )
-            instance.headers.update({settings.api_client_cert_header: settings.test_api_client_cert_header_value})
+            instance.headers.update(
+                {
+                    switchme_to_singleton_call.api_client_cert_header: switchme_to_singleton_call.test_api_client_cert_header_value  # pylint: disable=C0301
+                }
+            )
 
         yield instance

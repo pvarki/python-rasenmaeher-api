@@ -8,6 +8,8 @@ from fastapi import Request, HTTPException
 from ....db.people import Person
 from ....db.errors import DBError, NotFound, Deleted
 from .mtls import MTLSorJWT
+from .datatypes import MTLSorJWTPayloadType
+from ....rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,6 +32,11 @@ class ValidUser(MTLSorJWT):  # pylint: disable=too-few-public-methods
         if not payload.userid:
             if self.auto_error:
                 raise HTTPException(status_code=403, detail="No userid in payload")
+            return request.state.person
+
+        if payload.type == MTLSorJWTPayloadType.MTLS and (payload.userid in RMSettings.singleton().valid_product_cns):
+            # PONDER: Try to load the default anon_admin user ??
+            LOGGER.debug("product mTLS client, allowing and skipping role checks")
             return request.state.person
 
         try:

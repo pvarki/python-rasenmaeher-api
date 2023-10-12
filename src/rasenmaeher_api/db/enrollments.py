@@ -14,6 +14,7 @@ import sqlalchemy as sa
 from .base import ORMBaseModel, utcnow, db
 from .people import Person
 from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
+from ..rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 CODE_CHAR_COUNT = 8  # TODO: Make configurable ??
@@ -271,6 +272,8 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
         cls, callsign: str, pool: Optional[EnrollmentPool] = None, extra: Optional[Dict[str, Any]] = None
     ) -> Self:
         """Create a new one with random code for the callsign"""
+        if callsign in RMSettings.singleton().valid_product_cns:
+            raise CallsignReserved("Using product CNs as callsigns is forbidden")
         async with db.acquire() as conn:
             async with conn.transaction():  # do it in a transaction so we can't have races with codes
                 try:

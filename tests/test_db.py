@@ -22,7 +22,7 @@ from rasenmaeher_api.db.errors import (
 )
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
-from rasenmaeher_api.settings import settings
+from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.cfssl.public import get_crl
 from rasenmaeher_api.db.base import init_db, bind_config
 
@@ -345,11 +345,11 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
     """Test the cert creation with the classmethod with CFSSL failure"""
     _ = ginosession
     await mtls_init()
-    peoplepath = Path(settings.persistent_data_dir) / "private" / "people"
+    peoplepath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people"
     old_files = set(peoplepath.rglob("*"))
     with monkeypatch.context() as mpatch:
-        mpatch.setattr(settings, "cfssl_host", "http://nosuchost")
-        mpatch.setenv("RM_CFSSL_HOST", settings.cfssl_host)
+        mpatch.setattr(switchme_to_singleton_call, "cfssl_host", "http://nosuchost")
+        mpatch.setenv("RM_CFSSL_HOST", switchme_to_singleton_call.cfssl_host)
         with pytest.raises(BackendError):
             await Person.create_with_cert("BONGO01a", {"kissa": "puuma"})
         new_files = set(peoplepath.rglob("*"))
@@ -364,7 +364,7 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     _ = ginosession
     await mtls_init()
     callsign = "RUOSKA23a"
-    peoplepath = Path(settings.persistent_data_dir) / "private" / "people"
+    peoplepath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people"
     person = await Person.create_with_cert(callsign)
     assert person.privkeyfile.exists()
     assert person.pubkeyfile.exists()
@@ -388,3 +388,13 @@ async def test_pfx_parse(ginosession: None) -> None:
     pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, b"PFXMAN01a")
     assert pfxdata.key
     assert pfxdata.cert
+
+
+@pytest.mark.asyncio
+async def test_productcn_forbid(ginosession: None) -> None:
+    """Test that trying to create enrollment or person with callsign that matches a product CN fails"""
+    _ = ginosession
+    with pytest.raises(CallsignReserved):
+        await Person.create_with_cert("fake.localmaeher.pvarki.fi")
+    with pytest.raises(CallsignReserved):
+        await Enrollment.create_for_callsign("fake.localmaeher.pvarki.fi")

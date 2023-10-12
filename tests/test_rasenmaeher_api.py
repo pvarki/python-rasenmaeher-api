@@ -6,11 +6,12 @@ from async_asgi_testclient import TestClient
 
 
 from rasenmaeher_api import __version__
+from rasenmaeher_api.rmsettings import RMSettings
 
 
 def test_version() -> None:
     """Make sure version matches expected"""
-    assert __version__ == "0.9.0"
+    assert __version__ == "0.10.0"
 
 
 @pytest.mark.asyncio
@@ -21,3 +22,9 @@ async def test_get_openapi_json(app_client: TestClient) -> None:
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert len(resp_dict) > 0
+
+
+def test_settings() -> None:
+    """Test settings defaults"""
+    conf = RMSettings.singleton()
+    assert "fake.localmaeher.pvarki.fi" in conf.valid_product_cns
