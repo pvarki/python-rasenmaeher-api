@@ -27,6 +27,7 @@ from ..rmsettings import switchme_to_singleton_call
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
 from ..cfssl.public import get_bundle
 from ..prodcutapihelpers import post_to_all_products
+from ..rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,6 +59,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
         """Create the cert etc and save the person"""
+        if callsign in RMSettings.singleton().valid_product_cns:
+            raise CallsignReserved("Using product CNs as callsigns is forbidden")
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()

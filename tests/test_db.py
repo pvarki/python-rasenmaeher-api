@@ -388,3 +388,13 @@ async def test_pfx_parse(ginosession: None) -> None:
     pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, b"PFXMAN01a")
     assert pfxdata.key
     assert pfxdata.cert
+
+
+@pytest.mark.asyncio
+async def test_productcn_forbid(ginosession: None) -> None:
+    """Test that trying to create enrollment or person with callsign that matches a product CN fails"""
+    _ = ginosession
+    with pytest.raises(CallsignReserved):
+        await Person.create_with_cert("fake.localmaeher.pvarki.fi")
+    with pytest.raises(CallsignReserved):
+        await Enrollment.create_for_callsign("fake.localmaeher.pvarki.fi")
