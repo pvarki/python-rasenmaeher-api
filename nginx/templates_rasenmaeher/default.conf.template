@@ -77,14 +77,14 @@ server {
     listen ${NGINX_HTTPS_PORT} ssl;
 
     ssl_client_certificate /ca_public/ca_chain.pem;
-    ssl_verify_client      on;
+    ssl_verify_client       optional;
     # solve issues with https://github.com/pvarki/docker-rasenmaeher-cfssl/issues/9 first
     #ssl_ocsp leaf;
     #ssl_ocsp_responder http://${NGINX_OCSP_UPSTREAM}:${CFSSL_OCSP_BIND_PORT};
 
     location /api {
         if ($ssl_client_verify != SUCCESS) {
-            return 401;
+            return 302 https://${NGINX_HOST}:${NGINX_HTTPS_PORT}/error?code=mtls_fail;
         }
         proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT}/api;
         proxy_redirect                      off;
@@ -98,7 +98,7 @@ server {
     }
     location / {
         if ($ssl_client_verify != SUCCESS) {
-            return 401;
+            return 302 https://${NGINX_HOST}:${NGINX_HTTPS_PORT}/error?code=mtls_fail;
         }
         proxy_pass  http://${NGINX_UI_UPSTREAM}:${NGINX_UI_UPSTREAM_PORT}/;
         proxy_redirect                      off;
