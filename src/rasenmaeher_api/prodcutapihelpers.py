@@ -1,6 +1,6 @@
 """Product integration API helpers"""
-import asyncio
 from typing import Dict, Optional, Type, Any, Mapping, Tuple
+import asyncio
 import logging
 
 import aiohttp
@@ -70,16 +70,19 @@ async def _method_to_all_products(
                 payload = await resp.json()
                 LOGGER.debug("payload={}".format(payload))
                 retval = respose_schema.parse_obj(payload)
-                # Log a commong error case here for DRY
+                # Log a common error case here for DRY
                 if isinstance(retval, OperationResultResponse):
                     if not retval.success:
                         LOGGER.error("Failure at {}, response: {}".format(url, retval))
                 return name, retval
-            except aiohttp.ClientError:
-                LOGGER.exception("Failure to call {}".format(url))
+            except (aiohttp.ClientError, TimeoutError, asyncio.TimeoutError) as exc:
+                LOGGER.error("Failure to call {}: {}".format(url, exc))
                 return name, None
-            except pydantic.ValidationError:
-                LOGGER.exception("Invalid response from {}".format(url))
+            except pydantic.ValidationError as exc:
+                LOGGER.error("Invalid response from {}: {}".format(url, exc))
+                return name, None
+            except Exception:  # pylint: disable=W0718
+                LOGGER.exception("Something went seriously wrong calling {}".format(url))
                 return name, None
 
     coros = []
