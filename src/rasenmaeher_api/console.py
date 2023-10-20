@@ -101,7 +101,7 @@ def get_pfx(ctx: click.Context, callsign: str, admin: bool) -> None:
             if admin:
                 await person.assign_role("admin")
         tgtfile = Path(f"{callsign}.pfx")
-        tgtfile.write_bytes(person.pfxfile.read_bytes())
+        tgtfile.write_bytes((await person.create_pfx()).read_bytes())
         click.echo(f"Wrote {tgtfile}")
 
         return 0

@@ -27,5 +27,7 @@ async def get_user_pfx(
     LOGGER.debug("Called with callsign={}".format(callsign))
     if person.callsign != callsign:
         raise HTTPException(status_code=403, detail="Callsign must match authenticated user")
+    # Make sure the pfx exists, this is no-op if it does
+    await person.create_pfx()
 
     return FileResponse(path=person.pfxfile, media_type="application/x-pkcs12", filename=f"{callsign}.pfx")
