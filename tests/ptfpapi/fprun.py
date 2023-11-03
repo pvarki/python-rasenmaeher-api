@@ -81,6 +81,12 @@ async def handle_fragment(request: web.Request) -> web.Response:
     )
 
 
+async def handle_health(request: web.Request) -> web.Response:
+    """healthcheck response"""
+    check_peer_cert(request)
+    return web.json_response({"healthy": True})
+
+
 async def handle_admin_fragment(request: web.Request) -> web.Response:
     """Respond with success to all CRUD operations"""
     check_peer_cert(request)
@@ -113,6 +119,7 @@ def main() -> int:
             web.put("/api/v1/users/updated", handle_user_crud),
             web.post("/api/v1/clients/fragment", handle_fragment),
             web.get("/api/v1/admins/fragment", handle_admin_fragment),
+            web.get("/api/v1/healthcheck", handle_health),
         ]
     )
 

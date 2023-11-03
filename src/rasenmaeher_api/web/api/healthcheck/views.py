@@ -1,19 +1,21 @@
 """Healthcheck API views."""
+from typing import cast
 import logging
-from typing import Any, Dict, List
-from fastapi import APIRouter
 
-from .schema import HealthCheckResponse
+from fastapi import APIRouter
+from libpvarki.schemas.product import ProductHealthCheckResponse
+
+from .schema import BasicHealthCheckResponse, AllProductsHealthCheckResponse
 from ....db import Person
 from ....rmsettings import switchme_to_singleton_call
-from ....prodcutapihelpers import check_kraftwerk_manifest
+from ....prodcutapihelpers import check_kraftwerk_manifest, get_from_all_products
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
 
 @router.get("")
-async def request_healthcheck() -> HealthCheckResponse:
+async def request_healthcheck() -> BasicHealthCheckResponse:
     """
     Basic health check. Success = 200. Checks the following things.
     - Person list from database
@@ -34,32 +36,31 @@ async def request_healthcheck() -> HealthCheckResponse:
         else:
             my_dn = "DNS not defined in manifest"
             deployment_name = "DNS not defined in manifest"
-    return HealthCheckResponse(healthcheck="success", dns=my_dn, deployment=deployment_name)
+    return BasicHealthCheckResponse(healthcheck="success", dns=my_dn, deployment=deployment_name)
 
 
-# Keep / needed?
-@router.get("/delivery")
-async def request_healthcheck_delivery() -> Dict[Any, Any]:
-    """
-    Delivery endpoint healthcheck.
-    200 {"state":"ready-for-delivery"}
-    201 {"detail":{"state":"init"}}
-    204 {"detail":{"state":"waiting-for-services"}}
-    """
-
-    return {"state": "ready-for-delivery"}
-
-
-# Keep / needed?
 @router.get("/services")
-async def request_healthcheck_services() -> List[Dict[Any, Any]]:
-    """
-    Serices endpoint healthcheck.
-    return list of services
-    """
+async def request_healthcheck_services() -> AllProductsHealthCheckResponse:
+    """Return the states of products' apis and if everything is ok
 
-    returnable: List[Dict[Any, Any]] = []
-    returnable.append({"service": "TODO1", "response_code": "TODO1"})
-    returnable.append({"service": "TODO2", "response_code": "TODO2"})
+    Note that HTTP status-code is 200 even if all_ok is False"""
 
-    return returnable
+    ret = AllProductsHealthCheckResponse(all_ok=True, products={})
+    statuses = await get_from_all_products("api/v1/healthcheck", ProductHealthCheckResponse)
+    if not statuses:
+        LOGGER.error("Did not get anything back")
+        ret.all_ok = False
+        return ret
+    for productname, response in statuses.items():
+        if not response:
+            LOGGER.warning("No response from {}, setting all_ok to False".format(productname))
+            ret.products[productname] = False
+            ret.all_ok = False
+            continue
+        response = cast(ProductHealthCheckResponse, response)
+        ret.products[productname] = response.healthy
+        if not response.healthy:
+            LOGGER.warning("Unhealthy report from {}, setting all_ok to False".format(productname))
+            ret.all_ok = False
+
+    return ret
