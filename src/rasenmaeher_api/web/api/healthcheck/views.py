@@ -25,13 +25,16 @@ async def request_healthcheck() -> HealthCheckResponse:
 
     # Get the DNS from manifest
     my_dn: str = "Manifest not defined"
+    deployment_name = "Manifest not defined"
 
     if check_kraftwerk_manifest():
         if "dns" in switchme_to_singleton_call.kraftwerk_manifest_dict:
             my_dn = switchme_to_singleton_call.kraftwerk_manifest_dict["dns"]
+            deployment_name = my_dn.split(".")[0]
         else:
             my_dn = "DNS not defined in manifest"
-    return HealthCheckResponse(healthcheck="success", dns=my_dn)
+            deployment_name = "DNS not defined in manifest"
+    return HealthCheckResponse(healthcheck="success", dns=my_dn, deployment=deployment_name)
 
 
 # Keep / needed?
