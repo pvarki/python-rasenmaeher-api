@@ -7,19 +7,13 @@ from pathlib import Path
 import shutil
 
 import cryptography.x509
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives.serialization import (
-    load_pem_private_key,
-    pkcs12,
-    PrivateFormat,
-)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
 from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
 from libpvarki.schemas.product import UserCRUDRequest
 from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.mtlshelp.pkcs12 import convert_pem_to_pkcs12
 
 from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
@@ -101,23 +95,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         def write_pfx() -> None:
             """Do the IO"""
             nonlocal self
-            cert = cryptography.x509.load_pem_x509_certificate(self.certfile.read_bytes())
-            key = cast(
-                rsa.RSAPrivateKey,
-                load_pem_private_key(self.privkeyfile.read_bytes(), None),
-            )
-
-            # Apple devices (and some windowses too I guess) have an issue with the modern
-            # secure ways to encrypt pkcs12 files so we do it oldskool.
-            encryption = (
-                PrivateFormat.PKCS12.encryption_builder()
-                .kdf_rounds(50000)
-                .key_cert_algorithm(pkcs12.PBES.PBESv1SHA1And3KeyTripleDESCBC)  # nosec
-                .hmac_hash(hashes.SHA1())  # nosec
-                .build(self.callsign.encode("utf-8"))
-            )
-
-            p12bytes = pkcs12.serialize_key_and_certificates(self.callsign.encode("utf-8"), key, cert, None, encryption)
+            p12bytes = convert_pem_to_pkcs12(self.certfile, self.privkeyfile, self.callsign, None, self.callsign)
             self.pfxfile.write_bytes(p12bytes)
 
         await asyncio.get_event_loop().run_in_executor(None, write_pfx)
