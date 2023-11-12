@@ -10,11 +10,12 @@ from multikeyjwt.middleware import JWTBearer
 from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
 
 
-from .schema import CertificatesResponse, CertificatesRequest
+from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....cfssl.public import get_ca, get_bundle
-from ....cfssl.private import sign_csr
+from ....cfssl.private import sign_csr, revoke_pem
+from ....cfssl.base import CFSSLError
 from ....rmsettings import RMSettings
 
 
@@ -70,6 +71,23 @@ async def return_ca_and_sign_csr_mtls(
     if payload.get("CN") not in RMSettings.singleton().valid_product_cns:
         raise HTTPException(status_code=403)
     return await csr_common(certs)
+
+
+@router.post("/revoke/mtls", dependencies=[Depends(MTLSHeader(auto_error=True))])
+async def revoke_cert(
+    request: Request,
+    cert: RevokeRequest,
+) -> OperationResultResponse:
+    """Allow product with mTLS cert to revoke a cert"""
+    payload = request.state.mtlsdn
+    if payload.get("CN") not in RMSettings.singleton().valid_product_cns:
+        raise HTTPException(status_code=403)
+    try:
+        await revoke_pem(cert.cert, "unspecified")
+        return OperationResultResponse(success=True)
+    except CFSSLError as exc:
+        LOGGER.error("Revoke failed: {}".format(exc))
+        return OperationResultResponse(success=False, error=str(exc))
 
 
 @router.post("/renew_csr", dependencies=[Depends(MTLSHeader(auto_error=True))])

@@ -72,7 +72,7 @@ async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> No
 
 
 @pytest.mark.asyncio
-async def test_sign_mtls(datadir: Path) -> None:
+async def test_sign_revoke_mtls(datadir: Path) -> None:
     """Test signing as product"""
     privkeypath = datadir / "private" / "product_sign_test.key"
     pubkeypath = datadir / "public" / "product_sign_test.pub"
@@ -94,3 +94,15 @@ async def test_sign_mtls(datadir: Path) -> None:
         payload = resp.json()
         assert "certificate" in payload
         assert "ca" in payload
+
+        resp2 = await client.post(
+            "/api/v1/product/revoke/mtls",
+            json={
+                "cert": payload["certificate"],
+            },
+        )
+        LOGGER.debug("Got response {}".format(resp2))
+        resp2.raise_for_status()
+        payload2 = resp2.json()
+        assert "success" in payload2
+        assert payload2["success"]
