@@ -8,6 +8,7 @@ import pytest_asyncio
 import aiohttp
 from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 from libpvarki.mtlshelp import get_session
+from libpvarki.mtlshelp.csr import create_keypair, create_client_csr
 
 
 from rasenmaeher_api.cfssl.private import sign_csr
@@ -35,14 +36,7 @@ def keypair(datadir: Path) -> crypto.PKey:
     """Generate a keypair"""
     privkeypath = datadir / "private" / "mtlsclient.key"
     pubkeypath = datadir / "public" / "mtlsclient.pub"
-    ckp = crypto.PKey()
-    LOGGER.debug("Generating keypair, this will take a moment")
-    ckp.generate_key(crypto.TYPE_RSA, 4096)
-    LOGGER.debug("Done")
-    with privkeypath.open("wb") as fpntr:
-        fpntr.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, ckp))
-    with pubkeypath.open("wb") as fpntr:
-        fpntr.write(crypto.dump_publickey(crypto.FILETYPE_PEM, ckp))
+    ckp = create_keypair(privkeypath, pubkeypath)
     return ckp
 
 
@@ -50,19 +44,7 @@ def keypair(datadir: Path) -> crypto.PKey:
 def csrfile(datadir: Path, keypair: crypto.PKey) -> Path:
     """Generate CSR file"""
     csrpath = datadir / "public" / "mtlsclient.csr"
-    req = crypto.X509Req()
-    req.get_subject().CN = "localmaeher.pvarki.fi"
-    req.add_extensions(
-        [
-            crypto.X509Extension(b"keyUsage", True, b"digitalSignature,nonRepudiation,keyEncipherment"),
-            crypto.X509Extension(b"extendedKeyUsage", True, b"clientAuth"),
-        ]
-    )
-    req.set_pubkey(keypair)
-    req.sign(keypair, "sha256")
-    with csrpath.open("wb") as fpntr:
-        fpntr.write(crypto.dump_certificate_request(crypto.FILETYPE_PEM, req))
-
+    create_client_csr(keypair, csrpath, {"CN": "rasenmaeher"})
     return csrpath
 
 

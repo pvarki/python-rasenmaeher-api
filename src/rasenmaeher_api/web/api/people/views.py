@@ -4,6 +4,7 @@ import logging
 
 
 from fastapi import APIRouter, Depends
+from libpvarki.schemas.generic import OperationResultResponse
 
 from .schema import (
     CallSignPerson,
@@ -12,6 +13,7 @@ from .schema import (
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ....db import Person
+from ....db.errors import BackendError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,3 +39,19 @@ async def request_people_list() -> PeopleListOut:
         _result_list.append(_person)
 
     return PeopleListOut(callsign_list=_result_list)
+
+
+@router.delete(
+    "/{callsign}",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
+async def delete_person(callsign: str) -> OperationResultResponse:
+    """delete==revoke a callsign"""
+    person = await Person.by_callsign(callsign)
+    try:
+        deleted = await person.delete()
+        return OperationResultResponse(success=deleted)
+    except BackendError as exc:
+        LOGGER.error("Backend failure: {}".format(exc))
+        return OperationResultResponse(success=False, error=str(exc))

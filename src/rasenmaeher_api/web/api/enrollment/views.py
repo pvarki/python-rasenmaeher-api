@@ -156,13 +156,13 @@ async def request_enrollment_list() -> EnrollmentListOut:
     Returns a list of dicts, callsign_list = [ {  "callsign":'x', 'state':'init', 'approvecode':'' } ]
     """
 
-    _enroll_list = Enrollment.list()
+    result_list: List[Dict[Any, Any]] = []
+    async for enrollment in Enrollment.list():
+        result_list.append(
+            {"callsign": enrollment.callsign, "approvecode": enrollment.approvecode, "state": enrollment.state}
+        )
 
-    _result_list: List[Dict[Any, Any]] = []
-    async for _x in _enroll_list:
-        _result_list.append({"callsign": _x.callsign, "approvecode": _x.approvecode, "state": _x.state})
-
-    return EnrollmentListOut(callsign_list=_result_list)
+    return EnrollmentListOut(callsign_list=result_list)
 
 
 @ENROLLMENT_ROUTER.post(
@@ -299,10 +299,8 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
     """
     Create a new invite code
     """
-
-    _pool = await EnrollmentPool.old_invitecode_for_callsign_tobedeleted(callsign=request.state.mtls_or_jwt.userid)
-
-    return EnrollmentInviteCodeCreateOut(invite_code=_pool.invitecode)
+    pool = await EnrollmentPool.create_for_owner(request.state.person)
+    return EnrollmentInviteCodeCreateOut(invite_code=pool.invitecode)
 
 
 @ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=OperationResultResponse)

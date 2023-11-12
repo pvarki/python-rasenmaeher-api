@@ -43,3 +43,26 @@ yiIpfvrcT9M4hJwtVFZy
                 },
             ]
         }
+
+
+class RevokeRequest(BaseModel):  # pylint: disable=too-few-public-methods
+    """Request a cert to be revoked"""
+
+    cert: str = Field(description="Cert PEM")
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+        schema_extra = {
+            "examples": [
+                {
+                    "cert": """-----BEGIN CERTIFICATE-----
+MIID9DCCAtygAwIBAgIUSF7KldQcZ9tc8IHB9zBQnf/1V58wDQYJKoZIhvcNAQEL
+...
+RTM/xsm9FVNDBFy/w5Xu6Xewa5UrHkRtrEsbmhbbc6VLytoQrhgqV6kbFJP8vgFn
+zPs4ufNJed0=
+-----END CERTIFICATE-----"""
+                },
+            ]
+        }

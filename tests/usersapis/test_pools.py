@@ -1,15 +1,33 @@
 """Test EnrollmentPool ops"""
+from typing import List, AsyncGenerator
 import logging
 
 import pytest
+import pytest_asyncio
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
 
 LOGGER = logging.getLogger(__name__)
 
+# pylint: disable=W0621
+
+
+@pytest_asyncio.fixture
+async def five_pools(admin_mtls_client: TestClient) -> AsyncGenerator[List[str], None]:
+    """Check lists"""
+    client = admin_mtls_client
+    codes: List[str] = []
+    for _ in range(5):
+        url = "/api/v1/enrollment/invitecode/create"
+        resp = await client.post(url)
+        resp.raise_for_status()
+        payload = resp.json()
+        codes.append(payload["invite_code"])
+    yield codes
+
 
 @pytest.mark.asyncio
-async def test_list_pools(admin_mtls_client: TestClient) -> None:
+async def test_list_pools(admin_mtls_client: TestClient, five_pools: List[str]) -> None:
     """Check lists"""
     client = admin_mtls_client
     url = "/api/v1/enrollment/pools"
@@ -20,6 +38,11 @@ async def test_list_pools(admin_mtls_client: TestClient) -> None:
     LOGGER.debug(payload)
     assert "pools" in payload
     assert payload["pools"]
+    assert len(payload["pools"]) >= 5
+    codes = [pool["invitecode"] for pool in payload["pools"]]
+    LOGGER.debug(codes)
+    for expect_code in five_pools:
+        assert expect_code in codes
     assert payload["pools"][0]["owner_cs"]
 
 

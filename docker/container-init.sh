@@ -3,6 +3,7 @@ set -e
 # Make sure fakeproduct api endpoint points to correct IP, 127.0.01 is this containers localhost...
 sed 's/.*localmaeher.*//g' /etc/hosts >/etc/hosts.new && cat /etc/hosts.new >/etc/hosts
 echo "$(getent hosts host.docker.internal | awk '{ print $1 }') fake.localmaeher.pvarki.fi" >>/etc/hosts
+echo "$(getent hosts host.docker.internal | awk '{ print $1 }') tak.localmaeher.pvarki.fi" >>/etc/hosts
 
 # Make sure the persistent directories exist
 test -d /data/persistent/private || ( mkdir -p /data/persistent/private && chmod og-rwx /data/persistent/private )

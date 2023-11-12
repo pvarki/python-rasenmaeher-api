@@ -124,37 +124,6 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
             raise Deleted()
         return cast(EnrollmentPool, obj)
 
-    # FIXME: same owner can have multiple pools, see list above
-    @classmethod
-    async def by_owner_old_tbremoved(cls, owner_uuid: str) -> Self:
-        """Get by owner UUID"""
-        warnings.warn("deprecated", DeprecationWarning)
-        obj = await EnrollmentPool.query.where(EnrollmentPool.owner == owner_uuid).gino.first()
-        if not obj:
-            raise NotFound()
-        return cast(EnrollmentPool, obj)
-
-    # FIXME: This needs to go, firstly there may be multiple pools by same owner secondly the API user needs to know
-    #        beforehand whether they are creating or updating something
-    @classmethod
-    async def old_invitecode_for_callsign_tobedeleted(
-        cls, callsign: str, extra: Optional[Dict[str, Any]] = None
-    ) -> Self:
-        """Create enrollment pool owned by callsign, or update invitecode for existing one"""
-        warnings.warn("deprecated", DeprecationWarning)
-        _owner = await Person.by_callsign(callsign=callsign)
-
-        _invitecode = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
-        try:
-            existing_obj = await EnrollmentPool.by_owner_old_tbremoved(owner_uuid=_owner.pk)
-            await existing_obj.update(invitecode=_invitecode).apply()
-
-        except NotFound:
-            obj = EnrollmentPool(owner=_owner.pk, active=True, extra=extra, invitecode=_invitecode)
-            await obj.create()
-
-        return await EnrollmentPool.by_owner_old_tbremoved(owner_uuid=_owner.pk)
-
 
 class EnrollmentState(enum.IntEnum):
     """Enrollment states"""
