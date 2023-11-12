@@ -9,7 +9,8 @@ import pytest_asyncio
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 from multikeyjwt import Issuer
 
-from rasenmaeher_api.web.application import get_app
+
+from rasenmaeher_api.web.application import get_app_no_init
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ def datadir(nice_tmpdir_mod: str) -> Path:
 @pytest_asyncio.fixture(scope="session")
 async def admin_mtls_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
     """(fake) mTLS client for admin"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(get_app_no_init()) as instance:
         token = issuer_cl.issue(
             {
                 "sub": "tpadminsession",
@@ -58,7 +59,7 @@ async def admin_mtls_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, Non
 
 async def enroll_user(poolcode: str, callsign: str, admin: TestClient) -> bytes:
     """Enrolls a user, returns the p12 cert pkg"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(get_app_no_init()) as instance:
         # start enroll
         url = "/api/v1/enrollment/invitecode/enroll"
         data = {
@@ -109,7 +110,7 @@ async def user_mtls_client(admin_mtls_client: TestClient, enroll_poolcode: str) 
     """mTLS client for user"""
     await enroll_user(enroll_poolcode, "ENROLLUSERa", admin_mtls_client)
 
-    async with TestClient(get_app()) as instance:
+    async with TestClient(get_app_no_init()) as instance:
         instance.headers.update({"X-ClientCert-DN": "CN=ENROLLUSERa,O=N/A"})
         yield instance
 
@@ -118,6 +119,6 @@ async def user_mtls_client(admin_mtls_client: TestClient, enroll_poolcode: str) 
 async def product_mtls_client(admin_mtls_client: TestClient) -> AsyncGenerator[TestClient, None]:
     """Client with mocked NGinx mTLS headers"""
     _ = admin_mtls_client  # Just make sure the db inits are done
-    async with TestClient(get_app()) as instance:
+    async with TestClient(get_app_no_init()) as instance:
         instance.headers.update({"X-ClientCert-DN": "CN=fake.localmaeher.pvarki.fi,O=N/A"})
         yield instance
