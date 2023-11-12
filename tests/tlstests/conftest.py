@@ -44,7 +44,7 @@ def keypair(datadir: Path) -> crypto.PKey:
 def csrfile(datadir: Path, keypair: crypto.PKey) -> Path:
     """Generate CSR file"""
     csrpath = datadir / "public" / "mtlsclient.csr"
-    create_client_csr(keypair, csrpath, {"CN": "fake.localmaeher.pvarki.fi"})
+    create_client_csr(keypair, csrpath, {"CN": "rasenmaeher"})
     return csrpath
 
 

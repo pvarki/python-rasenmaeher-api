@@ -15,10 +15,23 @@ from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....cfssl.public import get_ca, get_bundle
 from ....cfssl.private import sign_csr
+from ....rmsettings import RMSettings
 
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
+
+
+async def csr_common(certs: CertificatesRequest) -> CertificatesResponse:
+    """Common parts of CSR handling"""
+    cachain = await get_ca()
+    certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
+    bundlepem = await get_bundle(certpem)
+
+    return CertificatesResponse(
+        ca=cachain,
+        certificate=bundlepem,
+    )
 
 
 @router.post("/sign_csr", dependencies=[Depends(JWTBearer(auto_error=True))])
@@ -42,16 +55,21 @@ async def return_ca_and_sign_csr(
 
     # PONDER: Should we check jwtpayload["sub"] is among the products in KRAFTWERK manifest ??
 
-    cachain = await get_ca()
-    certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
-    bundlepem = await get_bundle(certpem)
-
+    resp = await csr_common(certs)
     await SeenToken.use_token(jwtpayload["nonce"])
+    return resp
 
-    return CertificatesResponse(
-        ca=cachain,
-        certificate=bundlepem,
-    )
+
+@router.post("/sign_csr/mtls", dependencies=[Depends(MTLSHeader(auto_error=True))])
+async def return_ca_and_sign_csr_mtls(
+    request: Request,
+    certs: CertificatesRequest,
+) -> CertificatesResponse:
+    """Allow product with mTLS cert to request signatures for other certs"""
+    payload = request.state.mtlsdn
+    if payload.get("CN") not in RMSettings.singleton().valid_product_cns:
+        raise HTTPException(status_code=403)
+    return await csr_common(certs)
 
 
 @router.post("/renew_csr", dependencies=[Depends(MTLSHeader(auto_error=True))])
