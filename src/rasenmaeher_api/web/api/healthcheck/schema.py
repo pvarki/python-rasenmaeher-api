@@ -10,6 +10,7 @@ class BasicHealthCheckResponse(BaseModel):
     healthcheck: str = Field(description="Should contain 'success'")
     dns: str = Field(description="Contains the FQDN of this instance")
     deployment: str = Field(description="Contains the deployment name of this instance (host part of the FQDN)")
+    version: str = Field(description="Version number of the API package")
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
@@ -21,6 +22,7 @@ class BasicHealthCheckResponse(BaseModel):
                     "healthcheck": "success",
                     "dns": "sleepy-sloth.pvarki.fi",
                     "deployment": "sleepy-sloth",
+                    "version": "1.0.0",
                 }
             ]
         }

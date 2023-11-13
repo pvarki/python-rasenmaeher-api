@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter
 from libpvarki.schemas.product import ProductHealthCheckResponse
 
+from rasenmaeher_api import __version__
 from .schema import BasicHealthCheckResponse, AllProductsHealthCheckResponse
 from ....db import Person
 from ....rmsettings import switchme_to_singleton_call
@@ -36,7 +37,7 @@ async def request_healthcheck() -> BasicHealthCheckResponse:
         else:
             my_dn = "DNS not defined in manifest"
             deployment_name = "DNS not defined in manifest"
-    return BasicHealthCheckResponse(healthcheck="success", dns=my_dn, deployment=deployment_name)
+    return BasicHealthCheckResponse(healthcheck="success", dns=my_dn, deployment=deployment_name, version=__version__)
 
 
 @router.get("/services")

@@ -5,6 +5,7 @@ import pytest
 
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
+from rasenmaeher_api import __version__
 from rasenmaeher_api.web.api.healthcheck.schema import AllProductsHealthCheckResponse
 
 LOGGER = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ async def test_get_healthcheck(app_client: TestClient) -> None:
     assert resp.status_code == 200
     assert resp_dict["healthcheck"] == "success"
     assert resp_dict["dns"] != ""
+    assert resp_dict["version"] == __version__
 
 
 @pytest.mark.asyncio
