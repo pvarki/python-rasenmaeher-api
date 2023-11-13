@@ -30,15 +30,16 @@ async def request_people_list() -> PeopleListOut:
     Returns a list of dicts, callsign_list = [ {  "callsign":'x', "roles": ["str"] 'extra':'x' } ]
     """
 
-    _people_list = Person.list()
+    result_list: List[CallSignPerson] = []
+    async for dbperson in Person.list():
+        if dbperson.callsign == "anon_admin":
+            # Skip the "dummy" user for anon_admin
+            continue
+        roles = await dbperson.roles_set()
+        listitem = CallSignPerson(callsign=dbperson.callsign, roles=list(roles), extra=dbperson.extra)
+        result_list.append(listitem)
 
-    _result_list: List[CallSignPerson] = []
-    async for _x in _people_list:
-        _roles = [str(role) async for role in _x.roles() if role is not None]
-        _person = CallSignPerson(callsign=_x.callsign, roles=_roles, extra=_x.extra)
-        _result_list.append(_person)
-
-    return PeopleListOut(callsign_list=_result_list)
+    return PeopleListOut(callsign_list=result_list)
 
 
 @router.delete(
