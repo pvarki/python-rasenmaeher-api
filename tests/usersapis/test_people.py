@@ -19,6 +19,8 @@ async def test_admin_people_list(admin_mtls_client: TestClient) -> None:
     payload = resp.json()
     LOGGER.debug("payload={}".format(payload))
     assert resp.status_code == 200
+    callsigns = [item["callsign"] for item in payload["callsign_list"]]
+    assert "anon_admin" not in callsigns
 
 
 @pytest.mark.asyncio
@@ -30,6 +32,8 @@ async def test_product_people_list(product_mtls_client: TestClient) -> None:
     payload = resp.json()
     LOGGER.debug("payload={}".format(payload))
     assert resp.status_code == 200
+    callsigns = [item["callsign"] for item in payload["callsign_list"]]
+    assert "anon_admin" not in callsigns
 
 
 @pytest.mark.skip(reason="Seems to mess the db session somehow")

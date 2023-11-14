@@ -449,9 +449,3 @@ class EnrollmentInviteCodeDeleteIn(BaseModel):
                 {"invite_code": "[str] - Invite code that will be removed."},
             ]
         }
-
-
-class EnrollmentInviteCodeDeleteOut(BaseModel, extra=Extra.forbid):  # pylint: disable=too-few-public-methods
-    """Enrollment Invite code deactivate response schema"""
-
-    invite_code: str
