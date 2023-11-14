@@ -28,7 +28,6 @@ from .schema import (
     EnrollmentInviteCodeEnrollIn,
     EnrollmentInviteCodeActivateIn,
     EnrollmentInviteCodeDeactivateIn,
-    EnrollmentInviteCodeDeleteOut,
     EnrollmentPoolListOut,
     EnrollmentPoolListItem,
 )
@@ -347,16 +346,20 @@ async def put_deactivate_invite_code(
     raise HTTPException(status_code=500, detail=_reason)
 
 
-@ENROLLMENT_ROUTER.delete("/invitecode/{invite_code}", response_model=EnrollmentInviteCodeDeleteOut)
+@ENROLLMENT_ROUTER.delete("/invitecode/{invite_code}", response_model=OperationResultResponse)
 async def delete_invite_code(
     # request: Request,
     invite_code: str,
-) -> EnrollmentInviteCodeDeleteOut:
+) -> OperationResultResponse:
     """
     Delete an invite code
     """
-    # TODO
-    return EnrollmentInviteCodeDeleteOut(invite_code=f"TODO{invite_code}")
+    try:
+        obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
+        await obj.delete()
+        return OperationResultResponse(success=True, extra="Invitecode was deleted")
+    except NotFound:
+        return OperationResultResponse(success=False, extra="No such invitecode found")
 
 
 @NO_JWT_ENROLLMENT_ROUTER.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
