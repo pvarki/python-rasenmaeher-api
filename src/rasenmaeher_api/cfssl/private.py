@@ -7,13 +7,27 @@ from pathlib import Path
 import aiohttp
 import cryptography.x509
 
-from .base import base_url, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result, NoResult
+from .base import base_url, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result, NoResult, ocsprest_base
 from .mtls import mtls_session
 
 LOGGER = logging.getLogger(__name__)
 
 
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
+
+
+async def refresh_ocsp() -> None:
+    """Call ocsprest refresh"""
+    async with (await mtls_session()) as session:
+        url = f"{ocsprest_base()}/api/v1/refresh"
+        try:
+            async with session.post(url, timeout=DEFAULT_TIMEOUT) as response:
+                payload = await response.json()
+                LOGGER.debug("payload={}".format(payload))
+                if not payload["success"]:
+                    raise CFSSLError("Could not refresh OCSP")
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(str(exc)) from exc
 
 
 async def sign_csr(csr: str) -> str:

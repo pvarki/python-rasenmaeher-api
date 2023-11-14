@@ -80,6 +80,8 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Cfssl configuration
     cfssl_host: str = "http://127.0.0.1"
     cfssl_port: str = "8888"
+    ocsprest_host: str = "http://127.0.0.1"
+    ocsprest_port: str = "8887"
 
     persistent_data_dir = "/data/persistent"
 
