@@ -119,6 +119,7 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
                 except NoResult:
                     # The result is expected to be empty
                     pass
+                await refresh_ocsp()
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 
