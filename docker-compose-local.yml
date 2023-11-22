@@ -4,35 +4,37 @@ x-kc_dbconfig_env: &kcdbconfig_env
   KEYCLOAK_DATABASE_NAME: &kcdbname keycloak
   KEYCLOAK_DATABASE_HOST: postgres
   KEYCLOAK_DATABASE_USER: &kcdbuser keycloak
-  # FIXME: take from env (which should be set to random)
-  KEYCLOAK_DATABASE_PASSWORD: &kcdbpass keycloakpwd # pragma: allowlist secret
+  KEYCLOAK_DATABASE_PASSWORD: &kcdbpass ${KEYCLOAK_DATABASE_PASSWORD:-keycloakpwd}  # pragma: allowlist secret
 
 x-raesenmaeher_dbconfig_env: &rmdbconfig_env
   RM_DATABASE_NAME: &rmdbname raesenmaeher
   RM_DATABASE_HOST: postgres
   RM_DATABASE_USER: &rmdbuser raesenmaeher
-  # FIXME: take from env (which should be set to random)
-  RM_DATABASE_PASSWORD: &rmdbpass raesenmaeherpwd # pragma: allowlist secret
+  RM_DATABASE_PASSWORD: &rmdbpass ${RM_DATABASE_PASSWORD:-raesenmaeherpwd} # pragma: allowlist secret
 
+x-tak_dbconfig_env: &takdbconfig_env
+  POSTGRES_DB: &takdbname ${TAK_DATABASE_NAME:-tak}
+  POSTGRES_ADDRESS: postgres
+  POSTGRES_USER: &takdbuser ${TAK_DATABASE_USER:-tak}
+  POSTGRES_PASSWORD: &takdbpass ${TAK_DATABASE_PASSWORD:-takdbpwd} # pragma: allowlist secret
 
 x-postgres_env: &postgres_env
   KEYCLOAK_PASSWORD: *kcdbpass # pragma: allowlist secret
-  POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
+  POSTGRES_PASSWORD: &pgrootpwd ${POSTGRES_PASSWORD:-pg_R00t_user_password} # pragma: allowlist secret
   RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
+  TAK_PASSWORD: *takdbpass # pragma: allowlist secret
 
 
 x-ldap_admin_env: &ldap_admin_env
-  # FIXME: take from env (which should be set to random)
-  LDAP_ADMIN_PASSWORD: &ldapadminpass ldapadminpwd # pragma: allowlist secret
+  LDAP_ADMIN_PASSWORD: &ldapadminpass ${LDAP_ADMIN_PASSWORD:-ldapadminpwd} # pragma: allowlist secret
   LDAP_ADMIN_USERNAME: &ldapadminuser admin
 
 x-keycloak_users_env: &keycloak_users_env
   KEYCLOAK_CREATE_ADMIN_USER: "true"
   KEYCLOAK_ADMIN_USER: &lcadminuser admin
   KEYCLOAK_MANAGEMENT_USER: damager
-  # FIXME: take from env (which should be set to random)
-  KEYCLOAK_ADMIN_PASSWORD: &kcadminpass kcadminpw # pragma: allowlist secret
-  KEYCLOAK_MANAGEMENT_PASSWORD: kcmgrpw # pragma: allowlist secret
+  KEYCLOAK_ADMIN_PASSWORD: &kcadminpass ${KEYCLOAK_ADMIN_PASSWORD:-kcadminpw} # pragma: allowlist secret
+  KEYCLOAK_MANAGEMENT_PASSWORD: ${KEYCLOAK_MANAGEMENT_PASSWORD:-kcmgrpw}  # pragma: allowlist secret
 
 x-keycloak_profile_env: &keycloak_profile_env
   # These can be expanded in keycloak-config/profile.json
@@ -49,6 +51,22 @@ x-domains_env:
   API_HTTPS_PORT: &apiport ${NGINX_HTTPS_PORT:-4439}
   PRODUCT_HTTPS_PORT: &productport ${NGINX_HTTPS_PRODUCT_PORT:-4625}
   PRODUCT_DOMAIN: &productdomain "fake.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
+  TAK_DOMAIN: &takdomain "tak.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
+  TAK_RMAPI_PORT: &takapiport ${TAK_RMAPI_PORT:-4626}
+
+x-takbuilds: &takbuildinfo
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}${DOCKER_TAG_EXTRA:-}"
+  build:
+    context: ./takserver
+    dockerfile: Dockerfile
+
+x-takserver_env: &takserver_env
+  TAK_SERVER_ADDRESS: *takdomain
+  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
+  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:-takservercertpass} # pragma: allowlist secret
+  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
+  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:-takcacertpw} # pragma: allowlist secret
+  KEYSTORE_PASS: *tak_ca_pass
 
 x-cfssl_env: &cfssl_env
   INT_SHARED_CERT_FOLDER: /ca_public
@@ -69,12 +87,14 @@ services:
       target: production
     environment:
       MW_DOMAIN: *serverdomain
-      MW_PRODUCTS: "fake"
+      MW_PRODUCTS: "fake,tak"
       MW_RASENMAEHER__API_PORT: *apiport
       MW_FAKE__API_PORT: *productport
+      MW_TAK__API_PORT: *takapiport
       CAROOT: "/data/persistent/mkcert"
       MW_LE_EMAIL: "notusedwithmkcert@example.com"
       MW_MKCERT: "true"
+      MW_KEYTYPE: "rsa"
     volumes:
       - kraftwerk_shared_fake:/pvarkishares/fake
       - kraftwerk_shared_tak:/pvarkishares/tak
@@ -120,6 +140,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+    restart: unless-stopped
 
   ocsp:
     image: pvarki/cfssl:ocsp-latest
@@ -143,11 +164,14 @@ services:
     depends_on:
       cfssl:
         condition: service_healthy
+    restart: unless-stopped
 
   postgres:
-    image: postgres:12
+    image: postgis/postgis:15-3.4
     networks:
       - dbnet
+    ports:
+      - "5432:5432"  # ONLY for testing, do not expose in production
     volumes:
       - ./pg_init:/docker-entrypoint-initdb.d
       - pg_data:/var/lib/postgresql/data
@@ -163,6 +187,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    restart: unless-stopped
 
   openldap_cert_perms:  # FIXME: make a separate volume or something and copy the certs for correct user under it
     image: bash:latest
@@ -213,9 +238,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    restart: unless-stopped
 
   keycloak:
-    image: bitnami/keycloak:21.0.2
+    image: bitnami/keycloak:21.1.2
     environment:
       <<: [*kcdbconfig_env, *keycloak_users_env]
       KC_HEALTH_ENABLED: "true"
@@ -235,10 +261,11 @@ services:
       timeout: 10s
       retries: 5
       start_period: 15s
+    restart: unless-stopped
 
   # init container that sets up profile with realm on keycloak instance
   keycloak-init:
-    image: adorsys/keycloak-config-cli:latest-21.0.1
+    image: adorsys/keycloak-config-cli:latest-21.1.1
     networks:
       - kcnet
     volumes:
@@ -272,6 +299,7 @@ services:
       RM_CFSSL_HOST: "http://cfssl"
       RM_CFSSL_PORT: *cfsslport
       JWT_LIFETIME: "3456000"  # Long JWT lifetimes for testing
+      LOG_CONSOLE_FORMATTER: "local"
     networks:
       - apinet
       - kcnet
@@ -301,25 +329,16 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    restart: unless-stopped
 
-  rmui: # When actual production build works we don't even really have to run this proxy
+  rmui:
     image: pvarki/rmui:latest
     build:
       context: ./ui
       dockerfile: Dockerfile
-      #target: production # Does not work due to https://github.com/pvarki/rasenmaeher-ui/issues/3
-      target: devel_shell
-    command: ["-c", "npm install && npm run dev -- --port 8002 --host 0.0.0.0"] # Remove when production works
-    networks:
-      - intranet
-    ports:  # REMINDER Do not expose these in production
-      - "${NGINX_UI_UPSTREAM_PORT:-8002}:${NGINX_UI_UPSTREAM_PORT:-8002}"
-    healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
+      target: production
+    volumes:
+      - rmui_files:/deliver
 
   rmnginx:
     image: nginx
@@ -328,6 +347,7 @@ services:
       - ./nginx/includes:/etc/nginx/includes
       - ca_public:/ca_public
       - le_certs:/le_certs
+      - rmui_files:/rmui_files
     environment:
       <<: *cfssl_env
       NGINX_HOST: *serverdomain
@@ -356,7 +376,7 @@ services:
       rmapi:
         condition: service_healthy
       rmui:
-        condition: service_healthy
+        condition: service_completed_successfully
       ocsp:
         condition: service_healthy
       cfssl:
@@ -367,6 +387,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    restart: unless-stopped
 
   kwinit:  # Mostly to make sure it's built
     image: pvarki/kw_product_init:latest
@@ -381,12 +402,17 @@ services:
       - kraftwerk_shared_fake:/pvarki
       - kwinit_data:/data/persistent
 
+######################
+# Begin: Fakeproduct #
+######################
   rmfpapi:
     image: pvarki/rmfpapi:latest
     build:
       context: ./fpintegration
       dockerfile: Dockerfile
       target: production
+    environment:
+      LOG_CONSOLE_FORMATTER: "local"
     ports:
       - "8001:8001"  # NOTE: Do *NOT* expose this in production, always pass through NGinx proxy
     networks:
@@ -407,6 +433,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    restart: unless-stopped
 
   fpnginx:
     image: nginx
@@ -417,7 +444,6 @@ services:
       - le_certs:/le_certs
     environment:
       NGINX_HOST: *productdomain
-      NGINX_HTTP_PORT: ${NGINX_HTTP_PRODUCT_PORT:-8016}
       NGINX_HTTPS_PORT: *productport
       NGINX_UPSTREAM: "rmfpapi"
       NGINX_UPSTREAM_PORT: "8001"
@@ -439,6 +465,199 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
+    restart: unless-stopped
+####################
+# End: Fakeproduct #
+####################
+
+##############
+# Begin: TAK #
+##############
+  takinit:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rmnginx:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - taknet
+      - dbnet
+    volumes:
+      - kraftwerk_shared_tak:/pvarki
+      - tak_data:/opt/tak/data
+      - le_certs:/le_certs
+      - ca_public:/ca_public
+    command: /opt/scripts/firstrun_rm.sh
+
+  takmsg:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      takinit:
+          condition: service_completed_successfully
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - taknet
+      - dbnet
+      - intranet
+    ports:
+      - '8443:8443'
+      - '8444:8444'
+      - '8446:8446'
+      - '8089:8089'
+      - '8080:8080'  # NOTE: Do *NOT* expose this in production, this is non-tls port for debugging
+      - "8003:8003"  # NOTE: Do *NOT* expose this in production, this is the port for takrmapi
+    command: ./opt/scripts/start-tak.sh messaging
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  takapi:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      takmsg:
+        condition: service_healthy
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    network_mode: "service:takmsg"
+    command: ./opt/scripts/start-tak.sh api
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  takreten:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      takmsg:
+        condition: service_healthy
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+    network_mode: "service:takmsg"
+    command: ./opt/scripts/start-tak.sh retention
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  takplug:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      takapi:
+        condition: service_healthy
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+    network_mode: "service:takmsg"
+    command: ./opt/scripts/start-tak.sh pm
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  takrmapi:
+    image: pvarki/takrmapi:latest
+    build:
+      context: ./takintegration
+      dockerfile: Dockerfile
+      target: production
+    network_mode: "service:takmsg"
+    environment:
+      LOG_CONSOLE_FORMATTER: "local"
+    volumes:
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+      - kraftwerk_shared_tak:/pvarki
+      - takrmapi_data:/data/persistent
+      - tak_data:/opt/tak/data
+    depends_on:
+      rmnginx:
+        condition: service_healthy
+      takmsg:
+        condition: service_healthy
+      takapi:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  taknginx:
+    image: nginx
+    volumes:
+      - ./nginx/templates_productapi:/etc/nginx/templates
+      - ./nginx/includes:/etc/nginx/includes
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    environment:
+      NGINX_HOST: *takdomain
+      NGINX_HTTPS_PORT: *takapiport
+      NGINX_UPSTREAM: "takmsg"  # Due to the sidecar thing we must use the messaging container as host
+      NGINX_UPSTREAM_PORT: "8003"
+      NGINX_CERT_NAME: "rasenmaeher"
+    networks:
+      - taknet
+      - intranet
+    ports:
+      - "${TAK_RMAPI_PORT:-4626}:${TAK_RMAPI_PORT:-4626}"
+    depends_on:
+      miniwerk:
+        condition: service_completed_successfully
+      takrmapi:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+############
+# End: TAK #
+############
+
 
 networks:
   productnet:
@@ -448,6 +667,7 @@ networks:
   ocspnet:
   dbnet:
   intranet:
+  taknet:
 
 volumes:
   kraftwerk_data:
@@ -462,3 +682,6 @@ volumes:
   rmfpapi_data:
   ca_public:
   le_certs:
+  tak_data:
+  takrmapi_data:
+  rmui_files:

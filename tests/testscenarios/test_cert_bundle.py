@@ -1,8 +1,10 @@
 """Tests in sequence to simulate an end-to-end scenario"""
-from typing import AsyncGenerator, cast, Tuple
+import asyncio
+from typing import AsyncGenerator, cast, Tuple, Dict
 import logging
 from pathlib import Path
 import base64
+import os
 
 import aiohttp
 import pytest
@@ -171,6 +173,29 @@ async def test_2_invite_code_create(
 
 
 @pytest.mark.asyncio
+async def test_2_5_invite_code_create_many_and_list(
+    first_admin_mtls_session: Tuple[aiohttp.ClientSession, str],
+) -> None:
+    """Tests that we can create a new invite code"""
+    client, api = first_admin_mtls_session
+    url = f"{api}/{VER}/enrollment/invitecode/create"
+    for _ in range(5):
+        LOGGER.debug("Fetching {}".format(url))
+        response = await client.post(url, json=None, timeout=DEFAULT_TIMEOUT)
+        response.raise_for_status()
+        payload = await response.json()
+        LOGGER.debug("payload={}".format(payload))
+        assert payload["invite_code"] != ""
+    url = f"{api}/{VER}/enrollment/pools"
+    response = await client.get(url, json=None, timeout=DEFAULT_TIMEOUT)
+    response.raise_for_status()
+    payload = await response.json()
+    assert "pools" in payload
+    assert payload["pools"]
+    assert len(payload["pools"]) >= 5
+
+
+@pytest.mark.asyncio
 async def test_3_invite_code_is_ok(
     session_with_testcas: aiohttp.ClientSession,
 ) -> None:
@@ -300,11 +325,23 @@ async def test_9_check_if_enduser_pfx_available(
     assert response.content
 
 
+def parse_file_payload(fpl: Dict[str, str]) -> None:
+    """parse file payload"""
+    assert fpl["title"]
+    assert fpl["filename"]
+    assert fpl["data"]
+    data = str(fpl["data"])
+    assert data.startswith("data:")
+    _, b64data = data.split(",")
+    dec = base64.b64decode(b64data)
+    assert dec
+
+
 @pytest.mark.asyncio
-async def test_9_check_if_enduser_instructions(
+async def test_10_check_enduser_files(
     session_with_testcas: aiohttp.ClientSession,
 ) -> None:
-    """Check that we can get files from fpaoi"""
+    """Check that we can get files from product integration apis"""
     client = session_with_testcas
     client.headers.update({"Authorization": f"Bearer {ValueStorage.call_sign_jwt}"})
     url = f"{API}/{VER}/instructions/user"
@@ -316,16 +353,43 @@ async def test_9_check_if_enduser_instructions(
     assert payload
     assert "files" in payload
     assert "fake" in payload["files"]
-    if not payload["files"]["fake"]:
+    if not payload["files"]["fake"] and os.environ.get("CI"):  # pylint: disable=E1101  # false positive
         LOGGER.error("Did not get payload from fakeproduct but living with it")
-        return
-    fake = payload["files"]["fake"]
-    for fpl in fake:
-        assert fpl["title"]
-        assert fpl["filename"]
-        assert fpl["data"]
-        data = str(fpl["data"])
-        assert data.startswith("data:")
-        _, b64data = data.split(",")
-        dec = base64.b64decode(b64data)
-        assert dec
+    else:
+        for fpl in payload["files"]["fake"]:
+            parse_file_payload(fpl)
+
+    assert "tak" in payload["files"]
+    if not payload["files"]["tak"] and os.environ.get("CI"):  # pylint: disable=E1101  # false positive
+        LOGGER.error("Did not get payload from tak but living with it")
+    else:
+        for fpl in payload["files"]["tak"]:
+            parse_file_payload(fpl)
+
+
+@pytest.mark.asyncio
+async def test_11_check_user_revoke(
+    session_with_testcas: aiohttp.ClientSession,
+    first_admin_mtls_session: Tuple[aiohttp.ClientSession, str],
+) -> None:
+    """Test revoking the user"""
+    admin, api = first_admin_mtls_session
+    url = f"{api}/{VER}/people/{ValueStorage.call_sign}"
+    resp1 = await admin.delete(url)
+    LOGGER.debug("got response {} from {}".format(resp1, url))
+    resp1.raise_for_status()
+    payload = await resp1.json()
+    assert payload["success"]
+
+    resp2 = await admin.delete(url)
+    LOGGER.debug("got response {} from {}".format(resp2, url))
+    assert resp2.status == 404
+
+    await asyncio.sleep(1)
+
+    # FIXME: Use mTLS for the end-user too.
+    client = session_with_testcas
+    client.headers.update({"Authorization": f"Bearer {ValueStorage.call_sign_jwt}"})
+    resp2 = await client.get(f"{API}/{VER}/instructions/user")
+    assert resp2.status == 403
+    # TODO: Test the cert revocation too once we get OCSP working
