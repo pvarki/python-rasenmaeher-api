@@ -265,7 +265,7 @@ services:
 
   # init container that sets up profile with realm on keycloak instance
   keycloak-init:
-    image: adorsys/keycloak-config-cli:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-21.1.1
+    image: adorsys/keycloak-config-cli:latest-21.1.1
     networks:
       - kcnet
     volumes:
