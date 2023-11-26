@@ -106,7 +106,7 @@ services:
       - "80:80"
 
   cfssl:
-    image: pvarki/cfssl:api-1.0.0
+    image: pvarki/cfssl:api-1.1.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -127,7 +127,7 @@ services:
     restart: unless-stopped
 
   ocsp:
-    image: pvarki/cfssl:ocsp-1.0.0
+    image: pvarki/cfssl:ocsp-1.1.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -151,7 +151,7 @@ services:
     restart: unless-stopped
 
   ocsprest:
-    image: pvarki/cfssl:ocsprest-latest
+    image: pvarki/cfssl:ocsprest-1.1.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -294,7 +294,11 @@ services:
         condition: service_healthy
 
   rmapi:
+<<<<<<< HEAD
     image: pvarki/rmapi:1.2.0
+=======
+    image: pvarki/rmapi:1.1.0
+>>>>>>> 6c5c453 (update tags for cfssl and rmapi containers)
     build:
       context: ./api
       dockerfile: Dockerfile

@@ -167,7 +167,7 @@ services:
     restart: unless-stopped
 
   ocsprest:
-    image: pvarki/cfssl:ocsprest-latest
+    image: pvarki/cfssl:ocsprest-${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
