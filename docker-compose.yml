@@ -81,7 +81,7 @@ x-cfssl_env: &cfssl_env
 
 services:
   miniwerk:
-    image: pvarki/miniwerk:latest
+    image: pvarki/miniwerk:1.0.0
     build:
       context: ./miniwerk
       dockerfile: Dockerfile
@@ -105,7 +105,7 @@ services:
       - "80:80"
 
   cfssl:
-    image: pvarki/cfssl:api-latest
+    image: pvarki/cfssl:api-1.0.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -126,7 +126,7 @@ services:
     restart: unless-stopped
 
   ocsp:
-    image: pvarki/cfssl:ocsp-latest
+    image: pvarki/cfssl:ocsp-1.0.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -173,7 +173,7 @@ services:
     restart: unless-stopped
 
   openldap_cert_perms:  # FIXME: make a separate volume or something and copy the certs for correct user under it
-    image: bash:latest
+    image: bash:1.0.0
     volumes:
       - le_certs:/le_certs
     command: ["/usr/local/bin/bash", "-c", "chmod a+rwx -R /le_certs"]
@@ -182,7 +182,7 @@ services:
         condition: service_completed_successfully
 
   openldap:
-    image: pvarki/openldap:latest
+    image: pvarki/openldap:1.0.0
     build:
       context: ./openldap
       dockerfile: Dockerfile
@@ -250,7 +250,7 @@ services:
 
   # init container that sets up profile with realm on keycloak instance
   keycloak-init:
-    image: adorsys/keycloak-config-cli:latest-21.0.1
+    image: adorsys/keycloak-config-cli:1.0.0-21.0.1
     networks:
       - kcnet
     volumes:
@@ -269,7 +269,7 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: pvarki/rmapi:latest
+    image: pvarki/rmapi:1.0.0
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -311,7 +311,7 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:latest
+    image: pvarki/rmui:1.0.0
     build:
       context: ./ui
       dockerfile: Dockerfile
@@ -368,7 +368,7 @@ services:
     restart: unless-stopped
 
   kwinit:  # Mostly to make sure it's built
-    image: pvarki/kw_product_init:latest
+    image: pvarki/kw_product_init:1.0.0
     build:
       context: ./kw_product_init
       dockerfile: Dockerfile
@@ -384,7 +384,7 @@ services:
 # Begin: Fakeproduct #
 ######################
   rmfpapi:
-    image: pvarki/rmfpapi:latest
+    image: pvarki/rmfpapi:1.0.0
     build:
       context: ./fpintegration
       dockerfile: Dockerfile
@@ -564,7 +564,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:latest
+    image: pvarki/takrmapi:1.0.0
     build:
       context: ./takintegration
       dockerfile: Dockerfile
