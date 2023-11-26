@@ -190,7 +190,7 @@ services:
     restart: unless-stopped
 
   openldap_cert_perms:  # FIXME: make a separate volume or something and copy the certs for correct user under it
-    image: bash:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
+    image: bash:latest
     volumes:
       - le_certs:/le_certs
     command: ["/usr/local/bin/bash", "-c", "chmod a+rwx -R /le_certs"]
