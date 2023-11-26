@@ -341,7 +341,7 @@ services:
       - rmui_files:/deliver
 
   rmnginx:
-    image: nginx
+    image: nginx:stable
     volumes:
       - ./nginx/templates_rasenmaeher:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -436,7 +436,7 @@ services:
     restart: unless-stopped
 
   fpnginx:
-    image: nginx
+    image: nginx:stable
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -625,7 +625,7 @@ services:
     restart: unless-stopped
 
   taknginx:
-    image: nginx
+    image: nginx:stable
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
