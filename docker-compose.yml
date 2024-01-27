@@ -318,6 +318,7 @@ services:
       - canet
       - intranet
       - dbnet
+      - ocspnet
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
