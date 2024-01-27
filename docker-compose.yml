@@ -458,9 +458,9 @@ services:
       - taknet
       - dbnet
       - intranet
-    ports:
-      - '8443:8443'
-      - '8089:8089'
+#    ports:
+#      - '8443:8443'
+#      - '8089:8089'
     healthcheck:
       test: 'true'  # FIXME
       interval: 5s
@@ -487,10 +487,10 @@ services:
       - dbnet
       - intranet
     ports:
-#      - '8443:8443'
+      - '8443:8443'
       - '8444:8444'
       - '8446:8446'
-#      - '8089:8089'
+      - '8089:8089'
     command: ./opt/scripts/start-tak.sh messaging
     healthcheck:
       test: 'true'  # FIXME
