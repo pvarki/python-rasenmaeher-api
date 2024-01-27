@@ -16,6 +16,20 @@ LOGGER = logging.getLogger(__name__)
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
 
 
+async def dump_crlfiles() -> None:
+    """Call ocsprest CRL dump"""
+    async with (await mtls_session()) as session:
+        url = f"{ocsprest_base()}/api/v1/dump_crl"
+        try:
+            async with session.post(url, timeout=DEFAULT_TIMEOUT) as response:
+                payload = await response.json()
+                LOGGER.debug("payload={}".format(payload))
+                if not payload["success"]:
+                    raise CFSSLError("Could not refresh CRLs")
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(str(exc)) from exc
+
+
 async def refresh_ocsp() -> None:
     """Call ocsprest refresh"""
     async with (await mtls_session()) as session:
@@ -28,6 +42,8 @@ async def refresh_ocsp() -> None:
                     raise CFSSLError("Could not refresh OCSP")
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
+    # Dump the CRLs too
+    await dump_crlfiles()
 
 
 async def sign_csr(csr: str) -> str:
