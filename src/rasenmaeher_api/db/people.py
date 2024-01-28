@@ -235,24 +235,28 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
 
     async def assign_role(self, role: str) -> bool:
         """Assign a role, return true if role was created, false if it already existed"""
-        if await self.has_role(role):
-            return False
-        role = Role(user=self.pk, role=role)
-        await role.create()
-        await self.update(updated=utcnow).apply()
-        if role == "admin":
-            await user_promoted(self)
+        async with asyncio.TaskGroup() as tgr:
+            if role == "admin":
+                tgr.create_task(user_promoted(self))
+            if await self.has_role(role):
+                return False
+            role = Role(user=self.pk, role=role)
+            # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
+            await role.create()
+            await self.update(updated=utcnow).apply()
         return True
 
     async def remove_role(self, role: str) -> bool:
         """Remove a role, return true if role was removed, false if it wasn't assigned"""
-        obj = await self._get_role(role)
-        if not obj:
-            return False
-        await obj.delete()
-        await self.update(updated=utcnow).apply()
-        if role == "admin":
-            await user_demoted(self)
+        async with asyncio.TaskGroup() as tgr:
+            if role == "admin":
+                tgr.create_task(user_demoted(self))
+            obj = await self._get_role(role)
+            if not obj:
+                return False
+            # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
+            await obj.delete()
+            await self.update(updated=utcnow).apply()
         return True
 
     async def roles_set(self) -> Set[str]:

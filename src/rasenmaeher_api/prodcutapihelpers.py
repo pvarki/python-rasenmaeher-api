@@ -68,7 +68,7 @@ async def _method_to_all_products(
                     resp = await getattr(client, methodname)(url, json=data, timeout=rmconf.integration_api_timeout)
                 resp.raise_for_status()
                 payload = await resp.json()
-                LOGGER.debug("payload={}".format(payload))
+                LOGGER.debug("{}({}) payload={}".format(methodname, url, payload))
                 retval = respose_schema.parse_obj(payload)
                 # Log a common error case here for DRY
                 if isinstance(retval, OperationResultResponse):
@@ -76,10 +76,10 @@ async def _method_to_all_products(
                         LOGGER.error("Failure at {}, response: {}".format(url, retval))
                 return name, retval
             except (aiohttp.ClientError, TimeoutError, asyncio.TimeoutError) as exc:
-                LOGGER.error("Failure to call {}: {}".format(url, exc))
+                LOGGER.error("Failure to call {}: {}".format(url, repr(exc)))
                 return name, None
             except pydantic.ValidationError as exc:
-                LOGGER.error("Invalid response from {}: {}".format(url, exc))
+                LOGGER.error("Invalid response from {}: {}".format(url, repr(exc)))
                 return name, None
             except Exception:  # pylint: disable=W0718
                 LOGGER.exception("Something went seriously wrong calling {}".format(url))
