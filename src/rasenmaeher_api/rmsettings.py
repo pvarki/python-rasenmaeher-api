@@ -48,8 +48,8 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     # Set log_level (str) and log_level_int (int) for later use
     # if log_level is not set, then log level will be DEBUG
-    log_level: LogLevel = LogLevel.DEBUG
-    log_level_int: int = logging.DEBUG
+    log_level: LogLevel = LogLevel.INFO
+    log_level_int: int = logging.INFO
     if log_level == "INFO":
         log_level_int = logging.INFO
     elif log_level == "WARNING":
