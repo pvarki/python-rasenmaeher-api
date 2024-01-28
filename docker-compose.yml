@@ -60,6 +60,13 @@ x-takbuilds: &takbuildinfo
     context: ./takserver
     dockerfile: Dockerfile
 
+x-nginxbuilds: &nginxbuildinfo
+  image: pvarki/nginx:1.25
+  build:
+    context: ./nginx
+    dockerfile: Dockerfile
+
+
 x-takserver_env: &takserver_env
   TAK_SERVER_ADDRESS: *takdomain
   # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
@@ -354,7 +361,7 @@ services:
       - rmui_files:/deliver
 
   rmnginx:
-    image: nginx:1.25
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_rasenmaeher:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -414,6 +421,70 @@ services:
       - kraftwerk_shared_fake:/pvarki
       - kwinit_data:/data/persistent
 
+<<<<<<< HEAD
+=======
+######################
+# Begin: Fakeproduct #
+######################
+  rmfpapi:
+    image: pvarki/rmfpapi:1.2.0
+    build:
+      context: ./fpintegration
+      dockerfile: Dockerfile
+      target: production
+    networks:
+      - productnet
+      - intranet
+    volumes:
+      - ca_public:/ca_public
+      - kraftwerk_shared_fake:/pvarki
+      - rmfpapi_data:/data/persistent
+    depends_on:
+      rmnginx:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  fpnginx:
+    <<: *nginxbuildinfo
+    volumes:
+      - ./nginx/templates_productapi:/etc/nginx/templates
+      - ./nginx/includes:/etc/nginx/includes
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    environment:
+      NGINX_HOST: *productdomain
+      NGINX_HTTP_PORT: ${NGINX_HTTP_PRODUCT_PORT:-8080}
+      NGINX_HTTPS_PORT: *productport
+      NGINX_UPSTREAM: "rmfpapi"
+      NGINX_UPSTREAM_PORT: "8001"
+      NGINX_CERT_NAME: "rasenmaeher"
+    networks:
+      - productnet
+      - intranet
+    ports:
+      - "${NGINX_HTTP_PRODUCT_PORT:-8016}:${NGINX_HTTP_PRODUCT_PORT:-8016}"
+      - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
+    depends_on:
+      rmfpapi:
+        condition: service_healthy
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+####################
+# End: Fakeproduct #
+####################
+
+>>>>>>> 2b9da1a (use the nginx we build ourself)
 ##############
 # Begin: TAK #
 ##############
@@ -596,7 +667,7 @@ services:
     restart: unless-stopped
 
   taknginx:
-    image: nginx:1.25
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes

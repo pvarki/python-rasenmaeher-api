@@ -60,6 +60,12 @@ x-takbuilds: &takbuildinfo
     context: ./takserver
     dockerfile: Dockerfile
 
+x-nginxbuilds: &nginxbuildinfo
+  image: pvarki/nginx:1.25
+  build:
+    context: ./nginx
+    dockerfile: Dockerfile
+
 x-takserver_env: &takserver_env
   TAK_SERVER_ADDRESS: *takdomain
   # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
@@ -371,7 +377,7 @@ services:
       - rmui_files:/deliver
 
   rmnginx:
-    image: nginx:stable
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_rasenmaeher:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -468,7 +474,7 @@ services:
     restart: unless-stopped
 
   fpnginx:
-    image: nginx:stable
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -657,7 +663,7 @@ services:
     restart: unless-stopped
 
   taknginx:
-    image: nginx:stable
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
