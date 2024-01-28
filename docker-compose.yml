@@ -318,7 +318,7 @@ services:
       RM_CFSSL_PORT: *cfsslport
       RM_OCSPREST_HOST: "http://ocsprest"
       RM_OCSPREST_PORT: 8887
-      JWT_LIFETIME: "3456000"  # Long JWT lifetimes for testing
+      JWT_LIFETIME: "7200"
     networks:
       - apinet
       - kcnet
