@@ -509,37 +509,6 @@ services:
       - ca_public:/ca_public
     command: /opt/scripts/firstrun_rm.sh
 
-  takhap:
-    build:
-      context: ./haproxy
-      dockerfile: Dockerfile
-      target: production
-    depends_on:
-      takmsg:
-        condition: service_healthy
-      takapi:
-        condition: service_healthy
-    environment:
-      HAP_CERT_NAME: "rasenmaeher"
-    volumes:
-      - ./haproxy/templates_tak/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg
-      - ca_public:/ca_public
-      - le_certs:/le_certs
-    networks:
-      - taknet
-      - dbnet
-      - intranet
-#    ports:
-#      - '8443:8443'
-#      - '8089:8089'
-    healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
-
   takmsg:
     <<: *takbuildinfo
     environment:
