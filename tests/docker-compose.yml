@@ -21,6 +21,7 @@ x-cfssl_env: &cfssl_env
     OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
     OCSP_PORT: ${NGINX_HTTPS_PORT:-4440}
     CFSSL_PERSISTENT_FOLDER: /data/persistent
+    OR_BIND: 7776  # different from default on purpose
 
 
 services:
@@ -45,6 +46,34 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
+
+  ocsprest:
+    image: pvarki/cfssl:ocsp-latest
+    build:
+      # FIXME drop the branch when it is merged
+      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git#oscp_rest_workaround
+      dockerfile: Dockerfile
+      target: ocsprest
+    networks:
+      - canet
+    environment:
+      <<: *cfssl_env
+    ports:
+      - '7776:7776'
+    volumes:
+      - ./data/cfssl:/data/persistent
+      - ./data/ca_public:/ca_public
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      cfssl:
+        condition: service_healthy
+    restart: unless-stopped
+
 
   fpapi_init:
     image: pytestfpapi:init

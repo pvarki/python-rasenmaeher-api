@@ -138,6 +138,11 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setattr(switchme_to_singleton_call, "cfssl_host", f"http://{docker_ip}")
         mpatch.setenv("RM_CFSSL_HOST", switchme_to_singleton_call.cfssl_host)
 
+        mpatch.setattr(switchme_to_singleton_call, "ocsprest_port", docker_services.port_for("ocsprest", 7776))
+        mpatch.setenv("RM_OCSPREST_PORT", str(switchme_to_singleton_call.ocsprest_port))
+        mpatch.setattr(switchme_to_singleton_call, "ocsprest_host", f"http://{docker_ip}")
+        mpatch.setenv("RM_OCSPREST_HOST", switchme_to_singleton_call.ocsprest_host)
+
         mpatch.setattr(switchme_to_singleton_call, "persistent_data_dir", str(sessionpersistent))
         mpatch.setenv("RM_PERSISTENT_DATA_DIR", switchme_to_singleton_call.persistent_data_dir)
 
