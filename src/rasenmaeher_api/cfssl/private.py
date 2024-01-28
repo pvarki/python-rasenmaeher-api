@@ -1,5 +1,6 @@
 """Private apis"""
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Dict
+import asyncio
 import logging
 import binascii
 from pathlib import Path
@@ -16,34 +17,35 @@ LOGGER = logging.getLogger(__name__)
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
 
 
+async def post_ocsprest(
+    url: str, send_payload: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None
+) -> None:
+    """Do a POST with the mTLS client"""
+    if timeout is None:
+        timeout = DEFAULT_TIMEOUT
+    async with (await mtls_session()) as session:
+        try:
+            LOGGER.debug("POSTing to {}, payload={}".format(url, send_payload))
+            async with session.post(url, data=send_payload, timeout=timeout) as response:
+                resp_payload = await response.json()
+                LOGGER.debug("resp_payload={}".format(resp_payload))
+                if not resp_payload["success"]:
+                    raise CFSSLError("Failure from {}: {}".format(url, resp_payload))
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(f"{url} raised {str(exc)}") from exc
+
+
 async def dump_crlfiles() -> None:
     """Call ocsprest CRL dump"""
-    async with (await mtls_session()) as session:
-        url = f"{ocsprest_base()}/api/v1/dump_crl"
-        try:
-            async with session.post(url, timeout=DEFAULT_TIMEOUT) as response:
-                payload = await response.json()
-                LOGGER.debug("payload={}".format(payload))
-                if not payload["success"]:
-                    raise CFSSLError("Could not refresh CRLs")
-        except aiohttp.ClientError as exc:
-            raise CFSSLError(str(exc)) from exc
+    await post_ocsprest(f"{ocsprest_base()}/api/v1/dump_crl")
 
 
 async def refresh_ocsp() -> None:
     """Call ocsprest refresh"""
-    async with (await mtls_session()) as session:
-        url = f"{ocsprest_base()}/api/v1/refresh"
-        try:
-            async with session.post(url, timeout=DEFAULT_TIMEOUT) as response:
-                payload = await response.json()
-                LOGGER.debug("payload={}".format(payload))
-                if not payload["success"]:
-                    raise CFSSLError("Could not refresh OCSP")
-        except aiohttp.ClientError as exc:
-            raise CFSSLError(str(exc)) from exc
-    # Dump the CRLs too
-    await dump_crlfiles()
+    async with asyncio.TaskGroup() as tgr:
+        tgr.create_task(post_ocsprest(f"{ocsprest_base()}/api/v1/refresh"))
+        # Dump the CRLs too
+        tgr.create_task(dump_crlfiles())
 
 
 async def sign_csr(csr: str) -> str:
