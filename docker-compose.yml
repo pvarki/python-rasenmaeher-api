@@ -401,7 +401,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -474,7 +474,7 @@ services:
       rmfpapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -659,7 +659,7 @@ services:
       takrmapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck'
       interval: 5s
       timeout: 5s
       retries: 3
