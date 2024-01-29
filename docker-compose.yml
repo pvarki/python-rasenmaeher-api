@@ -344,7 +344,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'rasenmaeher_api healthcheck'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -628,7 +628,7 @@ services:
       takapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'takrmapi healthcheck'
       interval: 5s
       timeout: 5s
       retries: 3
