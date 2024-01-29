@@ -65,6 +65,8 @@ x-nginxbuilds: &nginxbuildinfo
   build:
     context: ./nginx
     dockerfile: Dockerfile
+  labels:
+      - "autoheal=true"
 
 
 x-takserver_env: &takserver_env
@@ -118,6 +120,8 @@ services:
       context: ./cfssl
       dockerfile: Dockerfile
       target: api
+    labels:
+        - "autoheal=true"
     networks:
       - canet
     environment:
@@ -139,6 +143,8 @@ services:
       context: ./cfssl
       dockerfile: Dockerfile
       target: ocsp
+    labels:
+        - "autoheal=true"
     networks:
       - ocspnet
     environment:
@@ -163,6 +169,8 @@ services:
       context: ./cfssl
       dockerfile: Dockerfile
       target: ocsprest
+    labels:
+        - "autoheal=true"
     networks:
       - ocspnet
     environment:
@@ -183,6 +191,8 @@ services:
 
   postgres:
     image: postgis/postgis:15-3.4
+    labels:
+        - "autoheal=true"
     networks:
       - dbnet
     volumes:
@@ -310,6 +320,8 @@ services:
       context: ./api
       dockerfile: Dockerfile
       target: production
+    labels:
+        - "autoheal=true"
     environment:
       <<: [*rmdbconfig_env]
       JWT_PUBKEY_PATH: "/data/persistent/public"
@@ -432,6 +444,8 @@ services:
       context: ./fpintegration
       dockerfile: Dockerfile
       target: production
+    labels:
+        - "autoheal=true"
     networks:
       - productnet
       - intranet
@@ -613,6 +627,8 @@ services:
       context: ./takintegration
       dockerfile: Dockerfile
       target: production
+    labels:
+        - "autoheal=true"
     network_mode: "service:takmsg"
     volumes:
       - ca_public:/ca_public
@@ -670,6 +686,24 @@ services:
 ############
 
 
+##############################################################################
+# Workaround docker compose not having opton to restart unhealthy containers #
+##############################################################################
+  autoheal:
+    image: willfarrell/autoheal:latest
+    tty: true
+    restart: always
+    environment:
+      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_START_PERIOD=300
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+
+####################
+# Shared resources #
+####################
 networks:
   productnet:
   apinet:

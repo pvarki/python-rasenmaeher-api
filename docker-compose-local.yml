@@ -697,6 +697,9 @@ services:
 ############
 
 
+####################
+# Shared resources #
+####################
 networks:
   productnet:
   apinet:
