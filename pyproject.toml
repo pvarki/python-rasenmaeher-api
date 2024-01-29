@@ -81,7 +81,8 @@ multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
 pyopenssl = "^23.1"
-libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.9.0"}
+#libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.10.0"}
+libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", branch="csr_ocsp"}
 openapi-readme = "^0.2"
 python-multipart = "^0.0.6"
 aiohttp = "^3.8"
