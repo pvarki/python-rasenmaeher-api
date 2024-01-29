@@ -344,7 +344,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'rasenmaeher_api healthcheck'
+      test: 'rasenmaeher_api healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -401,7 +401,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'curl -s localhost:5666/healthcheck'
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -474,7 +474,7 @@ services:
       rmfpapi:
         condition: service_healthy
     healthcheck:
-      test: 'curl -s localhost:5666/healthcheck'
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -628,7 +628,7 @@ services:
       takapi:
         condition: service_healthy
     healthcheck:
-      test: 'takrmapi healthcheck'
+      test: 'takrmapi healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -659,7 +659,7 @@ services:
       takrmapi:
         condition: service_healthy
     healthcheck:
-      test: 'curl -s localhost:5666/healthcheck'
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
