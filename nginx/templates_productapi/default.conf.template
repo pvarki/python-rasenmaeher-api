@@ -1,12 +1,13 @@
+ssl_certificate /le_certs/${NGINX_CERT_NAME}/fullchain.pem;
+ssl_certificate_key /le_certs/${NGINX_CERT_NAME}/privkey.pem;
+
+include /etc/nginx/includes/le_common_settings.conf;
+
 server {
     server_name ${NGINX_HOST};
 
     # HTTPS configuration
     listen ${NGINX_HTTPS_PORT} ssl;
-
-    ssl_certificate /le_certs/${NGINX_CERT_NAME}/fullchain.pem;
-    ssl_certificate_key /le_certs/${NGINX_CERT_NAME}/privkey.pem;
-    include /etc/nginx/includes/le_common_settings.conf;
 
     ssl_client_certificate /ca_public/ca_chain.pem;
     ssl_verify_client      on;
