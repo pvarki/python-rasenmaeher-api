@@ -10,6 +10,7 @@ from pathlib import Path
 import click
 from libadvian.logging import init_logging
 from multikeyjwt import Issuer
+import aiohttp
 
 from rasenmaeher_api import __version__
 from rasenmaeher_api.jwtinit import jwt_init
@@ -54,6 +55,41 @@ def dump_openapi(ctx: click.Context) -> None:
     app = get_app_no_init()
     click.echo(json.dumps(app.openapi()))
     ctx.exit(0)
+
+
+@cli_group.command(name="healthcheck")
+@click.option("--host", default="localhost", help="The host to connect to")
+@click.option("--port", default=8000, help="The port to connect to")
+@click.option("--timeout", default=2.0, help="The timeout in seconds")
+@click.option("--services", default=False, help="Check services status too", is_flag=True)
+@click.pass_context
+def do_http_healthcheck(ctx: click.Context, host: str, port: int, timeout: float, services: bool) -> None:
+    """
+    Do a GET request to the healthcheck api and dump results to stdout
+    """
+
+    async def doit() -> int:
+        """The actual work"""
+        nonlocal host, port, timeout, services
+        if "://" not in host:
+            host = f"http://{host}"
+        suffix = ""
+        if services:
+            suffix = "/services"
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
+            async with session.get(f"{host}:{port}/api/v1/healthcheck{suffix}") as resp:
+                if resp.status != 200:
+                    return resp.status
+                payload = await resp.json()
+                click.echo(json.dumps(payload))
+                if services:
+                    if not payload["all_ok"]:
+                        return 1
+                if payload["healthcheck"] != "success":
+                    return 1
+        return 0
+
+    ctx.exit(ctx.obj["loop"].run_until_complete(doit()))
 
 
 @cli_group.command(name="addcode")
