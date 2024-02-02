@@ -76,7 +76,7 @@ server {
     ssl_ocsp leaf;
     ssl_ocsp_responder http://${NGINX_OCSP_UPSTREAM}:${CFSSL_OCSP_BIND_PORT};
     resolver 127.0.0.11 ipv6=off;
-    ssl_crl /ca_public/crl.pem;
+    #ssl_crl /ca_public/crl.pem;
     ssl_verify_depth 3;
 
     location /ca  {
