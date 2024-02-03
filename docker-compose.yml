@@ -544,6 +544,7 @@ services:
       - taknet
       - dbnet
       - intranet
+      - ocspnet
     ports:
       - '8443:8443'
       - '8444:8444'
