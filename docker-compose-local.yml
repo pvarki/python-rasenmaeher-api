@@ -53,6 +53,7 @@ x-domains_env:
   PRODUCT_DOMAIN: &productdomain "fake.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
   TAK_DOMAIN: &takdomain "tak.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
   TAK_RMAPI_PORT: &takapiport ${TAK_RMAPI_PORT:-4626}
+  DNS_RESOLVER_IP: &dnsresolver ${DNS_RESOLVER_IP:-127.0.0.11}  # Must be able to resolve docker internal names
 
 x-takbuilds: &takbuildinfo
   image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}${DOCKER_TAG_EXTRA:-}"
@@ -397,6 +398,7 @@ services:
       NGINX_UI_UPSTREAM: "rmui"
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
       NGINX_CERT_NAME: "rasenmaeher"
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - apinet
       - kcnet
