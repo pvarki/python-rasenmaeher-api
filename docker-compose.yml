@@ -69,15 +69,6 @@ x-nginxbuilds: &nginxbuildinfo
       - "autoheal=true"
 
 
-x-takserver_env: &takserver_env
-  TAK_SERVER_ADDRESS: *takdomain
-  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
-  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:?must be defined} # pragma: allowlist secret
-  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
-  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:?must be defined} # pragma: allowlist secret
-  KEYSTORE_PASS: *tak_ca_pass
-
-
 x-cfssl_env: &cfssl_env
   INT_SHARED_CERT_FOLDER: /ca_public
   CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
@@ -87,6 +78,19 @@ x-cfssl_env: &cfssl_env
   OCSP_HOST: *serverdomain
   OCSP_PORT: *apiport
   CFSSL_PERSISTENT_FOLDER: /data/persistent
+
+x-takserver_env: &takserver_env
+  TAK_SERVER_ADDRESS: *takdomain
+  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
+  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:?must be defined} # pragma: allowlist secret
+  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
+  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:?must be defined} # pragma: allowlist secret
+  KEYSTORE_PASS: *tak_ca_pass
+  TAK_OCSP_UPSTREAM: &ocsphost "ocsp"
+  TAK_OCSP_PORT: *oscpport
+
+
+
 
 services:
   miniwerk:
@@ -388,7 +392,7 @@ services:
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
       NGINX_CRL_UPSTREAM: "cfssl"
-      NGINX_OCSP_UPSTREAM: "ocsp"
+      NGINX_OCSP_UPSTREAM: *ocsphost
       NGINX_CERT_NAME: "rasenmaeher"
       NGINX_UI_UPSTREAM: "rmui"
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
