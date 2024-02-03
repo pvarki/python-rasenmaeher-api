@@ -391,7 +391,6 @@ services:
       NGINX_HTTPS_PORT: *apiport
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
-      NGINX_CRL_UPSTREAM: "cfssl"
       NGINX_OCSP_UPSTREAM: *ocsphost
       NGINX_CERT_NAME: "rasenmaeher"
       NGINX_UI_UPSTREAM: "rmui"
