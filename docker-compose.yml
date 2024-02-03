@@ -24,7 +24,6 @@ x-postgres_env: &postgres_env
   RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
   TAK_PASSWORD: *takdbpass # pragma: allowlist secret
 
-
 x-ldap_admin_env: &ldap_admin_env
   LDAP_ADMIN_PASSWORD: &ldapadminpass ${LDAP_ADMIN_PASSWORD:?must be defined} # pragma: allowlist secret
   LDAP_ADMIN_USERNAME: &ldapadminuser ${LDAP_ADMIN_USERNAME:-admin}
@@ -651,10 +650,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: 'takrmapi healthcheck || exit 1'
-      interval: 5s
-      timeout: 5s
+      interval: 15s
+      timeout: 35s
       retries: 3
-      start_period: 5s
+      start_period: 45s
     restart: unless-stopped
 
   taknginx:

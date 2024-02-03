@@ -660,10 +660,10 @@ services:
         condition: service_healthy
     healthcheck:
       test: 'takrmapi healthcheck || exit 1'
-      interval: 5s
-      timeout: 5s
+      interval: 15s
+      timeout: 35s
       retries: 3
-      start_period: 5s
+      start_period: 45s
     restart: unless-stopped
 
   taknginx:
