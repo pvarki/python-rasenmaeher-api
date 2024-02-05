@@ -20,7 +20,7 @@ server {
     listen ${NGINX_HTTPS_PORT} ssl;
 
     location /ca/crl {
-        proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT}/api/v1/utils/crl;
+        proxy_pass  http://${OR_UPSTREAM}:${OR_PORT}/api/v1/crl;
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
         proxy_set_header  X-Real-IP         $remote_addr;

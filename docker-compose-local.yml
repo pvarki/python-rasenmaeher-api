@@ -76,6 +76,8 @@ x-cfssl_env: &cfssl_env
   OCSP_HOST: *serverdomain
   OCSP_PORT: *apiport
   CFSSL_PERSISTENT_FOLDER: /data/persistent
+  OR_PORT: &ocsprestport 8887
+  OR_UPSTREAM: &ocspresthost ocsprest
 
 x-takserver_env: &takserver_env
   TAK_SERVER_ADDRESS: *takdomain
