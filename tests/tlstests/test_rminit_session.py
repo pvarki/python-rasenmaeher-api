@@ -1,12 +1,19 @@
 """Test the self-init certs get created"""
 import logging
+import ssl
 
 import pytest
 from async_asgi_testclient import TestClient
+from libpvarki.mtlshelp.context import get_ca_context
 
 from rasenmaeher_api.mtlsinit import get_session_winit
 
 LOGGER = logging.getLogger(__name__)
+
+
+def test_ssl_context() -> None:
+    """Make sure we can get the context (ref sterlette issue)"""
+    get_ca_context(ssl.Purpose.SERVER_AUTH)
 
 
 @pytest.mark.asyncio
