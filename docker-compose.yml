@@ -384,7 +384,7 @@ services:
 # Begin: Fakeproduct #
 ######################
   rmfpapi:
-    image: pvarki/rmfpapi:1.0.0
+    image: pvarki/rmfpapi:1.2.0
     build:
       context: ./fpintegration
       dockerfile: Dockerfile
@@ -564,7 +564,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.0.0
+    image: pvarki/takrmapi:1.0.1
     build:
       context: ./takintegration
       dockerfile: Dockerfile
