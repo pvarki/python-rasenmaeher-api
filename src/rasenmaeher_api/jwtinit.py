@@ -5,19 +5,79 @@ import os
 import asyncio
 from pathlib import Path
 import random
+import urllib.request
+import ssl
 
 import filelock
 from multikeyjwt import Issuer
 from multikeyjwt.keygen import generate_keypair
+from libpvarki.mtlshelp.context import get_ca_context
+
+from .rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_KEY_PATH = Path("/data/persistent/private/rasenmaeher_jwt.key")
 DEFAULT_PUB_PATH = Path("/data/persistent/public/rasenmaeher_jwt.pub")
 KRAFTWERK_KEYS_PATH = Path(os.environ.get("PVARKI_PUBLICKEYS_PATH", "/pvarki/publickeys"))
+HTTP_TIMEOUT = 2.0
 
 
-def check_public_keys() -> bool:
-    """Check public keys"""
+def _check_public_keys_tilauspalvelu(pubkeydir: Path) -> None:
+    """handle TILAUSPALVELU public key"""
+    tppubkey = pubkeydir / "tilauspalvelu.pub"
+    if tppubkey.exists():
+        LOGGER.debug("{} exists".format(tppubkey))
+        return
+    if not RMSettings.singleton().tilauspalvelu_jwt:
+        LOGGER.info("No URL for TILAUSPALVELU public key given")
+        return
+    LOGGER.info("Making sure TILAUSPALVELU key is in {}".format(pubkeydir))
+    lockpath = pubkeydir.parent / "tpkeycopy.lock"
+    lock = filelock.FileLock(lockpath)
+    try:
+        lock.acquire(timeout=0.0)
+        ssl_ctx = get_ca_context(ssl.Purpose.SERVER_AUTH)
+        try:
+            with urllib.request.urlopen(
+                RMSettings.singleton().tilauspalvelu_jwt, context=ssl_ctx, timeout=HTTP_TIMEOUT  # nosec
+            ) as response:
+                tppubkey.write_bytes(response.read())
+        except (urllib.request.HTTPError, TimeoutError) as exc:
+            LOGGER.error("Could not load TILAUSPALVELU key: {}".format(exc))
+        except Exception as exc:  # pylint: disable=W0718
+            LOGGER.exception("Unhanled exception while loading TILAUSPALVELU key: {}".format(exc))
+    except filelock.Timeout:
+        LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
+    finally:
+        lock.release()
+
+
+def _check_public_keys_kraftwerk(pubkeydir: Path) -> None:
+    """Handle KRAFTWERK Public Keys copy"""
+    if not KRAFTWERK_KEYS_PATH.exists():
+        LOGGER.warning("{} does not exist, not copying KRAFTWERK public keys".format(KRAFTWERK_KEYS_PATH))
+        return
+    LOGGER.info("Making sure KRAFTWERK provided keys are in {}".format(pubkeydir))
+    lockpath = pubkeydir.parent / "pubkeycopy.lock"
+    lock = filelock.FileLock(lockpath)
+    try:
+        lock.acquire(timeout=0.0)
+        for fpath in KRAFTWERK_KEYS_PATH.iterdir():
+            tgtpath = pubkeydir / fpath.name
+            LOGGER.debug("Checking {} vs {} (exists={})".format(fpath, tgtpath, tgtpath.exists()))
+            if tgtpath.exists():
+                continue
+            # Copy the pubkey
+            LOGGER.info("Copying {} to {}".format(fpath, tgtpath))
+            tgtpath.write_bytes(fpath.read_bytes())
+    except filelock.Timeout:
+        LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
+    finally:
+        lock.release()
+
+
+def resolve_pubkeydir() -> Path:
+    """Resolve the directory for public keys and make sure it exists"""
     pubkeydir: Union[Path, Optional[str]] = os.environ.get("JWT_PUBKEY_PATH")
     LOGGER.debug("initial pubkeydir={}".format(pubkeydir))
     if pubkeydir:
@@ -29,27 +89,17 @@ def check_public_keys() -> bool:
     LOGGER.debug("final pubkeydir={}".format(pubkeydir))
     if not pubkeydir.exists():
         pubkeydir.mkdir(parents=True)
+    return pubkeydir
 
-    if KRAFTWERK_KEYS_PATH.exists():
-        LOGGER.info("Making sure KRAFTWERK provided keys are in {}".format(pubkeydir))
-        lockpath = pubkeydir.parent / "pubkeycopy.lock"
-        lock = filelock.FileLock(lockpath)
-        try:
-            lock.acquire(timeout=0.0)
-            for fpath in KRAFTWERK_KEYS_PATH.iterdir():
-                tgtpath = pubkeydir / fpath.name
-                LOGGER.debug("Checking {} vs {} (exists={})".format(fpath, tgtpath, tgtpath.exists()))
-                if tgtpath.exists():
-                    continue
-                # Copy the pubkey
-                LOGGER.info("Copying {} to {}".format(fpath, tgtpath))
-                tgtpath.write_bytes(fpath.read_bytes())
-        except filelock.Timeout:
-            LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
-        finally:
-            lock.release()
-    else:
-        LOGGER.warning("{} does not exist, not copying KRAFTWERK public keys".format(KRAFTWERK_KEYS_PATH))
+
+def check_public_keys() -> bool:
+    """Check public keys"""
+    pubkeydir = resolve_pubkeydir()
+
+    # FIXME: These should be run in executors (which means this function should be async etc)
+    _check_public_keys_tilauspalvelu(pubkeydir)
+    _check_public_keys_kraftwerk(pubkeydir)
+
     return True
 
 

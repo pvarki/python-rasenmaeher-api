@@ -9,7 +9,7 @@ from multikeyjwt import Issuer, Verifier
 from libadvian.testhelpers import nice_tmpdir  # pylint: disable=W0611
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
-from rasenmaeher_api.jwtinit import check_public_keys, check_private_key, check_jwt_init, jwt_init
+from rasenmaeher_api.jwtinit import check_public_keys, check_private_key, check_jwt_init, jwt_init, resolve_pubkeydir
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +43,8 @@ def test_empty_response(empty_datadirs: Tuple[Path, Path]) -> None:
     assert not check_jwt_init()
     assert not check_private_key()
     assert check_public_keys()  # This should always be true unless shit blows up
+    tppath = resolve_pubkeydir() / "tilauspalvelu.pub"
+    assert tppath.exists()
 
 
 @pytest.mark.asyncio
