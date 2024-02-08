@@ -148,6 +148,14 @@ def session_env_config(  # pylint: disable=R0915
             str(sessionpersistent / "private" / f"{CERT_NAME_PREFIX}.key"),
         )
         mpatch.setenv("RM_MTLS_CLIENT_KEY_PATH", str(switchme_to_singleton_call.mtls_client_key_path))
+
+        mpatch.setattr(
+            switchme_to_singleton_call,
+            "tilauspalvelu_jwt",
+            "file://{}".format(str(DATA_PATH / "jwt" / "cl_jwtRS256.pub")),
+        )
+        mpatch.setenv("TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
+
         assert not check_settings_clientpaths()
 
         mpatch.setattr(switchme_to_singleton_call, "kraftwerk_manifest_path", str(kfmanifest))
