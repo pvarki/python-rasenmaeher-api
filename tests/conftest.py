@@ -155,6 +155,12 @@ def session_env_config(  # pylint: disable=R0915
             "file://{}".format(str(DATA_PATH / "jwt" / "cl_jwtRS256.pub")),
         )
         mpatch.setenv("TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
+        mpatch.setattr(
+            switchme_to_singleton_call,
+            "tilauspalvelu_announce",
+            "",  # FIXME: Figure out a way to mock a server
+        )
+        mpatch.setenv("TILAUSPALVELU_ANNOUNCE", str(switchme_to_singleton_call.tilauspalvelu_announce))
 
         assert not check_settings_clientpaths()
 

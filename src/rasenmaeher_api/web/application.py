@@ -1,12 +1,14 @@
 """Main API entrypoint"""
 from typing import AsyncGenerator
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from libpvarki.logging import init_logging
+import aiohttp
 
-from ..rmsettings import switchme_to_singleton_call
+from ..rmsettings import RMSettings
 from .api.router import api_router
 from ..mtlsinit import mtls_init
 from ..jwtinit import jwt_init
@@ -27,9 +29,11 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     _ = app
     await jwt_init()
     await mtls_init()
+    reporter = asyncio.get_running_loop().create_task(report_to_tilauspalvelu())
     # App runs
     yield
     # Cleanup
+    await reporter  # Just to avoid warning about task that was not awaited
     await dbwrapper.app_shutdown_event()
 
 
@@ -43,7 +47,30 @@ def get_app_no_init() -> FastAPI:
 
 def get_app() -> FastAPI:
     """Returns the FastAPI application."""
-    init_logging(switchme_to_singleton_call.log_level_int)
+    init_logging(RMSettings.singleton().log_level_int)
     app = get_app_no_init()
-    LOGGER.info("API init done, setting log verbosity to '{}'.".format(switchme_to_singleton_call.log_level))
+    LOGGER.info("API init done, setting log verbosity to '{}'.".format(RMSettings.singleton().log_level))
     return app
+
+
+async def report_to_tilauspalvelu() -> None:
+    """Call the TILAUSPALVELU announce URL if configured"""
+    url = RMSettings.singleton().tilauspalvelu_announce
+    if not url:
+        LOGGER.info("TILAUSPALVELU announce url is empty")
+        return
+    data = {
+        "dns": RMSettings.singleton().kraftwerk_manifest_dict["dns"],
+        "version": __version__,
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=data) as response:
+                response.raise_for_status()
+                payload = await response.json()
+                LOGGER.debug("{} responded with {}".format(url, payload))
+    except aiohttp.ClientError as exc:
+        LOGGER.warning("Failed to report to TILAUSPALVELU at {}".format(url))
+        LOGGER.info(exc)
+    except Exception as exc:  # pylint: disable=W0718
+        LOGGER.exception("Unhandled exception while reporting to TILAUSPALVELU: {}".format(exc))
