@@ -129,7 +129,7 @@ def check_jwt_init() -> bool:
     return check_public_keys()
 
 
-def _jwt_init_keypath() -> Path:
+def resolve_rm_jwt_privkey_path() -> Path:
     """resolve the path for the private key"""
     keypath: Union[Path, Optional[str]] = os.environ.get("JWT_PRIVKEY_PATH")
     if keypath:
@@ -145,28 +145,18 @@ def _jwt_init_keypath() -> Path:
     return keypath
 
 
-def _jwt_init_pubkeypath(genpubpath: Path) -> Path:
+def resolve_rm_jwt_pubkey_path(expect_name: Optional[str] = None) -> Path:
     """resolve the path for the public key"""
-    pubkeypath: Union[Path, Optional[str]] = os.environ.get("JWT_PUBKEY_PATH")
-    LOGGER.debug("initial pubkeypath={}".format(pubkeypath))
-    if pubkeypath:
-        pubkeypath = Path(pubkeypath)
-        if pubkeypath.exists() and pubkeypath.is_dir():
-            pubkeypath = pubkeypath / genpubpath.name
-        LOGGER.info("JWT_PUBKEY_PATH defined, copying our key there")
-    else:
-        pubkeypath = DEFAULT_PUB_PATH
-    LOGGER.debug("final pubkeypath={}".format(pubkeypath))
-    if not pubkeypath.parent.exists():
-        pubkeypath.parent.mkdir(parents=True)
-    return pubkeypath
+    if not expect_name:
+        expect_name = resolve_rm_jwt_privkey_path().name.replace(".key", ".pub")
+    return resolve_pubkeydir() / expect_name
 
 
 async def jwt_init() -> None:
     """If needed: Create keypair"""
     if check_jwt_init():
         return
-    keypath = _jwt_init_keypath()
+    keypath = resolve_rm_jwt_privkey_path()
 
     genpubpath: Optional[Path] = None
     genprivpath: Optional[Path] = None
@@ -196,7 +186,7 @@ async def jwt_init() -> None:
         raise RuntimeError("Returned private key does not exist!")
     if not genpubpath or not genpubpath.exists():
         raise RuntimeError("Returned private key does not exist!")
-    pubkeypath = _jwt_init_pubkeypath(genpubpath)
+    pubkeypath = resolve_rm_jwt_pubkey_path(genpubpath.name)
 
     LOGGER.debug("Copy generated pubkey to {}".format(pubkeypath))
     pubkeypath.write_bytes(genpubpath.read_bytes())
