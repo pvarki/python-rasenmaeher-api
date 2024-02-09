@@ -53,6 +53,7 @@ x-domains_env:
   TAK_DOMAIN: &takdomain "tak.${SERVER_DOMAIN:?domain must be defined}"
   TAK_RMAPI_PORT: &takapiport ${TAK_RMAPI_PORT:-4626}
   DNS_RESOLVER_IP: &dnsresolver ${DNS_RESOLVER_IP:-127.0.0.11}  # Must be able to resolve docker internal names
+  OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:?domain must be defined}:${NGINX_HTTPS_PORT:-443}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
   image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}${DOCKER_TAG_EXTRA:-}"
@@ -337,6 +338,7 @@ services:
       RM_OCSPREST_HOST: "http://ocsprest"
       RM_OCSPREST_PORT: 8887
       JWT_LIFETIME: "7200"
+      OCSCP_RESPONDER: *publicocsp
     networks:
       - apinet
       - kcnet
