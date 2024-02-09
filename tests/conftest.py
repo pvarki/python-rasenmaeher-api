@@ -163,10 +163,10 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setenv("TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
         mpatch.setattr(
             switchme_to_singleton_call,
-            "tilauspalvelu_announce",
+            "kraftwerk_announce",
             f"{announce_server}/announce",
         )
-        mpatch.setenv("TILAUSPALVELU_ANNOUNCE", str(switchme_to_singleton_call.tilauspalvelu_announce))
+        mpatch.setenv("KRAFTWERK_ANNOUNCE", str(switchme_to_singleton_call.kraftwerk_announce))
 
         assert not check_settings_clientpaths()
 
