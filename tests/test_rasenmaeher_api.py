@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 import pytest
 from async_asgi_testclient import TestClient
+import aiohttp
 
 
 from rasenmaeher_api import __version__
@@ -28,3 +29,17 @@ def test_settings() -> None:
     """Test settings defaults"""
     conf = RMSettings.singleton()
     assert "fake.localmaeher.pvarki.fi" in conf.valid_product_cns
+
+
+@pytest.mark.asyncio
+async def test_announce(unauth_client: TestClient, announce_server: str) -> None:
+    """Make sure we have seen at least one announce call"""
+    # Make a request to make sure the app spins up
+    resp = await unauth_client.get("/api/v1/healthcheck")
+    assert resp
+    async with aiohttp.ClientSession() as session:
+        async with session.get(f"{announce_server}/log") as response:
+            response.raise_for_status()
+            resp_json = await response.json()
+            assert resp_json["payloads"]
+            assert resp_json["payloads"][0]["version"] == __version__

@@ -5,6 +5,7 @@ from pathlib import Path
 import uuid
 import json
 import asyncio
+import random
 
 import pytest
 from multikeyjwt import Issuer, Verifier
@@ -16,6 +17,7 @@ from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
 from pytest_docker.plugin import Services
+from aiohttp import web
 
 from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
@@ -69,8 +71,12 @@ def verifier() -> Verifier:
 
 
 @pytest.fixture(scope="session", autouse=True)
-def session_env_config(  # pylint: disable=R0915
-    monkeysession: pytest.MonkeyPatch, docker_ip: str, docker_services: Services, nice_tmpdir_ses: str
+def session_env_config(  # pylint: disable=R0915,R0914
+    monkeysession: pytest.MonkeyPatch,
+    docker_ip: str,
+    docker_services: Services,
+    nice_tmpdir_ses: str,
+    announce_server: str,
 ) -> Generator[None, None, None]:
     """set the JWT auth config"""
     sessionfiles = Path(nice_tmpdir_ses)
@@ -158,7 +164,7 @@ def session_env_config(  # pylint: disable=R0915
         mpatch.setattr(
             switchme_to_singleton_call,
             "tilauspalvelu_announce",
-            "",  # FIXME: Figure out a way to mock a server
+            f"{announce_server}/announce",
         )
         mpatch.setenv("TILAUSPALVELU_ANNOUNCE", str(switchme_to_singleton_call.tilauspalvelu_announce))
 
@@ -326,3 +332,42 @@ async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
             )
 
         yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def announce_server() -> AsyncGenerator[str, None]:
+    """Simple test server"""
+    bind_port = random.randint(1000, 64000)  # nosec
+    hostname = "localmaeher.pvarki.fi"
+
+    request_payloads: List[Dict[str, Any]] = []
+
+    async def handle_announce(request: web.Request) -> web.Response:
+        """Handle the POST"""
+        nonlocal request_payloads
+        LOGGER.debug("request={}".format(request))
+        payload = await request.json()
+        request_payloads.append(payload)
+        return web.json_response(payload)
+
+    async def handle_log(request: web.Request) -> web.Response:
+        """Return payload log"""
+        nonlocal request_payloads
+        LOGGER.debug("request={}".format(request))
+        return web.json_response({"payloads": request_payloads})
+
+    app = web.Application()
+    app.add_routes([web.post("/announce", handle_announce), web.get("/log", handle_log)])
+
+    LOGGER.debug("Starting the async server task(s)")
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=hostname, port=bind_port)
+    await site.start()
+
+    uri = f"http://{hostname}:{bind_port}"
+    LOGGER.debug("yielding {}".format(uri))
+    yield uri
+
+    LOGGER.debug("Stopping the async server task(s)")
+    await runner.cleanup()
