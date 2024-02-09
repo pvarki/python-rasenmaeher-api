@@ -48,7 +48,7 @@ services:
       start_period: 5s
 
   ocsprest:
-    image: pvarki/cfssl:ocsp-latest
+    image: pvarki/cfssl:ocsprest-latest
     build:
       # FIXME drop the branch when it is merged
       context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git#oscp_rest_workaround
