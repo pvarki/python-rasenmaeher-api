@@ -101,7 +101,8 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     # Tilauspalvelu integration
     tilauspalvelu_jwt: str = "https://tilaa.pvarki.fi/api/v1/config/jwtPublicKey.pem"
-    kraftwerk_announce: str = ""  # When KRAFTWERK actually exists
+    kraftwerk_announce: Optional[str] = None  # When KRAFTWERK actually exists
+    kraftwerk_timeout: float = 2.0
 
     _singleton: ClassVar[Optional["RMSettings"]] = None
 

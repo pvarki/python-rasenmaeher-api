@@ -55,21 +55,23 @@ def get_app() -> FastAPI:
 
 async def report_to_kraftwerk() -> None:
     """Call the KRAFTWERK announce URL if configured"""
-    url = RMSettings.singleton().kraftwerk_announce
+    conf = RMSettings.singleton()
+    url = conf.kraftwerk_announce
     if not url:
         LOGGER.info("KRAFTWERK announce url is empty")
         return
     data = {
-        "dns": RMSettings.singleton().kraftwerk_manifest_dict["dns"],
+        "dns": conf.kraftwerk_manifest_dict["dns"],
         "version": __version__,
     }
     try:
-        async with aiohttp.ClientSession() as session:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=conf.kraftwerk_timeout)) as session:
+            LOGGER.debug("POSTing to {} data: {}".format(url, data))
             async with session.post(url, json=data) as response:
                 response.raise_for_status()
                 payload = await response.json()
                 LOGGER.debug("{} responded with {}".format(url, payload))
-    except aiohttp.ClientError as exc:
+    except (aiohttp.ClientError, TimeoutError) as exc:
         LOGGER.warning("Failed to report to KRAFTWERK at {}".format(url))
         LOGGER.info(exc)
     except Exception as exc:  # pylint: disable=W0718
