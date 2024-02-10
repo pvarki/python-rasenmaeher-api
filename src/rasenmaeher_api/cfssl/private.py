@@ -55,7 +55,7 @@ async def sign_csr(csr: str) -> str:
     returns: certificate
     """
     async with (await mtls_session()) as session:
-        url = f"{base_url()}/api/v1/cfssl/sign"
+        url = f"{ocsprest_base()}/api/v1/csr/sign"
         payload = {"certificate_request": csr, "profile": "client", "bundle": True}
         try:
             LOGGER.debug("Calling {}".format(url))
