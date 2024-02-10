@@ -9,7 +9,7 @@ from multikeyjwt import Issuer, Verifier
 from libadvian.testhelpers import nice_tmpdir  # pylint: disable=W0611
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
-from rasenmaeher_api.jwtinit import check_public_keys, check_private_key, check_jwt_init, jwt_init
+from rasenmaeher_api.jwtinit import check_public_keys, check_private_key, check_jwt_init, jwt_init, resolve_pubkeydir
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,7 +34,15 @@ def empty_datadirs(nice_tmpdir: str, monkeypatch: pytest.MonkeyPatch) -> Generat
         mpatch.setenv("JWT_PUBKEY_PATH", str(pubkeydir))
         mpatch.setenv("JWT_PRIVKEY_PATH", str(privkeypath))
         mpatch.setenv("PVARKI_PUBLICKEYS_PATH", str(arkikeys))  # this is probably too late already
+        mpatch.setenv("TILAUSPALVELU_JWT", "")
         yield privdir, pubkeydir
+
+
+def test_tilaupalvelu_key() -> None:
+    """Test that default env has copied tilauspalvelu key"""
+    assert check_public_keys()
+    tppath = resolve_pubkeydir() / "tilauspalvelu.pub"
+    assert tppath.exists()
 
 
 def test_empty_response(empty_datadirs: Tuple[Path, Path]) -> None:

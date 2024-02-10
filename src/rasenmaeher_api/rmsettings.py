@@ -99,6 +99,11 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     ldap_username: Optional[str] = None
     ldap_client_secret: Optional[str] = None
 
+    # Tilauspalvelu integration
+    tilauspalvelu_jwt: str = "https://tilaa.pvarki.fi/api/v1/config/jwtPublicKey.pem"
+    kraftwerk_announce: Optional[str] = None  # When KRAFTWERK actually exists
+    kraftwerk_timeout: float = 2.0
+
     _singleton: ClassVar[Optional["RMSettings"]] = None
 
     @classmethod
