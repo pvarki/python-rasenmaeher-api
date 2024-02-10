@@ -17,6 +17,12 @@ services:
       dockerfile: Dockerfile
       target: devel_shell
     command: ["-c", "source /root/.profile  && poetry install && uvicorn --host 0.0.0.0 --port 8000 --log-level debug --factory rasenmaeher_api.web.application:get_app --reload"]
+    healthcheck:
+      test: '/bin/bash -c "source /root/.profile && rasenmaeher_api healthcheck" || exit 1'
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     volumes:
       - "./api:/app"
 
@@ -92,10 +98,14 @@ services:
       dockerfile: Dockerfile
       target: integ_devel_shell
     command: ["-c", "source /root/.profile && /container-init.sh && poetry install && uvicorn --host 0.0.0.0 --port 8003 --log-level debug --factory takrmapi.app:get_app --reload"]
-    environment:
-      LOG_LEVEL: 10
     volumes:
       - "./takintegration:/app"
+    healthcheck:
+      test: '/bin/bash -c "source /root/.profile && takrmapi healthcheck" || exit 1'
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     depends_on:
       rmnginx:
         condition: service_healthy

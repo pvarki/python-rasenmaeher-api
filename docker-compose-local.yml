@@ -147,7 +147,7 @@ services:
       - cfssl_data:/data/persistent
       - ca_public:/ca_public
     healthcheck:
-      test: 'cfssl info -remote http://127.0.0.1:8888'
+      test: 'cfssl info -remote http://127.0.0.1:8888 || exit 1'
       interval: 5s
       timeout: 5s
       retries: 5
@@ -192,11 +192,11 @@ services:
       - cfssl_data:/data/persistent
       - ca_public:/ca_public
     healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
+      test: 'ocsprest healthcheck || exit 1'
+      interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 5s
+      start_period: 10s
     depends_on:
       cfssl:
         condition: service_healthy
@@ -339,7 +339,9 @@ services:
       RM_OCSPREST_PORT: 8887
       JWT_LIFETIME: "3456000"  # Long JWT lifetimes for testing
       LOG_CONSOLE_FORMATTER: "local"
-      OCSCP_RESPONDER: *publicocsp
+      RM_OCSCP_RESPONDER: *publicocsp
+      #RM_TILAUSPALVELU_JWT: "file:///pvarki/publickeys/kraftwerk.pub"
+      RM_TILAUSPALVELU_JWT: ""
     networks:
       - apinet
       - kcnet
