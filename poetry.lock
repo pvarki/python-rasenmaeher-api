@@ -1186,7 +1186,7 @@ http = ["frozendict (>=2.3,<3.0)", "requests (>=2.28,<3.0)"]
 
 [[package]]
 name = "libpvarki"
-version = "1.10.0"
+version = "1.9.0"
 description = "Common helpers like standard logging init"
 optional = false
 python-versions = "^3.8"
@@ -1207,8 +1207,8 @@ pyopenssl = "^23.2"
 [package.source]
 type = "git"
 url = "https://github.com/pvarki/python-libpvarki.git"
-reference = "csr_ocsp"
-resolved_reference = "91e7fc822e518481d932411ae6675d3e31408028"
+reference = "1.9.0"
+resolved_reference = "0a08fc59146febc157bf05a6062a091693636ade"
 
 [[package]]
 name = "markdown-it-py"
@@ -2253,13 +2253,13 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "uvicorn"
-version = "0.27.0.post1"
+version = "0.27.1"
 description = "The lightning-fast ASGI server."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "uvicorn-0.27.0.post1-py3-none-any.whl", hash = "sha256:4b85ba02b8a20429b9b205d015cbeb788a12da527f731811b643fd739ef90d5f"},
-    {file = "uvicorn-0.27.0.post1.tar.gz", hash = "sha256:54898fcd80c13ff1cd28bf77b04ec9dbd8ff60c5259b499b4b12bb0917f22907"},
+    {file = "uvicorn-0.27.1-py3-none-any.whl", hash = "sha256:5c89da2f3895767472a35556e539fd59f7edbe9b1e9c0e1c99eebeadc61838e4"},
+    {file = "uvicorn-0.27.1.tar.gz", hash = "sha256:3d9a267296243532db80c83a959a3400502165ade2c1338dea4e67915fd4745a"},
 ]
 
 [package.dependencies]
@@ -2693,4 +2693,4 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.11,<4.0"
-content-hash = "12adca6b983ae9793419c961ff630e046011a808a8261e7e8c7839f0676ed4df"
+content-hash = "c3f4433ed207454837834fdb9379ad1ad30ce680b824f19d6b597a137c5cccee"

@@ -81,8 +81,7 @@ multikeyjwt = "^1.0"
 uvicorn = {version = ">=0.20,<1.0", extras = ["standard"]}  # caret behaviour on 0.x is to lock to 0.x.*
 gunicorn = "^21.0"
 pyopenssl = "^23.1"
-#libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.10.0"}
-libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", branch="csr_ocsp"}
+libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.9.0"}
 openapi-readme = "^0.2"
 python-multipart = "^0.0.6"
 aiohttp = "^3.8"
