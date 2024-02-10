@@ -94,6 +94,7 @@ services:
       MW_LE_EMAIL: ${MW_LE_EMAIL?LE contact email must be defined}
       MW_LE_TEST: ${MW_LE_TEST:-true}  # see example_env.sh
       MW_KEYTYPE: "rsa"
+      MW_PRODUCTS: "tak"
     volumes:
       - kraftwerk_shared_fake:/pvarkishares/fake
       - kraftwerk_shared_tak:/pvarkishares/tak
@@ -269,7 +270,7 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: pvarki/rmapi:1.1.1
+    image: pvarki/rmapi:1.2.0
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -379,67 +380,6 @@ services:
       - le_certs:/le_certs
       - kraftwerk_shared_fake:/pvarki
       - kwinit_data:/data/persistent
-
-######################
-# Begin: Fakeproduct #
-######################
-  rmfpapi:
-    image: pvarki/rmfpapi:1.2.0
-    build:
-      context: ./fpintegration
-      dockerfile: Dockerfile
-      target: production
-    networks:
-      - productnet
-      - intranet
-    volumes:
-      - ca_public:/ca_public
-      - kraftwerk_shared_fake:/pvarki
-      - rmfpapi_data:/data/persistent
-    depends_on:
-      rmnginx:
-        condition: service_healthy
-    healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
-
-  fpnginx:
-    image: nginx:1.25
-    volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
-      - ca_public:/ca_public
-      - le_certs:/le_certs
-    environment:
-      NGINX_HOST: *productdomain
-      NGINX_HTTP_PORT: ${NGINX_HTTP_PRODUCT_PORT:-8080}
-      NGINX_HTTPS_PORT: *productport
-      NGINX_UPSTREAM: "rmfpapi"
-      NGINX_UPSTREAM_PORT: "8001"
-      NGINX_CERT_NAME: "rasenmaeher"
-    networks:
-      - productnet
-      - intranet
-    ports:
-      - "${NGINX_HTTP_PRODUCT_PORT:-8016}:${NGINX_HTTP_PRODUCT_PORT:-8016}"
-      - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
-    depends_on:
-      rmfpapi:
-        condition: service_healthy
-    healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
-    restart: unless-stopped
-####################
-# End: Fakeproduct #
-####################
 
 ##############
 # Begin: TAK #
