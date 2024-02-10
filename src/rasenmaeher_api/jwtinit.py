@@ -37,15 +37,14 @@ def _check_public_keys_tilauspalvelu(pubkeydir: Path) -> None:
     try:
         lock.acquire(timeout=0.0)
         ssl_ctx = get_ca_context(ssl.Purpose.SERVER_AUTH)
+        url = RMSettings.singleton().tilauspalvelu_jwt
         try:
-            with urllib.request.urlopen(
-                RMSettings.singleton().tilauspalvelu_jwt, context=ssl_ctx, timeout=HTTP_TIMEOUT  # nosec
-            ) as response:
+            with urllib.request.urlopen(url, context=ssl_ctx, timeout=HTTP_TIMEOUT) as response:  # nosec
                 tppubkey.write_bytes(response.read())
         except (urllib.request.HTTPError, TimeoutError) as exc:
-            LOGGER.error("Could not load TILAUSPALVELU key: {}".format(exc))
+            LOGGER.error("Could not load TILAUSPALVELU key from {}: {}".format(url, exc))
         except Exception as exc:  # pylint: disable=W0718
-            LOGGER.exception("Unhanled exception while loading TILAUSPALVELU key: {}".format(exc))
+            LOGGER.exception("Unhandled exception while loading TILAUSPALVELU key from {}: {}".format(url, exc))
     except filelock.Timeout:
         LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
     finally:
