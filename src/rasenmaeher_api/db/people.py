@@ -71,9 +71,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
                     await newperson.create()
                     ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
-                    csrpem = await async_create_client_csr(
-                        ckp, newperson.csrfile, newperson.certsubject, ocsp_uri=cnf.ocscp_responder
-                    )
+                    csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                     certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                     bundlepem = (await get_bundle(certpem)).replace("\\n", "\n")
                     newperson.certfile.write_text(bundlepem)
