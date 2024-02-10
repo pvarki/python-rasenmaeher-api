@@ -65,7 +65,7 @@ services:
       - ./data/cfssl:/data/persistent
       - ./data/ca_public:/ca_public
     healthcheck:
-      test: 'ocsprest healthcheck || exit 1'
+      test: 'ocsprest healthcheck --port=7776 || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
