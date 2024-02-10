@@ -8,7 +8,7 @@ from async_asgi_testclient import TestClient  # pylint: disable=import-error
 LOGGER = logging.getLogger(__name__)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_admin_fragment(admin_mtls_client: TestClient) -> None:
     """Test admin fragment"""
     client = admin_mtls_client
@@ -26,7 +26,7 @@ async def test_admin_fragment(admin_mtls_client: TestClient) -> None:
     assert fpl["html"] == "<p>Hello admin!</p>"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_user_fragment(user_mtls_client: TestClient) -> None:
     """Test user framgent"""
     client = user_mtls_client

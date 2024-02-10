@@ -9,7 +9,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.parametrize("fname", ["ENROLLUSERa", "ENROLLUSERa.pfx"])
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_user_pfx(user_mtls_client: TestClient, fname: str) -> None:
     """Test that we can get the pfx"""
     client = user_mtls_client

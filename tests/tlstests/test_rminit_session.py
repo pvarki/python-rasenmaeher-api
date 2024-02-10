@@ -16,7 +16,7 @@ def test_ssl_context() -> None:
     get_ca_context(ssl.Purpose.SERVER_AUTH)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_get_session(app_client: TestClient) -> None:
     """Test that appclient initializes mtls certs so we can get a session"""

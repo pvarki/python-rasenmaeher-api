@@ -10,7 +10,7 @@ from .conftest import enroll_user
 LOGGER = logging.getLogger(__name__)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_admin_people_list(admin_mtls_client: TestClient) -> None:
     """Test people list fragment"""
     client = admin_mtls_client
@@ -23,7 +23,7 @@ async def test_admin_people_list(admin_mtls_client: TestClient) -> None:
     assert "anon_admin" not in callsigns
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_product_people_list(product_mtls_client: TestClient) -> None:
     """Test people list fragment"""
     client = product_mtls_client
@@ -37,7 +37,7 @@ async def test_product_people_list(product_mtls_client: TestClient) -> None:
 
 
 @pytest.mark.skip(reason="Seems to mess the db session somehow")
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_person_delete(admin_mtls_client: TestClient, enroll_poolcode: str) -> None:
     """Test enrolling and then deleting a person"""
     admin = admin_mtls_client

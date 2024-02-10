@@ -53,7 +53,7 @@ def test_empty_response(empty_datadirs: Tuple[Path, Path]) -> None:
     assert check_public_keys()  # This should always be true unless shit blows up
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_create(empty_datadirs: Tuple[Path, Path]) -> None:
     """Test keypair create"""
     LOGGER.debug("empty_datadirs={}".format(empty_datadirs))
@@ -62,7 +62,7 @@ async def test_create(empty_datadirs: Tuple[Path, Path]) -> None:
     assert check_jwt_init()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_create_password(empty_datadirs: Tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     """Test keypair create"""
     LOGGER.debug("empty_datadirs={}".format(empty_datadirs))
@@ -76,7 +76,7 @@ async def test_create_password(empty_datadirs: Tuple[Path, Path], monkeypatch: p
         assert issuer.keypasswd and str(issuer.keypasswd) == keypass
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_rm_jwt_session(rm_jwt_client: TestClient) -> None:
     """Test that we can use JWTs issued by RASENMAEHER itself"""
     client = rm_jwt_client

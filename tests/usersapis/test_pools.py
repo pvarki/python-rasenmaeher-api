@@ -26,7 +26,7 @@ async def five_pools(admin_mtls_client: TestClient) -> AsyncGenerator[List[str],
     yield codes
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_list_pools(admin_mtls_client: TestClient, five_pools: List[str]) -> None:
     """Check lists"""
     client = admin_mtls_client
@@ -46,7 +46,7 @@ async def test_list_pools(admin_mtls_client: TestClient, five_pools: List[str]) 
     assert payload["pools"][0]["owner_cs"]
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_list_pools_by_owner(admin_mtls_client: TestClient) -> None:
     """Check list by owner"""
     client = admin_mtls_client
@@ -62,7 +62,7 @@ async def test_list_pools_by_owner(admin_mtls_client: TestClient) -> None:
     assert owners == {"FIRSTADMINa"}
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_list_pools_wrong_owner(admin_mtls_client: TestClient) -> None:
     """Check nonexistent owner"""
     client = admin_mtls_client

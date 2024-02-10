@@ -19,7 +19,7 @@ def test_have_csrfile(csrfile: Path) -> None:
     assert csrfile.exists()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_have_mtlscert(mtlsfiles: Tuple[Path, Path]) -> None:
     """Test that we got the files"""
     certpath, privkeypath = mtlsfiles
@@ -27,7 +27,7 @@ async def test_have_mtlscert(mtlsfiles: Tuple[Path, Path]) -> None:
     assert privkeypath.exists()
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_sign(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
     """Test signing"""
     client = kraftwerk_jwt_client
@@ -44,7 +44,7 @@ async def test_sign(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
     assert "ca" in payload
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> None:
     """Test using same nonce twice, should fail"""
     # First signing, should work fine
@@ -71,7 +71,7 @@ async def test_sign_twice(csrfile: Path, kraftwerk_jwt_client: TestClient) -> No
     assert resp2.status_code == 403
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_sign_revoke_mtls(datadir: Path) -> None:
     """Test signing as product"""
     privkeypath = datadir / "private" / "product_sign_test.key"

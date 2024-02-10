@@ -18,7 +18,7 @@ def test_version() -> None:
     assert __version__ == "1.2.0"
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_get_openapi_json(app_client: TestClient) -> None:
     """Check that we can get the openapi spec"""
@@ -34,7 +34,7 @@ def test_settings() -> None:
     assert "fake.localmaeher.pvarki.fi" in conf.valid_product_cns
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_announce(unauth_client: TestClient, announce_server: str) -> None:
     """Make sure we have seen at least one announce call"""
     # Make a request to make sure the app spins up
@@ -48,7 +48,7 @@ async def test_announce(unauth_client: TestClient, announce_server: str) -> None
             assert resp_json["payloads"][0]["version"] == __version__
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_jwt_pub_url(unauth_client: TestClient, tmp_path: Path) -> None:
     """Test the JWT public key"""
     resp = await unauth_client.get("/api/v1/utils/jwt.pub")

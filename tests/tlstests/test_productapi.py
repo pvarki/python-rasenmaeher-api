@@ -18,7 +18,7 @@ from rasenmaeher_api.web.api.instructions.schema import (
 LOGGER = logging.getLogger(__name__)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_hello(mtlsclient: aiohttp.ClientSession) -> None:
     """Quick and dirty test of the mTLS client and server"""
     url = switchme_to_singleton_call.kraftwerk_manifest_dict["products"]["fake"]["api"]
@@ -32,7 +32,7 @@ async def test_hello(mtlsclient: aiohttp.ClientSession) -> None:
 
 # NOTE: update is missing on purpose since it uses PUT not POST
 @pytest.mark.parametrize("endpoint_suffix", ["created", "revoked", "promoted", "demoted"])
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_user_crud(endpoint_suffix: str) -> None:
     """Test calling the user POST endpoints"""
     endpoint = f"api/v1/users/{endpoint_suffix}"
@@ -53,7 +53,7 @@ async def test_user_crud(endpoint_suffix: str) -> None:
     assert responses["fake"].success
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_user_update() -> None:
     """Test calling the user  (PUT)"""
     responses = await put_to_all_products(
@@ -72,7 +72,7 @@ async def test_user_update() -> None:
     assert responses["fake"].success
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_user_fragment() -> None:
     """Test calling the user-created endpoint"""
     responses = await post_to_all_products(
@@ -90,7 +90,7 @@ async def test_user_fragment() -> None:
 
 
 @pytest.mark.parametrize("endpoint", ["no-such-url", "api/v1/clients/fragment"])
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_failure_is_none(endpoint: str) -> None:
     """Test calling the user-created endpoint"""
     responses = await post_to_all_products(

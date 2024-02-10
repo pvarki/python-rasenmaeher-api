@@ -21,14 +21,14 @@ async def get_code(client: TestClient) -> str:
     return cast(str, payload["code"])
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_get_code(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test that we can get a new code"""
     code = await get_code(tilauspalvelu_jwt_client)
     assert len(code) > 10
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_get_code_422(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test that we get error if trying to give wrong input"""
     client = tilauspalvelu_jwt_client
@@ -53,7 +53,7 @@ async def use_code(client: TestClient, code: str) -> str:
     return cast(str, payload2["jwt"])
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_use_code(tilauspalvelu_jwt_client: TestClient, unauth_client: TestClient) -> None:
     """Test that we can get a new code and use one with fresh session"""
     code = await get_code(tilauspalvelu_jwt_client)
@@ -61,7 +61,7 @@ async def test_use_code(tilauspalvelu_jwt_client: TestClient, unauth_client: Tes
     assert token
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_use_code_twice(tilauspalvelu_jwt_client: TestClient, unauth_client: TestClient) -> None:
     """Test that we can get a new code and re-using it fails"""
     code = await get_code(tilauspalvelu_jwt_client)
@@ -73,7 +73,7 @@ async def test_use_code_twice(tilauspalvelu_jwt_client: TestClient, unauth_clien
         await use_code(unauth_client, code)
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_refresh_jwt(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test that the refresh endpoint works"""
     client = tilauspalvelu_jwt_client
