@@ -19,8 +19,8 @@ server {
     # HTTPS configuration
     listen ${NGINX_HTTPS_PORT} ssl;
 
-    location /ca/crl {
-        proxy_pass  http://${OR_UPSTREAM}:${OR_PORT}/api/v1/crl;
+    location /ca/crl/ {
+        proxy_pass  http://${OR_UPSTREAM}:${OR_PORT}/api/v1/crl/;
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
         proxy_set_header  X-Real-IP         $remote_addr;
@@ -28,8 +28,8 @@ server {
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_read_timeout                  900;
     }
-    location /ca/ocsp {
-        proxy_pass  http://${NGINX_OCSP_UPSTREAM}:${CFSSL_OCSP_BIND_PORT};
+    location /ca/ocsp/ {
+        proxy_pass  http://${NGINX_OCSP_UPSTREAM}:${CFSSL_OCSP_BIND_PORT}/;
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
         proxy_set_header  X-Real-IP         $remote_addr;
@@ -37,8 +37,8 @@ server {
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_read_timeout                  900;
     }
-    location /api {
-        proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT}/api;
+    location /api/ {
+        proxy_pass  http://${NGINX_UPSTREAM}:${NGINX_UPSTREAM_PORT}/api/;
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
         proxy_set_header  X-Real-IP         $remote_addr;
