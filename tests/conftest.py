@@ -12,6 +12,7 @@ from multikeyjwt.config import Secret
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 import pytest_asyncio  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
+from libadvian.tasks import TaskMaster
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
@@ -31,6 +32,13 @@ JWT_PATH = DATA_PATH / Path("jwt")
 
 
 # pylint: disable=W0621
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def taskmaster_closer() -> AsyncGenerator[None, None]:
+    """Make sure taskmaster tasks are closed cleanly"""
+    yield None
+    await TaskMaster.singleton().stop_lingering_tasks()
 
 
 @pytest_asyncio.fixture(scope="session")
