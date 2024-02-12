@@ -6,6 +6,7 @@ import logging
 from pathlib import Path
 import shutil
 
+from libadvian.tasks import TaskMaster
 import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
@@ -73,9 +74,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                     certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                     newperson.certfile.write_text(certpem)
-                    async with asyncio.TaskGroup() as tgr:
-                        tgr.create_task(newperson.create_pfx())
-                        tgr.create_task(refresh_ocsp())
+                    TaskMaster.singleton().create_task(newperson.create_pfx())
+                    TaskMaster.singleton().create_task(refresh_ocsp())
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, doing cleanup")
                     shutil.rmtree(certspath)
@@ -84,7 +84,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     raise BackendError(str(exc)) from exc
                 # Return refreshed object if everything went ok
                 refresh = await cls.by_pk(newperson.pk)
-                await user_created(refresh)
+                TaskMaster.singleton().create_task(user_created(refresh))
                 return refresh
 
     async def create_pfx(self) -> Path:
@@ -108,9 +108,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
             async with conn.transaction():  # do it in a transaction so if CFSSL fails we can roll back
                 try:
                     await self.update(deleted=utcnow, revoke_reason=str(reason.value)).apply()
-                    async with asyncio.TaskGroup() as tgr:
-                        tgr.create_task(revoke_pem(self.certfile, reason))
-                        tgr.create_task(user_revoked(self))
+                    TaskMaster.singleton().create_task(revoke_pem(self.certfile, reason))
+                    TaskMaster.singleton().create_task(user_revoked(self))
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, rolling back")
                     raise BackendError(str(exc)) from exc
@@ -236,28 +235,26 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
 
     async def assign_role(self, role: str) -> bool:
         """Assign a role, return true if role was created, false if it already existed"""
-        async with asyncio.TaskGroup() as tgr:
-            if role == "admin":
-                tgr.create_task(user_promoted(self))
-            if await self.has_role(role):
-                return False
-            role = Role(user=self.pk, role=role)
-            # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
-            await role.create()
-            await self.update(updated=utcnow).apply()
+        if role == "admin":
+            TaskMaster.singleton().create_task(user_promoted(self))
+        if await self.has_role(role):
+            return False
+        role = Role(user=self.pk, role=role)
+        # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
+        await role.create()
+        await self.update(updated=utcnow).apply()
         return True
 
     async def remove_role(self, role: str) -> bool:
         """Remove a role, return true if role was removed, false if it wasn't assigned"""
-        async with asyncio.TaskGroup() as tgr:
-            if role == "admin":
-                tgr.create_task(user_demoted(self))
-            obj = await self._get_role(role)
-            if not obj:
-                return False
-            # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
-            await obj.delete()
-            await self.update(updated=utcnow).apply()
+        if role == "admin":
+            TaskMaster.singleton().create_task(user_demoted(self))
+        obj = await self._get_role(role)
+        if not obj:
+            return False
+        # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
+        await obj.delete()
+        await self.update(updated=utcnow).apply()
         return True
 
     async def roles_set(self) -> Set[str]:

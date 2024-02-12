@@ -1,10 +1,10 @@
 """Private apis"""
 from typing import Union, Optional, Any, Dict
-import asyncio
 import logging
 import binascii
 from pathlib import Path
 
+from libadvian.tasks import TaskMaster
 import aiohttp
 import cryptography.x509
 
@@ -131,7 +131,8 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
             async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
                 try:
                     await get_result(response)
-                    await asyncio.gather(refresh_ocsp(), dump_crlfiles())
+                    TaskMaster.singleton().create_task(refresh_ocsp())
+                    TaskMaster.singleton().create_task(dump_crlfiles())
                 except NoResult:
                     # The result is expected to be empty
                     pass
