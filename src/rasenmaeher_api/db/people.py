@@ -287,13 +287,8 @@ async def post_user_crud(userinfo: UserCRUDRequest, endpoint_suffix: str) -> Non
     """Wrapper to be more DRY in the basic CRUD things"""
     endpoint = f"api/v1/users/{endpoint_suffix}"
 
-    responses = await post_to_all_products(
-        endpoint,
-        userinfo.dict(),
-        OperationResultResponse,
-    )
-    LOGGER.debug("got responses: {}".format(responses))
-    # TODO: Check responses and log errors
+    # We can't do anything about any issues with the responses so don't collect them
+    await post_to_all_products(endpoint, userinfo.dict(), OperationResultResponse, collect_responses=False)
 
 
 async def user_created(person: Person) -> None:

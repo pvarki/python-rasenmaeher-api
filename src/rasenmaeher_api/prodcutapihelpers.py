@@ -3,6 +3,7 @@ from typing import Dict, Optional, Type, Any, Mapping, Tuple
 import asyncio
 import logging
 
+from libadvian.tasks import TaskMaster
 import aiohttp
 import pydantic
 from libpvarki.schemas.generic import OperationResultResponse
@@ -21,28 +22,32 @@ def check_kraftwerk_manifest() -> bool:
 
 
 async def post_to_all_products(
-    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
-    return await _method_to_all_products("post", url_suffix, data, respose_schema)
+    return await _method_to_all_products("post", url_suffix, data, respose_schema, collect_responses)
 
 
 async def put_to_all_products(
-    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given PUT endpoint on call products in the manifest"""
-    return await _method_to_all_products("put", url_suffix, data, respose_schema)
+    return await _method_to_all_products("put", url_suffix, data, respose_schema, collect_responses)
 
 
 async def get_from_all_products(
-    url_suffix: str, respose_schema: Type[pydantic.BaseModel]
+    url_suffix: str, respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given GET endpoint on call products in the manifest"""
-    return await _method_to_all_products("get", url_suffix, None, respose_schema)
+    return await _method_to_all_products("get", url_suffix, None, respose_schema, collect_responses)
 
 
 async def _method_to_all_products(
-    methodname: str, url_suffix: str, data: Optional[Mapping[str, Any]], respose_schema: Type[pydantic.BaseModel]
+    methodname: str,
+    url_suffix: str,
+    data: Optional[Mapping[str, Any]],
+    respose_schema: Type[pydantic.BaseModel],
+    collect_responses: bool = True,
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
     if not check_kraftwerk_manifest():
@@ -84,6 +89,12 @@ async def _method_to_all_products(
             except Exception:  # pylint: disable=W0718
                 LOGGER.exception("Something went seriously wrong calling {}".format(url))
                 return name, None
+
+    if not collect_responses:
+        tma = TaskMaster.singleton()
+        for name, conf in manifest["products"].items():
+            tma.create_task(handle_one(name, conf))
+        return None
 
     coros = []
     for name, conf in manifest["products"].items():
