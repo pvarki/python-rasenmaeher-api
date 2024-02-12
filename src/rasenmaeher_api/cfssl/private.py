@@ -42,21 +42,18 @@ async def dump_crlfiles() -> None:
 
 async def refresh_ocsp() -> None:
     """Call ocsprest refresh"""
-    async with asyncio.TaskGroup() as tgr:
-        tgr.create_task(post_ocsprest(f"{ocsprest_base()}/api/v1/refresh"))
-        # Dump the CRLs too
-        tgr.create_task(dump_crlfiles())
+    await post_ocsprest(f"{ocsprest_base()}/api/v1/refresh")
 
 
-async def sign_csr(csr: str) -> str:
+async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     Quick and dirty method to sign CSR from CFSSL
-    params: csr
-    returns: certificate
+    params: csr, whether to return cert of full bundle
+    returns: certificate as PEM
     """
     async with (await mtls_session()) as session:
         url = f"{ocsprest_base()}/api/v1/csr/sign"
-        payload = {"certificate_request": csr, "profile": "client", "bundle": True}
+        payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:
             LOGGER.debug("Calling {}".format(url))
             async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
@@ -134,10 +131,10 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
             async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
                 try:
                     await get_result(response)
+                    await asyncio.gather(refresh_ocsp(), dump_crlfiles())
                 except NoResult:
                     # The result is expected to be empty
                     pass
-                await refresh_ocsp()
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 

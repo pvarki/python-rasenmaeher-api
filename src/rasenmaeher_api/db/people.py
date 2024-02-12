@@ -18,8 +18,7 @@ from libpvarki.mtlshelp.pkcs12 import convert_pem_to_pkcs12
 from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
-from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
-from ..cfssl.public import get_bundle
+from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
 from ..prodcutapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
 
@@ -73,9 +72,10 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                     certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
-                    bundlepem = (await get_bundle(certpem)).replace("\\n", "\n")
-                    newperson.certfile.write_text(bundlepem)
-                    await newperson.create_pfx()
+                    newperson.certfile.write_text(certpem)
+                    async with asyncio.TaskGroup() as tgr:
+                        tgr.create_task(newperson.create_pfx())
+                        tgr.create_task(refresh_ocsp())
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, doing cleanup")
                     shutil.rmtree(certspath)
@@ -108,8 +108,9 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
             async with conn.transaction():  # do it in a transaction so if CFSSL fails we can roll back
                 try:
                     await self.update(deleted=utcnow, revoke_reason=str(reason.value)).apply()
-                    await revoke_pem(self.certfile, reason)
-                    await user_revoked(self)
+                    async with asyncio.TaskGroup() as tgr:
+                        tgr.create_task(revoke_pem(self.certfile, reason))
+                        tgr.create_task(user_revoked(self))
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, rolling back")
                     raise BackendError(str(exc)) from exc
