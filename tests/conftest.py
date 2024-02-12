@@ -1,5 +1,6 @@
 """pytest automagics"""
 from typing import Dict, Any, AsyncGenerator, Generator, Tuple, List
+import asyncio
 import logging
 from pathlib import Path
 import uuid
@@ -34,9 +35,12 @@ JWT_PATH = DATA_PATH / Path("jwt")
 # pylint: disable=W0621
 
 
+@pytest.mark.asyncio(scope="session")
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def taskmaster_closer() -> AsyncGenerator[None, None]:
     """Make sure taskmaster tasks are closed cleanly"""
+    # Ensure we fetch the loop
+    TaskMaster.singleton().create_task(asyncio.sleep(1.0))
     yield None
     await TaskMaster.singleton().stop_lingering_tasks()
 
