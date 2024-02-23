@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from libpvarki.logging import init_logging
 import aiohttp
+from libadvian.tasks import TaskMaster
 
 from ..rmsettings import RMSettings
 from .api.router import api_router
@@ -34,6 +35,7 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     # Cleanup
     await reporter  # Just to avoid warning about task that was not awaited
+    await TaskMaster.singleton().stop_lingering_tasks()  # Make sure teasks get finished
     await dbwrapper.app_shutdown_event()
 
 

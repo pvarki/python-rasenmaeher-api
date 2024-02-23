@@ -19,9 +19,7 @@ from libadvian.tasks import TaskMaster
 from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
-from ..rmsettings import switchme_to_singleton_call
-from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes
-from ..cfssl.public import get_bundle
+from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
 from ..prodcutapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
 
@@ -55,7 +53,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
         """Create the cert etc and save the person"""
-        if callsign in RMSettings.singleton().valid_product_cns:
+        cnf = RMSettings.singleton()
+        if callsign in cnf.valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
         try:
             await Person.by_callsign(callsign)
@@ -65,7 +64,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         async with db.acquire() as conn:
             async with conn.transaction():  # do it in a transaction so if something fails we can roll back
                 puuid = uuid.uuid4()
-                certspath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people" / str(puuid)
+                certspath = Path(cnf.persistent_data_dir) / "private" / "people" / str(puuid)
                 certspath.mkdir(parents=True)
                 certspath.chmod(PRIVDIR_MODE)
                 try:
@@ -74,9 +73,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                     certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
-                    bundlepem = (await get_bundle(certpem)).replace("\\n", "\n")
-                    newperson.certfile.write_text(bundlepem)
-                    await newperson.create_pfx()
+                    newperson.certfile.write_text(certpem)
                 except Exception as exc:
                     LOGGER.exception("Something went wrong, doing cleanup")
                     shutil.rmtree(certspath)
@@ -85,7 +82,9 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     raise BackendError(str(exc)) from exc
                 # Return refreshed object if everything went ok
                 refresh = await cls.by_pk(newperson.pk)
-                await user_created(refresh)
+                TaskMaster.singleton().create_task(refresh.create_pfx())
+                TaskMaster.singleton().create_task(refresh_ocsp())
+                TaskMaster.singleton().create_task(user_created(refresh))
                 return refresh
 
     async def create_pfx(self) -> Path:
