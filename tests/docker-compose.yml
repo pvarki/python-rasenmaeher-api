@@ -15,12 +15,13 @@ x-postgres_env: &postgres_env
 x-cfssl_env: &cfssl_env
     INT_SHARED_CERT_FOLDER: /ca_public
     CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
-    CFSSL_BIND_PORT: ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
+    CFSSL_BIND_PORT: &cfsslport ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
     CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-7778}  # different from default on purpose
     CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
     OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
     OCSP_PORT: ${NGINX_HTTPS_PORT:-4440}
     CFSSL_PERSISTENT_FOLDER: /data/persistent
+    OR_BIND: &or_port 7776  # different from default on purpose
 
 
 services:
@@ -40,11 +41,39 @@ services:
       - ./data/cfssl:/data/persistent
       - ./data/ca_public:/ca_public
     healthcheck:
-      test: 'cfssl info -remote http://127.0.0.1:7777'
+      test: 'cfssl info -remote http://127.0.0.1:7777 || exit 1'
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 5s
+
+  ocsprest:
+    image: pvarki/cfssl:ocsprest-latest
+    build:
+      # FIXME drop the branch when it is merged
+      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git#oscp_rest_workaround
+      dockerfile: Dockerfile
+      target: ocsprest
+    networks:
+      - canet
+    environment:
+      <<: *cfssl_env
+      OR_PORT: *or_port
+    ports:
+      - '7776:7776'
+    volumes:
+      - ./data/cfssl:/data/persistent
+      - ./data/ca_public:/ca_public
+    healthcheck:
+      test: 'ocsprest healthcheck --port=7776 || exit 1'
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    depends_on:
+      cfssl:
+        condition: service_healthy
+    restart: unless-stopped
 
   fpapi_init:
     image: pytestfpapi:init
@@ -54,7 +83,7 @@ services:
       target: init
     environment:
       LOCAL_CA_CERTS_PATH: /ca_public
-      CFSSL_PORT: ${CFSSL_BIND_PORT:-7777}  # must match above
+      CFSSL_PORT: *cfsslport
       CFSSL_HOST: "http://cfssl"
       FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"
     volumes:
@@ -95,7 +124,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 2s
-
 
   fpapi_client:
     image: pytestfpapi:client
