@@ -1,13 +1,14 @@
 """Private apis"""
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Dict
 import logging
 import binascii
 from pathlib import Path
 
 import aiohttp
 import cryptography.x509
+from libadvian.tasks import TaskMaster
 
-from .base import base_url, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result, NoResult
+from .base import base_url, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result, NoResult, ocsprest_base
 from .mtls import mtls_session
 
 LOGGER = logging.getLogger(__name__)
@@ -16,19 +17,49 @@ LOGGER = logging.getLogger(__name__)
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
 
 
-async def sign_csr(csr: str) -> str:
+async def post_ocsprest(
+    url: str, send_payload: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None
+) -> None:
+    """Do a POST with the mTLS client"""
+    if timeout is None:
+        timeout = DEFAULT_TIMEOUT
+    async with (await mtls_session()) as session:
+        try:
+            LOGGER.debug("POSTing to {}, payload={}".format(url, send_payload))
+            async with session.post(url, data=send_payload, timeout=timeout) as response:
+                resp_payload = await response.json()
+                LOGGER.debug("resp_payload={}".format(resp_payload))
+                if not resp_payload["success"]:
+                    raise CFSSLError("Failure from {}: {}".format(url, resp_payload))
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(f"{url} raised {str(exc)}") from exc
+
+
+async def dump_crlfiles() -> None:
+    """Call ocsprest CRL dump"""
+    await post_ocsprest(f"{ocsprest_base()}/api/v1/dump_crl")
+
+
+async def refresh_ocsp() -> None:
+    """Call ocsprest refresh"""
+    await post_ocsprest(f"{ocsprest_base()}/api/v1/refresh")
+
+
+async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     Quick and dirty method to sign CSR from CFSSL
-    params: csr
-    returns: certificate
+    params: csr, whether to return cert of full bundle
+    returns: certificate as PEM
     """
     async with (await mtls_session()) as session:
-        url = f"{base_url()}/api/v1/cfssl/sign"
-        payload = {"certificate_request": csr, "profile": "client", "bundle": True}
+        url = f"{ocsprest_base()}/api/v1/csr/sign"
+        payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:
             LOGGER.debug("Calling {}".format(url))
             async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
-                return await get_result_cert(response)
+                resp = await get_result_cert(response)
+                TaskMaster.singleton().create_task(refresh_ocsp())
+                return resp
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 

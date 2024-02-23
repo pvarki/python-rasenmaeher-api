@@ -6,6 +6,7 @@ import base64
 import aiohttp
 
 from .base import base_url, anon_session, get_result, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result_bundle
+from .private import refresh_ocsp
 
 LOGGER = logging.getLogger(__name__)
 CRL_LIFETIME = "1800s"  # seconds
@@ -50,6 +51,9 @@ async def get_bundle(cert: str) -> str:
     Get the optimal cert bundle for given cert
     """
 
+    # FIXME: This is not a good way but I don't have a better one right now either
+    # Force OCSP refresh before getting the bundle so we hopefully get all we need
+    await refresh_ocsp()
     async with (await anon_session()) as session:
         url = f"{base_url()}/api/v1/cfssl/bundle"
         payload: Dict[str, Any] = {"certificate": cert, "flavor": "optimal"}
