@@ -1,5 +1,6 @@
 """Private apis"""
 from typing import Union, Optional, Any, Dict
+import asyncio
 import logging
 import binascii
 from pathlib import Path
@@ -8,7 +9,7 @@ import aiohttp
 import cryptography.x509
 from libadvian.tasks import TaskMaster
 
-from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, ocsprest_base
+from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, ocsprest_base, DBLocked
 from .mtls import mtls_session
 from ..rmsettings import RMSettings
 
@@ -62,6 +63,10 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
                 resp = await get_result_cert(response)
                 TaskMaster.singleton().create_task(refresh_ocsp())
                 return resp
+        except DBLocked:
+            LOGGER.warning("Database is locked, waiting a moment and trying again")
+            await asyncio.sleep(0.1)
+            return await sign_csr(csr, bundle)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 
@@ -138,6 +143,10 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
                 except NoResult:
                     # The result is expected to be empty
                     pass
+        except DBLocked:
+            LOGGER.warning("Database is locked, waiting a moment and trying again")
+            await asyncio.sleep(0.1)
+            return await revoke_serial(serialno, authority_key_id, reason)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 

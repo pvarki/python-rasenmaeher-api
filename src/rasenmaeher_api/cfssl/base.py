@@ -1,5 +1,5 @@
 """Base helpers etc"""
-from typing import Any, Mapping, Union, cast
+from typing import Any, Mapping, Union, List, cast
 import logging
 import ssl
 
@@ -24,6 +24,10 @@ class ErrorResult(CFSSLError, ValueError):
     """Did not get any result"""
 
 
+class DBLocked(CFSSLError):
+    """Database is locked, we should probably retry"""
+
+
 class NoValue(CFSSLError, ValueError):
     """Did not get expected values"""
 
@@ -36,6 +40,10 @@ async def get_result(response: aiohttp.ClientResponse) -> Any:
         LOGGER.error("Got empty json from response={}".format(response))
         raise CFSSLError("Got empty response")
     if errors := data.get("errors"):
+        errors = cast(List[Mapping[str, Any]], errors)
+        for error in errors:
+            if error["code"] == 11000:
+                raise DBLocked("CFSSL returned following errors: {}".format(errors))
         raise ErrorResult("CFSSL returned following errors: {}".format(errors))
     result = data.get("result")
     if not result:
