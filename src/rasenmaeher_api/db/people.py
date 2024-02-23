@@ -14,6 +14,7 @@ from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_cre
 from libpvarki.schemas.product import UserCRUDRequest
 from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.mtlshelp.pkcs12 import convert_pem_to_pkcs12
+from libadvian.tasks import TaskMaster
 
 from .base import ORMBaseModel, DBModel, utcnow, db
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
@@ -235,24 +236,26 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
 
     async def assign_role(self, role: str) -> bool:
         """Assign a role, return true if role was created, false if it already existed"""
+        if role == "admin":
+            TaskMaster.singleton().create_task(user_promoted(self))
         if await self.has_role(role):
             return False
         role = Role(user=self.pk, role=role)
+        # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
         await role.create()
         await self.update(updated=utcnow).apply()
-        if role == "admin":
-            await user_promoted(self)
         return True
 
     async def remove_role(self, role: str) -> bool:
         """Remove a role, return true if role was removed, false if it wasn't assigned"""
+        if role == "admin":
+            TaskMaster.singleton().create_task(user_demoted(self))
         obj = await self._get_role(role)
         if not obj:
             return False
+        # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
         await obj.delete()
         await self.update(updated=utcnow).apply()
-        if role == "admin":
-            await user_demoted(self)
         return True
 
     async def roles_set(self) -> Set[str]:
