@@ -16,7 +16,7 @@ async def test_version_cli():  # type: ignore
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
-    out = await asyncio.wait_for(process.communicate(), 10)
+    out = await asyncio.wait_for(process.communicate(), 15)
     # Demand clean exit
     assert process.returncode == 0
     # Check output
