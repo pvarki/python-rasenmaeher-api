@@ -8,8 +8,10 @@ import aiohttp
 import cryptography.x509
 from libadvian.tasks import TaskMaster
 
-from .base import base_url, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result, NoResult, ocsprest_base
+from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, ocsprest_base
 from .mtls import mtls_session
+from ..rmsettings import RMSettings
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ async def post_ocsprest(
 ) -> None:
     """Do a POST with the mTLS client"""
     if timeout is None:
-        timeout = DEFAULT_TIMEOUT
+        timeout = RMSettings.singleton().cfssl_timeout
     async with (await mtls_session()) as session:
         try:
             LOGGER.debug("POSTing to {}, payload={}".format(url, send_payload))
@@ -56,7 +58,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
         payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:
             LOGGER.debug("Calling {}".format(url))
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 resp = await get_result_cert(response)
                 TaskMaster.singleton().create_task(refresh_ocsp())
                 return resp
@@ -73,7 +75,7 @@ async def sign_ocsp(cert: str, status: str = "good") -> Any:
         url = f"{base_url()}/api/v1/cfssl/ocspsign"
         payload = {"certificate": cert, "status": status}
         try:
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 return await get_result(response)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
@@ -130,7 +132,7 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
             "reason": str(reason.value).replace("_", ""),
         }
         try:
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 try:
                     await get_result(response)
                 except NoResult:
@@ -168,7 +170,7 @@ async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
         }
         try:
             LOGGER.debug("POSTing {} to {}".format(payload, url))
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 return await get_result(response)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc

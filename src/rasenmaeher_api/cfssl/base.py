@@ -9,7 +9,7 @@ from libpvarki.mtlshelp.context import get_ca_context
 from ..rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
-DEFAULT_TIMEOUT = 2.0
+DEFAULT_TIMEOUT = RMSettings.singleton().cfssl_timeout
 
 
 class CFSSLError(RuntimeError):
