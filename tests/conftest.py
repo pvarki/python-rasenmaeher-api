@@ -167,7 +167,7 @@ def session_env_config(  # pylint: disable=R0915,R0914
             "tilauspalvelu_jwt",
             "file://{}".format(str(DATA_PATH / "jwt" / "cl_jwtRS256.pub")),
         )
-        mpatch.setenv("TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
+        mpatch.setenv("RM_TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
         mpatch.setattr(
             switchme_to_singleton_call,
             "kraftwerk_announce",
