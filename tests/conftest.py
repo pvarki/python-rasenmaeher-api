@@ -13,6 +13,7 @@ from multikeyjwt.config import Secret
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 import pytest_asyncio  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
+from libadvian.tasks import TaskMaster
 from libadvian.logging import init_logging
 from libadvian.binpackers import uuid_to_b64
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
@@ -41,6 +42,16 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     loop = policy.new_event_loop()
     yield loop
     loop.close()
+
+
+@pytest.mark.asyncio(scope="session")
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def taskmaster_closer() -> AsyncGenerator[None, None]:
+    """Make sure taskmaster tasks are closed cleanly"""
+    # Ensure we fetch the loop
+    TaskMaster.singleton().create_task(asyncio.sleep(1.0))
+    yield None
+    await TaskMaster.singleton().stop_lingering_tasks()
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -137,8 +148,12 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setenv("RM_CFSSL_PORT", str(switchme_to_singleton_call.cfssl_port))
         mpatch.setattr(switchme_to_singleton_call, "cfssl_host", f"http://{docker_ip}")
         mpatch.setenv("RM_CFSSL_HOST", switchme_to_singleton_call.cfssl_host)
-
+        mpatch.setattr(switchme_to_singleton_call, "ocsprest_port", docker_services.port_for("ocsprest", 7776))
+        mpatch.setenv("RM_OCSPREST_PORT", str(switchme_to_singleton_call.ocsprest_port))
+        mpatch.setattr(switchme_to_singleton_call, "ocsprest_host", f"http://{docker_ip}")
+        mpatch.setenv("RM_OCSPREST_HOST", switchme_to_singleton_call.ocsprest_host)
         mpatch.setattr(switchme_to_singleton_call, "persistent_data_dir", str(sessionpersistent))
+
         mpatch.setenv("RM_PERSISTENT_DATA_DIR", switchme_to_singleton_call.persistent_data_dir)
 
         mpatch.setenv("LOCAL_CA_CERTS_PATH", str(capath))
@@ -160,7 +175,7 @@ def session_env_config(  # pylint: disable=R0915,R0914
             "tilauspalvelu_jwt",
             "file://{}".format(str(DATA_PATH / "jwt" / "cl_jwtRS256.pub")),
         )
-        mpatch.setenv("TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
+        mpatch.setenv("RM_TILAUSPALVELU_JWT", str(switchme_to_singleton_call.tilauspalvelu_jwt))
         mpatch.setattr(
             switchme_to_singleton_call,
             "kraftwerk_announce",
