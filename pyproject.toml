@@ -70,7 +70,7 @@ branch = true
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-libadvian = "^1.4"
+libadvian = "^1.6"
 click = "^8.0"
 fastapi = ">=0.89,<1.0"  # caret behaviour on 0.x is to lock to 0.x.*
 # FIXME: Migrate to v2, see https://docs.pydantic.dev/2.3/migration/#basesettings-has-moved-to-pydantic-settings
