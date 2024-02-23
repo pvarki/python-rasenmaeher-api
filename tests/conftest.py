@@ -144,6 +144,10 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setenv("JWT_PUBKEY_PATH", str(pubkeydir))
         mpatch.setenv("JWT_PRIVKEY_PATH", str(privkeypath))
         # Apparently we are too late in setting the env for settings to take effect
+        mpatch.setattr(switchme_to_singleton_call, "integration_api_timeout", 6.0)
+        mpatch.setenv("RM_INTEGRATION_API_TIMEOUT", str(switchme_to_singleton_call.integration_api_timeout))
+        mpatch.setattr(switchme_to_singleton_call, "cfssl_timeout", 5.0)
+        mpatch.setenv("RM_CFSSL_TIMEOUT", str(switchme_to_singleton_call.cfssl_timeout))
         mpatch.setattr(switchme_to_singleton_call, "cfssl_port", docker_services.port_for("cfssl", 7777))
         mpatch.setenv("RM_CFSSL_PORT", str(switchme_to_singleton_call.cfssl_port))
         mpatch.setattr(switchme_to_singleton_call, "cfssl_host", f"http://{docker_ip}")
@@ -181,7 +185,7 @@ def session_env_config(  # pylint: disable=R0915,R0914
             "kraftwerk_announce",
             f"{announce_server}/announce",
         )
-        mpatch.setenv("KRAFTWERK_ANNOUNCE", str(switchme_to_singleton_call.kraftwerk_announce))
+        mpatch.setenv("RM_KRAFTWERK_ANNOUNCE", str(switchme_to_singleton_call.kraftwerk_announce))
 
         assert not check_settings_clientpaths()
 
