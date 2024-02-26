@@ -50,8 +50,7 @@ services:
   ocsprest:
     image: pvarki/cfssl:ocsprest-latest
     build:
-      # FIXME drop the branch when it is merged
-      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git#oscp_rest_workaround
+      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
       dockerfile: Dockerfile
       target: ocsprest
     networks:
