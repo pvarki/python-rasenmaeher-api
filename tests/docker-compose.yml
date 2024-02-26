@@ -158,7 +158,7 @@ services:
     environment:
       <<: *postgres_env
     healthcheck:
-      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
+      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER || exit 1"
       interval: 5s
       timeout: 5s
       retries: 3
