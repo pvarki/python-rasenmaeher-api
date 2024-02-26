@@ -157,9 +157,7 @@ async def request_enrollment_list() -> EnrollmentListOut:
 
     result_list: List[Dict[Any, Any]] = []
     async for enrollment in Enrollment.list():
-        result_list.append(
-            {"callsign": enrollment.callsign, "approvecode": enrollment.approvecode, "state": enrollment.state}
-        )
+        result_list.append({"callsign": enrollment.callsign, "approvecode": "", "state": enrollment.state})
 
     return EnrollmentListOut(callsign_list=result_list)
 
