@@ -531,7 +531,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     enrique_ac = resp_dict["approvecode"]
 
     # list enrollments filter by code
-    resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list", params={"code": enrique_ac})
+    resp = await tilauspalvelu_jwt_admin_client.get(f"/api/v1/enrollment/list?code={enrique_ac}")
     resp_dict = resp.json()
     assert resp_dict["callsign_list"] is not None
     assert resp_dict["callsign_list"][0]["callsign"] == "enrollenrique"
