@@ -219,7 +219,7 @@ services:
       cfssl:
         condition: service_healthy
     healthcheck:
-      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
+      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER || exit 1"
       interval: 5s
       timeout: 5s
       retries: 3
@@ -269,7 +269,7 @@ services:
         condition: service_healthy
     healthcheck:
       # This started returning: No such object (32)
-      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf'
+      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf || exit 1'
       test: "true" # FIXME
       interval: 5s
       timeout: 5s
@@ -293,7 +293,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: "curl -s localhost:8080/health/ready | grep status | grep UP"
+      test: "curl -s localhost:8080/health/ready | grep status | grep UP || exit 1"
       interval: 10s
       timeout: 10s
       retries: 5
