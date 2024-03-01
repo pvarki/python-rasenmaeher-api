@@ -64,7 +64,7 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     kraftwerk_manifest_path: str = "/pvarki/kraftwerk-rasenmaeher-init.json"
     kraftwerk_manifest_bool: bool = False
     kraftwerk_manifest_dict: Dict[Any, Any] = {}
-    integration_api_timeout: float = 1.0
+    integration_api_timeout: float = 3.0
 
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
@@ -80,6 +80,9 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Cfssl configuration
     cfssl_host: str = "http://127.0.0.1"
     cfssl_port: str = "8888"
+    ocsprest_host: str = "http://127.0.0.1"
+    ocsprest_port: str = "8887"
+    cfssl_timeout: float = 2.5
 
     persistent_data_dir = "/data/persistent"
 

@@ -6,6 +6,7 @@ import logging
 import aiohttp
 import pydantic
 from libpvarki.schemas.generic import OperationResultResponse
+from libadvian.tasks import TaskMaster
 
 
 from .rmsettings import RMSettings
@@ -21,28 +22,32 @@ def check_kraftwerk_manifest() -> bool:
 
 
 async def post_to_all_products(
-    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
-    return await _method_to_all_products("post", url_suffix, data, respose_schema)
+    return await _method_to_all_products("post", url_suffix, data, respose_schema, collect_responses)
 
 
 async def put_to_all_products(
-    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given PUT endpoint on call products in the manifest"""
-    return await _method_to_all_products("put", url_suffix, data, respose_schema)
+    return await _method_to_all_products("put", url_suffix, data, respose_schema, collect_responses)
 
 
 async def get_from_all_products(
-    url_suffix: str, respose_schema: Type[pydantic.BaseModel]
+    url_suffix: str, respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given GET endpoint on call products in the manifest"""
-    return await _method_to_all_products("get", url_suffix, None, respose_schema)
+    return await _method_to_all_products("get", url_suffix, None, respose_schema, collect_responses)
 
 
 async def _method_to_all_products(
-    methodname: str, url_suffix: str, data: Optional[Mapping[str, Any]], respose_schema: Type[pydantic.BaseModel]
+    methodname: str,
+    url_suffix: str,
+    data: Optional[Mapping[str, Any]],
+    respose_schema: Type[pydantic.BaseModel],
+    collect_responses: bool = True,
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
     if not check_kraftwerk_manifest():
@@ -68,7 +73,7 @@ async def _method_to_all_products(
                     resp = await getattr(client, methodname)(url, json=data, timeout=rmconf.integration_api_timeout)
                 resp.raise_for_status()
                 payload = await resp.json()
-                LOGGER.debug("payload={}".format(payload))
+                LOGGER.debug("{}({}) payload={}".format(methodname, url, payload))
                 retval = respose_schema.parse_obj(payload)
                 # Log a common error case here for DRY
                 if isinstance(retval, OperationResultResponse):
@@ -76,14 +81,20 @@ async def _method_to_all_products(
                         LOGGER.error("Failure at {}, response: {}".format(url, retval))
                 return name, retval
             except (aiohttp.ClientError, TimeoutError, asyncio.TimeoutError) as exc:
-                LOGGER.error("Failure to call {}: {}".format(url, exc))
+                LOGGER.error("Failure to call {}: {}".format(url, repr(exc)))
                 return name, None
             except pydantic.ValidationError as exc:
-                LOGGER.error("Invalid response from {}: {}".format(url, exc))
+                LOGGER.error("Invalid response from {}: {}".format(url, repr(exc)))
                 return name, None
             except Exception:  # pylint: disable=W0718
                 LOGGER.exception("Something went seriously wrong calling {}".format(url))
                 return name, None
+
+    if not collect_responses:
+        tma = TaskMaster.singleton()
+        for name, conf in manifest["products"].items():
+            tma.create_task(handle_one(name, conf))
+        return None
 
     coros = []
     for name, conf in manifest["products"].items():

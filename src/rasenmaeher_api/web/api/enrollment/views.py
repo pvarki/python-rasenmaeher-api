@@ -148,18 +148,24 @@ async def request_enrolment_status(
     response_model=EnrollmentListOut,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def request_enrollment_list() -> EnrollmentListOut:
+async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListOut:
     """
     /list
     Return users/callsign/enrollments. If 'accepted' has something else than '', it has been accepted.
     Returns a list of dicts, callsign_list = [ {  "callsign":'x', 'state':'init', 'approvecode':'' } ]
+    if ?code= is given the results are filtered by that approvecode
     """
 
     result_list: List[Dict[Any, Any]] = []
+    if code:
+        try:
+            enrollment = await Enrollment.by_approvecode(code)
+            result_list.append({"callsign": enrollment.callsign, "approvecode": code, "state": enrollment.state})
+        except NotFound:
+            pass
+        return EnrollmentListOut(callsign_list=result_list)
     async for enrollment in Enrollment.list():
-        result_list.append(
-            {"callsign": enrollment.callsign, "approvecode": enrollment.approvecode, "state": enrollment.state}
-        )
+        result_list.append({"callsign": enrollment.callsign, "approvecode": "", "state": enrollment.state})
 
     return EnrollmentListOut(callsign_list=result_list)
 

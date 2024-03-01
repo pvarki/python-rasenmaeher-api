@@ -203,6 +203,8 @@ async def test_list_as_adm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["callsign_list"] is not None
+    assert resp_dict["callsign_list"][0]["callsign"]
+    assert not resp_dict["callsign_list"][0]["approvecode"]
     assert resp.status_code == 200
 
 
@@ -527,6 +529,13 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     assert resp_dict["approvecode"] != ""
     enrique_jwt = resp_dict["jwt"]
     enrique_ac = resp_dict["approvecode"]
+
+    # list enrollments filter by code
+    resp = await tilauspalvelu_jwt_admin_client.get(f"/api/v1/enrollment/list?code={enrique_ac}")
+    resp_dict = resp.json()
+    assert resp_dict["callsign_list"] is not None
+    assert resp_dict["callsign_list"][0]["callsign"] == "enrollenrique"
+    assert resp_dict["callsign_list"][0]["approvecode"] == enrique_ac
 
     # ENROLL WITH INVITE CODE - BAD CODE
     json_dict = {"invite_code": "nosuchcode123", "callsign": "asdasds"}

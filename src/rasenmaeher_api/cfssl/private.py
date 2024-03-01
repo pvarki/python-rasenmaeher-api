@@ -1,14 +1,18 @@
 """Private apis"""
-from typing import Union, Optional, Any
+from typing import Union, Optional, Any, Dict
+import asyncio
 import logging
 import binascii
 from pathlib import Path
 
 import aiohttp
 import cryptography.x509
+from libadvian.tasks import TaskMaster
 
-from .base import base_url, get_result_cert, DEFAULT_TIMEOUT, CFSSLError, get_result, NoResult
+from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, ocsprest_base, DBLocked
 from .mtls import mtls_session
+from ..rmsettings import RMSettings
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -16,19 +20,53 @@ LOGGER = logging.getLogger(__name__)
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
 
 
-async def sign_csr(csr: str) -> str:
+async def post_ocsprest(
+    url: str, send_payload: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None
+) -> None:
+    """Do a POST with the mTLS client"""
+    if timeout is None:
+        timeout = RMSettings.singleton().cfssl_timeout
+    async with (await mtls_session()) as session:
+        try:
+            LOGGER.debug("POSTing to {}, payload={}".format(url, send_payload))
+            async with session.post(url, data=send_payload, timeout=timeout) as response:
+                resp_payload = await response.json()
+                LOGGER.debug("resp_payload={}".format(resp_payload))
+                if not resp_payload["success"]:
+                    raise CFSSLError("Failure from {}: {}".format(url, resp_payload))
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(f"{url} raised {str(exc)}") from exc
+
+
+async def dump_crlfiles() -> None:
+    """Call ocsprest CRL dump"""
+    await post_ocsprest(f"{ocsprest_base()}/api/v1/dump_crl")
+
+
+async def refresh_ocsp() -> None:
+    """Call ocsprest refresh"""
+    await post_ocsprest(f"{ocsprest_base()}/api/v1/refresh")
+
+
+async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     Quick and dirty method to sign CSR from CFSSL
-    params: csr
-    returns: certificate
+    params: csr, whether to return cert of full bundle
+    returns: certificate as PEM
     """
     async with (await mtls_session()) as session:
-        url = f"{base_url()}/api/v1/cfssl/sign"
-        payload = {"certificate_request": csr, "profile": "client", "bundle": True}
+        url = f"{ocsprest_base()}/api/v1/csr/sign"
+        payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:
             LOGGER.debug("Calling {}".format(url))
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
-                return await get_result_cert(response)
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
+                resp = await get_result_cert(response)
+                TaskMaster.singleton().create_task(refresh_ocsp())
+                return resp
+        except DBLocked:
+            LOGGER.warning("Database is locked, waiting a moment and trying again")
+            await asyncio.sleep(0.1)
+            return await sign_csr(csr, bundle)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 
@@ -42,7 +80,7 @@ async def sign_ocsp(cert: str, status: str = "good") -> Any:
         url = f"{base_url()}/api/v1/cfssl/ocspsign"
         payload = {"certificate": cert, "status": status}
         try:
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 return await get_result(response)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
@@ -99,12 +137,16 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
             "reason": str(reason.value).replace("_", ""),
         }
         try:
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 try:
                     await get_result(response)
                 except NoResult:
                     # The result is expected to be empty
                     pass
+        except DBLocked:
+            LOGGER.warning("Database is locked, waiting a moment and trying again")
+            await asyncio.sleep(0.1)
+            return await revoke_serial(serialno, authority_key_id, reason)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
 
@@ -137,7 +179,7 @@ async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
         }
         try:
             LOGGER.debug("POSTing {} to {}".format(payload, url))
-            async with session.post(url, json=payload, timeout=DEFAULT_TIMEOUT) as response:
+            async with session.post(url, json=payload, timeout=RMSettings.singleton().cfssl_timeout) as response:
                 return await get_result(response)
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc

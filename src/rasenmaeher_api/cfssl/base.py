@@ -1,15 +1,15 @@
 """Base helpers etc"""
-from typing import Any, Mapping, Union, cast
+from typing import Any, Mapping, Union, List, cast
 import logging
 import ssl
 
 import aiohttp
 from libpvarki.mtlshelp.context import get_ca_context
 
-from ..rmsettings import switchme_to_singleton_call
+from ..rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
-DEFAULT_TIMEOUT = 2.0
+DEFAULT_TIMEOUT = RMSettings.singleton().cfssl_timeout
 
 
 class CFSSLError(RuntimeError):
@@ -24,6 +24,10 @@ class ErrorResult(CFSSLError, ValueError):
     """Did not get any result"""
 
 
+class DBLocked(CFSSLError):
+    """Database is locked, we should probably retry"""
+
+
 class NoValue(CFSSLError, ValueError):
     """Did not get expected values"""
 
@@ -36,6 +40,10 @@ async def get_result(response: aiohttp.ClientResponse) -> Any:
         LOGGER.error("Got empty json from response={}".format(response))
         raise CFSSLError("Got empty response")
     if errors := data.get("errors"):
+        errors = cast(List[Mapping[str, Any]], errors)
+        for error in errors:
+            if error["code"] == 11000:
+                raise DBLocked("CFSSL returned following errors: {}".format(errors))
         raise ErrorResult("CFSSL returned following errors: {}".format(errors))
     result = data.get("result")
     if not result:
@@ -63,7 +71,14 @@ async def get_result_bundle(response: aiohttp.ClientResponse) -> str:
 
 def base_url() -> str:
     """Construct the base url"""
-    return f"{switchme_to_singleton_call.cfssl_host}:{switchme_to_singleton_call.cfssl_port}"
+    cnf = RMSettings.singleton()
+    return f"{cnf.cfssl_host}:{cnf.cfssl_port}"
+
+
+def ocsprest_base() -> str:
+    """Construct the base url for ocsprest"""
+    cnf = RMSettings.singleton()
+    return f"{cnf.ocsprest_host}:{cnf.ocsprest_port}"
 
 
 async def anon_session() -> aiohttp.ClientSession:
