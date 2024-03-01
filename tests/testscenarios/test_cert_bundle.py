@@ -250,10 +250,9 @@ async def test_5_enrollment_list_for_available_call_sign(
     found_enroll_call_sign = False
     for item in payload["callsign_list"]:
         assert item["callsign"] != "" or item["callsign"] == ""
-        assert item["approvecode"] != ""
+        assert item["approvecode"] == ""  # API got changed we do not return approvecodes anymore
         assert item["state"] == 0 or item["state"] == 1
         if item["callsign"] == ValueStorage.call_sign and item["state"] == 0:
-            ValueStorage.approve_code = item["approvecode"]
             found_enroll_call_sign = True
     assert found_enroll_call_sign is True
 
