@@ -392,10 +392,10 @@ services:
       NGINX_HTTPS_PORT: *apiport
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
-      NGINX_OCSP_UPSTREAM: *ocsphost
       NGINX_CERT_NAME: "rasenmaeher"
       NGINX_UI_UPSTREAM: "rmui"
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
+      NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
     networks:
       - apinet
@@ -605,9 +605,13 @@ services:
       NGINX_UPSTREAM: "takmsg"  # Due to the sidecar thing we must use the messaging container as host
       NGINX_UPSTREAM_PORT: "8003"
       NGINX_CERT_NAME: "rasenmaeher"
+      CFSSL_OCSP_BIND_PORT: *oscpport
+      NGINX_OCSP_UPSTREAM: *ocsphost
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - taknet
       - intranet
+      - ocspnet
     ports:
       - "${TAK_RMAPI_PORT:-4626}:${TAK_RMAPI_PORT:-4626}"
     depends_on:

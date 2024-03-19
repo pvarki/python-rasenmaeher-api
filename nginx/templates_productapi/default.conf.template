@@ -11,6 +11,11 @@ server {
 
     ssl_client_certificate /ca_public/ca_chain.pem;
     ssl_verify_client      on;
+    ssl_ocsp leaf;
+    ssl_ocsp_responder http://${NGINX_OCSP_UPSTREAM}:${CFSSL_OCSP_BIND_PORT};
+    resolver ${DNS_RESOLVER_IP} ipv6=off;
+    #ssl_crl /ca_public/crl.pem;
+    ssl_verify_depth 3;
 
     location / {
         if ($ssl_client_verify != SUCCESS) {
