@@ -28,7 +28,7 @@ server {
         proxy_set_header  X-Forwarded-Proto $scheme;
         proxy_read_timeout                  900;
     }
-    location /ca/ocsp/ {
+    location /ca/ocsp {  # Do NOT add a trailing slash to this location
         proxy_pass  http://${NGINX_OCSP_UPSTREAM}:${CFSSL_OCSP_BIND_PORT}/;
         proxy_redirect                      off;
         proxy_set_header  Host              $http_host;
