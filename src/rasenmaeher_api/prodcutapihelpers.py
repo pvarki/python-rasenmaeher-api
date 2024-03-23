@@ -11,6 +11,7 @@ from libadvian.tasks import TaskMaster
 
 from .rmsettings import RMSettings
 from .mtlsinit import get_session_winit
+from .cfssl.private import refresh_ocsp
 
 LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ async def _method_to_all_products(
         LOGGER.error("Manifest does not have products key")
         return None
     rmconf = RMSettings.singleton()
+    await refresh_ocsp()
     LOGGER.debug("data={}".format(data))
 
     async def handle_one(name: str, conf: Mapping[str, Any]) -> Tuple[str, Optional[pydantic.BaseModel]]:
