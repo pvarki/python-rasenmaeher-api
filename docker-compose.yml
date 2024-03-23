@@ -318,7 +318,7 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: pvarki/rmapi:1.3.1
+    image: pvarki/rmapi:1.3.2
     build:
       context: ./api
       dockerfile: Dockerfile
