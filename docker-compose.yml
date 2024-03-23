@@ -568,6 +568,8 @@ services:
       context: ./takintegration
       dockerfile: Dockerfile
       target: production
+      args:
+        TAKSERVER_IMAGE: *takimage
     labels:
         - "autoheal=true"
     network_mode: "service:takmsg"

@@ -652,6 +652,8 @@ services:
       context: ./takintegration
       dockerfile: Dockerfile
       target: production
+      args:
+        TAKSERVER_IMAGE: *takimage
     network_mode: "service:takmsg"
     environment:
       LOG_CONSOLE_FORMATTER: "local"
