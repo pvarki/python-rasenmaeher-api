@@ -598,6 +598,29 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  takconfig:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      takmsg:
+        condition: service_healthy
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    network_mode: "service:takmsg"
+    command: ./opt/scripts/start-tak.sh config
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
   takapi:
     <<: *takbuildinfo
     environment:
