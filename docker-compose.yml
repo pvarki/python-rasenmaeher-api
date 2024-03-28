@@ -563,7 +563,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.1.0
+    image: pvarki/takrmapi:1.1.0-tak${TAK_RELEASE:-5.0-RELEASE-69}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
