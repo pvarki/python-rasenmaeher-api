@@ -24,7 +24,6 @@ x-postgres_env: &postgres_env
   RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
   TAK_PASSWORD: *takdbpass # pragma: allowlist secret
 
-
 x-ldap_admin_env: &ldap_admin_env
   LDAP_ADMIN_PASSWORD: &ldapadminpass ${LDAP_ADMIN_PASSWORD:?must be defined} # pragma: allowlist secret
   LDAP_ADMIN_USERNAME: &ldapadminuser ${LDAP_ADMIN_USERNAME:-admin}
@@ -53,20 +52,22 @@ x-domains_env:
   PRODUCT_DOMAIN: &productdomain "fake.${SERVER_DOMAIN:?domain must be defined}"
   TAK_DOMAIN: &takdomain "tak.${SERVER_DOMAIN:?domain must be defined}"
   TAK_RMAPI_PORT: &takapiport ${TAK_RMAPI_PORT:-4626}
+  DNS_RESOLVER_IP: &dnsresolver ${DNS_RESOLVER_IP:-127.0.0.11}  # Must be able to resolve docker internal names
+  OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:?domain must be defined}:${NGINX_HTTPS_PORT:-443}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}-20240302${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
 
-x-takserver_env: &takserver_env
-  TAK_SERVER_ADDRESS: *takdomain
-  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
-  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:?must be defined} # pragma: allowlist secret
-  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
-  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:?must be defined} # pragma: allowlist secret
-  KEYSTORE_PASS: *tak_ca_pass
+x-nginxbuilds: &nginxbuildinfo
+  image: pvarki/nginx:1.25-20240302
+  build:
+    context: ./nginx
+    dockerfile: Dockerfile
+  labels:
+      - "autoheal=true"
 
 
 x-cfssl_env: &cfssl_env
@@ -78,10 +79,25 @@ x-cfssl_env: &cfssl_env
   OCSP_HOST: *serverdomain
   OCSP_PORT: *apiport
   CFSSL_PERSISTENT_FOLDER: /data/persistent
+  OR_PORT: &ocsprestport 8887
+  OR_UPSTREAM: &ocspresthost ocsprest
+
+x-takserver_env: &takserver_env
+  TAK_SERVER_ADDRESS: *takdomain
+  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
+  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:?must be defined} # pragma: allowlist secret
+  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
+  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:?must be defined} # pragma: allowlist secret
+  KEYSTORE_PASS: *tak_ca_pass
+  TAK_OCSP_UPSTREAM: &ocsphost "ocsp"
+  TAK_OCSP_PORT: *oscpport
+
+
+
 
 services:
   miniwerk:
-    image: pvarki/miniwerk:1.0.0
+    image: pvarki/miniwerk:1.1.0
     build:
       context: ./miniwerk
       dockerfile: Dockerfile
@@ -106,11 +122,13 @@ services:
       - "80:80"
 
   cfssl:
-    image: pvarki/cfssl:api-1.0.0
+    image: pvarki/cfssl:api-1.2.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
       target: api
+    labels:
+        - "autoheal=true"
     networks:
       - canet
     environment:
@@ -119,7 +137,7 @@ services:
       - cfssl_data:/data/persistent
       - ca_public:/ca_public
     healthcheck:
-      test: 'cfssl info -remote http://127.0.0.1:8888'
+      test: 'cfssl info -remote http://127.0.0.1:8888 || exit 1'
       interval: 5s
       timeout: 5s
       retries: 5
@@ -127,11 +145,13 @@ services:
     restart: unless-stopped
 
   ocsp:
-    image: pvarki/cfssl:ocsp-1.0.0
+    image: pvarki/cfssl:ocsp-1.2.0
     build:
       context: ./cfssl
       dockerfile: Dockerfile
       target: ocsp
+    labels:
+        - "autoheal=true"
     networks:
       - ocspnet
     environment:
@@ -150,8 +170,36 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  ocsprest:
+    image: pvarki/cfssl:ocsprest-1.0.3
+    build:
+      context: ./cfssl
+      dockerfile: Dockerfile
+      target: ocsprest
+    labels:
+        - "autoheal=true"
+    networks:
+      - ocspnet
+    environment:
+      <<: *cfssl_env
+    volumes:
+      - cfssl_data:/data/persistent
+      - ca_public:/ca_public
+    healthcheck:
+      test: 'ocsprest healthcheck || exit 1'
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      cfssl:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgis/postgis:15-3.4
+    labels:
+        - "autoheal=true"
     networks:
       - dbnet
     volumes:
@@ -166,7 +214,7 @@ services:
       cfssl:
         condition: service_healthy
     healthcheck:
-      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
+      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER || exit 1"
       interval: 5s
       timeout: 5s
       retries: 3
@@ -218,7 +266,7 @@ services:
         condition: service_healthy
     healthcheck:
       # This started returning: No such object (32)
-      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf'
+      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf  || exit 1'
       test: "true" # FIXME
       interval: 5s
       timeout: 5s
@@ -242,7 +290,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: "curl -s localhost:8080/health/ready | grep status | grep UP"
+      test: "curl -s localhost:8080/health/ready | grep status | grep UP || exit 1"
       interval: 10s
       timeout: 10s
       retries: 5
@@ -270,30 +318,39 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: pvarki/rmapi:1.2.0
+    image: pvarki/rmapi:1.3.2
     build:
       context: ./api
       dockerfile: Dockerfile
       target: production
+    labels:
+        - "autoheal=true"
     environment:
       <<: [*rmdbconfig_env]
       JWT_PUBKEY_PATH: "/data/persistent/public"
       JWT_PRIVKEY_PATH: "/data/persistent/private/rm_jwtsign.key"
       RM_CFSSL_HOST: "http://cfssl"
       RM_CFSSL_PORT: *cfsslport
-      JWT_LIFETIME: "3456000"  # Long JWT lifetimes for testing
+      RM_OCSPREST_HOST: "http://ocsprest"
+      RM_OCSPREST_PORT: 8887
+      JWT_LIFETIME: "7200"
+      RM_OCSCP_RESPONDER: *publicocsp
+      RM_TILAUSPALVELU_JWT: "https://${TILAUSPALVELU_DOMAIN:-tilaa.pvarki.fi}/api/v1/config/jwtPublicKey.pem"
     networks:
       - apinet
       - kcnet
       - canet
       - intranet
       - dbnet
+      - ocspnet
     volumes:
       - ca_public:/ca_public
       - rmapi_data:/data/persistent
       - kraftwerk_shared_rasenmaeher:/pvarki
     depends_on:
       cfssl:
+        condition: service_healthy
+      ocsprest:
         condition: service_healthy
       keycloak:
         condition: service_healthy
@@ -304,7 +361,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'rasenmaeher_api healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -312,7 +369,7 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:1.0.1
+    image: pvarki/rmui:1.1.0
     build:
       context: ./ui
       dockerfile: Dockerfile
@@ -321,7 +378,7 @@ services:
       - rmui_files:/deliver
 
   rmnginx:
-    image: nginx:1.25
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_rasenmaeher:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -335,11 +392,11 @@ services:
       NGINX_HTTPS_PORT: *apiport
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
-      NGINX_CRL_UPSTREAM: "cfssl"
-      NGINX_OCSP_UPSTREAM: "ocsp"
       NGINX_CERT_NAME: "rasenmaeher"
       NGINX_UI_UPSTREAM: "rmui"
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
+      NGINX_OCSP_UPSTREAM: *ocsphost
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - apinet
       - kcnet
@@ -361,7 +418,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -380,6 +437,7 @@ services:
       - le_certs:/le_certs
       - kraftwerk_shared_fake:/pvarki
       - kwinit_data:/data/persistent
+
 
 ##############
 # Begin: TAK #
@@ -422,6 +480,7 @@ services:
       - taknet
       - dbnet
       - intranet
+      - ocspnet
     ports:
       - '8443:8443'
       - '8444:8444'
@@ -504,11 +563,15 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.0.1
+    image: pvarki/takrmapi:1.1.0
     build:
       context: ./takintegration
       dockerfile: Dockerfile
       target: production
+      args:
+        TAKSERVER_IMAGE: *takimage
+    labels:
+        - "autoheal=true"
     network_mode: "service:takmsg"
     volumes:
       - ca_public:/ca_public
@@ -524,15 +587,15 @@ services:
       takapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
-      timeout: 5s
+      test: 'takrmapi healthcheck || exit 1'
+      interval: 15s
+      timeout: 35s
       retries: 3
-      start_period: 5s
+      start_period: 45s
     restart: unless-stopped
 
   taknginx:
-    image: nginx:1.25
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -544,9 +607,13 @@ services:
       NGINX_UPSTREAM: "takmsg"  # Due to the sidecar thing we must use the messaging container as host
       NGINX_UPSTREAM_PORT: "8003"
       NGINX_CERT_NAME: "rasenmaeher"
+      CFSSL_OCSP_BIND_PORT: *oscpport
+      NGINX_OCSP_UPSTREAM: *ocsphost
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - taknet
       - intranet
+      - ocspnet
     ports:
       - "${TAK_RMAPI_PORT:-4626}:${TAK_RMAPI_PORT:-4626}"
     depends_on:
@@ -555,7 +622,7 @@ services:
       takrmapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -566,6 +633,24 @@ services:
 ############
 
 
+##############################################################################
+# Workaround docker compose not having opton to restart unhealthy containers #
+##############################################################################
+  autoheal:
+    image: willfarrell/autoheal:latest
+    tty: true
+    restart: always
+    environment:
+      - AUTOHEAL_INTERVAL=10
+      - AUTOHEAL_START_PERIOD=300
+      - AUTOHEAL_DEFAULT_STOP_TIMEOUT=10
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+
+####################
+# Shared resources #
+####################
 networks:
   productnet:
   apinet:

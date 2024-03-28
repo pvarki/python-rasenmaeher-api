@@ -53,6 +53,8 @@ x-domains_env:
   PRODUCT_DOMAIN: &productdomain "fake.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
   TAK_DOMAIN: &takdomain "tak.${SERVER_DOMAIN:-localmaeher.pvarki.fi}"
   TAK_RMAPI_PORT: &takapiport ${TAK_RMAPI_PORT:-4626}
+  DNS_RESOLVER_IP: &dnsresolver ${DNS_RESOLVER_IP:-127.0.0.11}  # Must be able to resolve docker internal names
+  OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:-localmaeher.pvarki.fi}:${NGINX_HTTPS_PORT:-4439}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
   image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}${DOCKER_TAG_EXTRA:-}"
@@ -60,13 +62,11 @@ x-takbuilds: &takbuildinfo
     context: ./takserver
     dockerfile: Dockerfile
 
-x-takserver_env: &takserver_env
-  TAK_SERVER_ADDRESS: *takdomain
-  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
-  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:-takservercertpass} # pragma: allowlist secret
-  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
-  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:-takcacertpw} # pragma: allowlist secret
-  KEYSTORE_PASS: *tak_ca_pass
+x-nginxbuilds: &nginxbuildinfo
+  image: pvarki/nginx:1.25
+  build:
+    context: ./nginx
+    dockerfile: Dockerfile
 
 x-cfssl_env: &cfssl_env
   INT_SHARED_CERT_FOLDER: /ca_public
@@ -77,6 +77,18 @@ x-cfssl_env: &cfssl_env
   OCSP_HOST: *serverdomain
   OCSP_PORT: *apiport
   CFSSL_PERSISTENT_FOLDER: /data/persistent
+  OR_PORT: &ocsprestport 8887
+  OR_UPSTREAM: &ocspresthost ocsprest
+
+x-takserver_env: &takserver_env
+  TAK_SERVER_ADDRESS: *takdomain
+  # The passwords here are just for takservers internal PKCS12 containers because it can't deal with PEM
+  TAKSERVER_CERT_PASS: &takserver_cert_pass ${TAKSERVER_CERT_PASS:-takservercertpass} # pragma: allowlist secret
+  TAKSERVER_KEYSTORE_PASS: *takserver_cert_pass
+  CA_PASS: &tak_ca_pass ${TAK_CA_PASS:-takcacertpw} # pragma: allowlist secret
+  KEYSTORE_PASS: *tak_ca_pass
+  TAK_OCSP_UPSTREAM: &ocsphost "ocsp"
+  TAK_OCSP_PORT: *oscpport
 
 services:
   miniwerk:
@@ -135,7 +147,7 @@ services:
       - cfssl_data:/data/persistent
       - ca_public:/ca_public
     healthcheck:
-      test: 'cfssl info -remote http://127.0.0.1:8888'
+      test: 'cfssl info -remote http://127.0.0.1:8888 || exit 1'
       interval: 5s
       timeout: 5s
       retries: 5
@@ -166,6 +178,31 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  ocsprest:
+    image: pvarki/cfssl:ocsprest-${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
+    build:
+      context: ./cfssl
+      dockerfile: Dockerfile
+      target: ocsprest
+    networks:
+      - ocspnet
+    environment:
+      <<: *cfssl_env
+    volumes:
+      - cfssl_data:/data/persistent
+      - ca_public:/ca_public
+    healthcheck:
+      test: 'ocsprest healthcheck || exit 1'
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    depends_on:
+      cfssl:
+        condition: service_healthy
+    restart: unless-stopped
+
+
   postgres:
     image: postgis/postgis:15-3.4
     networks:
@@ -182,7 +219,7 @@ services:
       cfssl:
         condition: service_healthy
     healthcheck:
-      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER"
+      test: "pg_isready --dbname=$$POSTGRES_DB --username=$$POSTGRES_USER || exit 1"
       interval: 5s
       timeout: 5s
       retries: 3
@@ -232,7 +269,7 @@ services:
         condition: service_healthy
     healthcheck:
       # This started returning: No such object (32)
-      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf'
+      #test: 'ldapsearch -Q -tt -LLL -Y EXTERNAL -H ldapi:/// "(uid=testuser)" -b dc=example,dc=org memberOf || exit 1'
       test: "true" # FIXME
       interval: 5s
       timeout: 5s
@@ -256,7 +293,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: "curl -s localhost:8080/health/ready | grep status | grep UP"
+      test: "curl -s localhost:8080/health/ready | grep status | grep UP || exit 1"
       interval: 10s
       timeout: 10s
       retries: 5
@@ -298,14 +335,20 @@ services:
       JWT_PRIVKEY_PASS: "localmaeherjwtkeypass"  # pragma: allowlist secret
       RM_CFSSL_HOST: "http://cfssl"
       RM_CFSSL_PORT: *cfsslport
+      RM_OCSPREST_HOST: "http://ocsprest"
+      RM_OCSPREST_PORT: 8887
       JWT_LIFETIME: "3456000"  # Long JWT lifetimes for testing
       LOG_CONSOLE_FORMATTER: "local"
+      RM_OCSCP_RESPONDER: *publicocsp
+      #RM_TILAUSPALVELU_JWT: "file:///pvarki/publickeys/kraftwerk.pub"
+      RM_TILAUSPALVELU_JWT: ""
     networks:
       - apinet
       - kcnet
       - canet
       - intranet
       - dbnet
+      - ocspnet
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -314,6 +357,8 @@ services:
       - kraftwerk_shared_rasenmaeher:/pvarki
     depends_on:
       cfssl:
+        condition: service_healthy
+      ocsprest:
         condition: service_healthy
       keycloak:
         condition: service_healthy
@@ -324,7 +369,7 @@ services:
       miniwerk:
         condition: service_completed_successfully
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'rasenmaeher_api healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -341,7 +386,7 @@ services:
       - rmui_files:/deliver
 
   rmnginx:
-    image: nginx:stable
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_rasenmaeher:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -355,11 +400,11 @@ services:
       NGINX_HTTPS_PORT: *apiport
       NGINX_UPSTREAM: "rmapi"
       NGINX_UPSTREAM_PORT: "8000"
-      NGINX_CRL_UPSTREAM: "cfssl"
-      NGINX_OCSP_UPSTREAM: "ocsp"
       NGINX_UI_UPSTREAM: "rmui"
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
       NGINX_CERT_NAME: "rasenmaeher"
+      NGINX_OCSP_UPSTREAM: *ocsphost
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - apinet
       - kcnet
@@ -379,10 +424,12 @@ services:
         condition: service_completed_successfully
       ocsp:
         condition: service_healthy
+      ocsprest:
+        condition: service_healthy
       cfssl:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -436,7 +483,7 @@ services:
     restart: unless-stopped
 
   fpnginx:
-    image: nginx:stable
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -448,9 +495,13 @@ services:
       NGINX_UPSTREAM: "rmfpapi"
       NGINX_UPSTREAM_PORT: "8001"
       NGINX_CERT_NAME: "rasenmaeher"
+      CFSSL_OCSP_BIND_PORT: *oscpport
+      NGINX_OCSP_UPSTREAM: *ocsphost
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - productnet
       - intranet
+      - ocspnet
     ports:
       - "${NGINX_HTTP_PRODUCT_PORT:-8016}:${NGINX_HTTP_PRODUCT_PORT:-8016}"
       - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
@@ -460,7 +511,7 @@ services:
       rmfpapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -511,6 +562,7 @@ services:
       - taknet
       - dbnet
       - intranet
+      - ocspnet
     ports:
       - '8443:8443'
       - '8444:8444'
@@ -600,6 +652,8 @@ services:
       context: ./takintegration
       dockerfile: Dockerfile
       target: production
+      args:
+        TAKSERVER_IMAGE: *takimage
     network_mode: "service:takmsg"
     environment:
       LOG_CONSOLE_FORMATTER: "local"
@@ -617,15 +671,15 @@ services:
       takapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
-      interval: 5s
-      timeout: 5s
+      test: 'takrmapi healthcheck || exit 1'
+      interval: 15s
+      timeout: 35s
       retries: 3
-      start_period: 5s
+      start_period: 45s
     restart: unless-stopped
 
   taknginx:
-    image: nginx:stable
+    <<: *nginxbuildinfo
     volumes:
       - ./nginx/templates_productapi:/etc/nginx/templates
       - ./nginx/includes:/etc/nginx/includes
@@ -637,9 +691,13 @@ services:
       NGINX_UPSTREAM: "takmsg"  # Due to the sidecar thing we must use the messaging container as host
       NGINX_UPSTREAM_PORT: "8003"
       NGINX_CERT_NAME: "rasenmaeher"
+      CFSSL_OCSP_BIND_PORT: *oscpport
+      NGINX_OCSP_UPSTREAM: *ocsphost
+      DNS_RESOLVER_IP: *dnsresolver
     networks:
       - taknet
       - intranet
+      - ocspnet
     ports:
       - "${TAK_RMAPI_PORT:-4626}:${TAK_RMAPI_PORT:-4626}"
     depends_on:
@@ -648,7 +706,7 @@ services:
       takrmapi:
         condition: service_healthy
     healthcheck:
-      test: 'true'  # FIXME
+      test: 'curl -s localhost:5666/healthcheck || exit 1'
       interval: 5s
       timeout: 5s
       retries: 3
@@ -659,6 +717,9 @@ services:
 ############
 
 
+####################
+# Shared resources #
+####################
 networks:
   productnet:
   apinet:

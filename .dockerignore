@@ -25,6 +25,7 @@ coverage*
 *.exe
 build/
 
-# docker build files (so just changing them does not invalidate *all* caches)
+# docker build files and git state (so just changing them does not invalidate *all* caches)
 .dockerignore
 Dockerfile
+.git
