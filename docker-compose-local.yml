@@ -111,8 +111,11 @@ services:
       MW_TAK__API_PORT: *takapiport
       CAROOT: "/data/persistent/mkcert"
       MW_LE_EMAIL: "notusedwithmkcert@example.com"
+      MW_LE_TEST: "true"
       MW_MKCERT: "true"
       MW_KEYTYPE: "rsa"
+    ports:
+      - "80:80" # For letsencrypt
     volumes:
       - kraftwerk_shared_fake:/pvarkishares/fake
       - kraftwerk_shared_tak:/pvarkishares/tak
