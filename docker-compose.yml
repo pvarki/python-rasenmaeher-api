@@ -369,7 +369,7 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:1.1.0
+    image: pvarki/rmui:1.2.0
     build:
       context: ./ui
       dockerfile: Dockerfile
