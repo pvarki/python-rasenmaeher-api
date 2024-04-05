@@ -369,7 +369,7 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:1.1.0
+    image: pvarki/rmui:1.2.0
     build:
       context: ./ui
       dockerfile: Dockerfile
@@ -563,7 +563,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.1.0-tak${TAK_RELEASE:-4.10-RELEASE-12}
+    image: pvarki/takrmapi:1.2.0-tak${TAK_RELEASE:-4.10-RELEASE-12}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
