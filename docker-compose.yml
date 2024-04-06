@@ -481,7 +481,7 @@ services:
       - ca_public:/ca_public
     command: /opt/scripts/firstrun_rm.sh
 
-  takmsg:
+  takconfig:
     <<: *takbuildinfo
     environment:
       <<: [*takdbconfig_env, *takserver_env]
@@ -504,7 +504,7 @@ services:
       - '8444:8444'
       - '8446:8446'
       - '8089:8089'
-    command: ./opt/scripts/start-tak.sh messaging
+    command: ./opt/scripts/start-tak.sh config
     healthcheck:
       test: 'true'  # FIXME
       interval: 5s
@@ -513,21 +513,21 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  takconfig:
+  takmsg:
     <<: *takbuildinfo
     environment:
       <<: [*takdbconfig_env, *takserver_env]
     depends_on:
       postgres:
         condition: service_healthy
-      takmsg:
+      takconfig:
         condition: service_healthy
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
       - le_certs:/le_certs
-    network_mode: "service:takmsg"
-    command: ./opt/scripts/start-tak.sh config
+    network_mode: "service:takconfig"
+    command: ./opt/scripts/start-tak.sh messaging
     healthcheck:
       test: 'true'  # FIXME
       interval: 5s
@@ -549,7 +549,7 @@ services:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
       - le_certs:/le_certs
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh api
     healthcheck:
       test: 'true'  # FIXME
@@ -571,7 +571,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh retention
     healthcheck:
       test: 'true'  # FIXME
@@ -593,7 +593,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh pm
     healthcheck:
       test: 'true'  # FIXME
@@ -613,7 +613,7 @@ services:
         TAKSERVER_IMAGE: *takimage
     labels:
         - "autoheal=true"
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     volumes:
       - ca_public:/ca_public
       - le_certs:/le_certs

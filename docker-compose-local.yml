@@ -567,7 +567,7 @@ services:
       - ca_public:/ca_public
     command: /opt/scripts/firstrun_rm.sh
 
-  takmsg:
+  takconfig:
     <<: *takbuildinfo
     environment:
       <<: [*takdbconfig_env, *takserver_env]
@@ -592,7 +592,7 @@ services:
       - '8089:8089'
       - '8080:8080'  # NOTE: Do *NOT* expose this in production, this is non-tls port for debugging
       - "8003:8003"  # NOTE: Do *NOT* expose this in production, this is the port for takrmapi
-    command: ./opt/scripts/start-tak.sh messaging
+    command: ./opt/scripts/start-tak.sh config
     healthcheck:
       test: 'true'  # FIXME
       interval: 5s
@@ -601,21 +601,21 @@ services:
       start_period: 5s
     restart: unless-stopped
 
-  takconfig:
+  takmsg:
     <<: *takbuildinfo
     environment:
       <<: [*takdbconfig_env, *takserver_env]
     depends_on:
       postgres:
         condition: service_healthy
-      takmsg:
+      takconfig:
         condition: service_healthy
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
       - le_certs:/le_certs
-    network_mode: "service:takmsg"
-    command: ./opt/scripts/start-tak.sh config
+    network_mode: "service:takconfig"
+    command: ./opt/scripts/start-tak.sh messaging
     healthcheck:
       test: 'true'  # FIXME
       interval: 5s
@@ -637,7 +637,7 @@ services:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
       - le_certs:/le_certs
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh api
     healthcheck:
       test: 'true'  # FIXME
@@ -659,7 +659,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh retention
     healthcheck:
       test: 'true'  # FIXME
@@ -681,7 +681,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh pm
     healthcheck:
       test: 'true'  # FIXME
@@ -699,7 +699,7 @@ services:
       target: production
       args:
         TAKSERVER_IMAGE: *takimage
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     environment:
       LOG_CONSOLE_FORMATTER: "local"
     volumes:
