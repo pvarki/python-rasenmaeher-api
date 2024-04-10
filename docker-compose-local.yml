@@ -57,12 +57,12 @@ x-domains_env:
   OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:-localmaeher.pvarki.fi}:${NGINX_HTTPS_PORT:-4439}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.0-RELEASE-69}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.1-RELEASE-8}${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
     args:
-      TAK_RELEASE: ${TAK_RELEASE:-5.0-RELEASE-69}
+      TAK_RELEASE: ${TAK_RELEASE:-5.1-RELEASE-8}
 
 x-nginxbuilds: &nginxbuildinfo
   image: pvarki/nginx:1.25${DOCKER_TAG_EXTRA:-}
@@ -692,7 +692,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-tak${TAK_RELEASE:-4.10-RELEASE-12}
+    image: pvarki/takrmapi:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-tak${TAK_RELEASE:-5.1-RELEASE-8}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
