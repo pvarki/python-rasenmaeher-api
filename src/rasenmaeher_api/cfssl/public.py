@@ -5,7 +5,7 @@ import base64
 
 import aiohttp
 
-from .base import base_url, anon_session, get_result, get_result_cert, CFSSLError, get_result_bundle
+from .base import base_url, anon_session, get_result, get_result_cert, CFSSLError, get_result_bundle, ocsprest_base
 from .private import refresh_ocsp
 from ..rmsettings import RMSettings
 
@@ -31,9 +31,23 @@ async def get_ca() -> str:
             raise CFSSLError(str(exc)) from exc
 
 
+async def get_ocsprest_crl(suffix: str) -> bytes:
+    """Fetch CRL from OCSPREST"""
+
+    async with (await anon_session()) as session:
+        url = f"{ocsprest_base()}/api/v1/crl/{suffix}"
+        try:
+            async with session.get(url) as response:
+                data = await response.read()
+                LOGGER.debug("{} returned {}".format(url, repr(data)))
+                return data
+        except aiohttp.ClientError as exc:
+            raise CFSSLError(str(exc)) from exc
+
+
 async def get_crl() -> bytes:
     """
-    Quick and dirty method to get CRL from CFSSL
+    Quick and dirty method to get CRL from CFSSL, should not be used.
     returns: DER binary encoded Certificate Revocation List
     """
 

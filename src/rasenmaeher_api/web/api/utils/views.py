@@ -8,7 +8,7 @@ from libpvarki.middleware.mtlsheader import MTLSHeader
 
 from .schema import LdapConnString, KeyCloakConnString
 from ....rmsettings import RMSettings
-from ....cfssl.public import get_crl
+from ....cfssl.public import get_ocsprest_crl
 from ....jwtinit import resolve_rm_jwt_pubkey_path
 
 
@@ -78,10 +78,18 @@ async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
 
 
 @router.get("/crl")
-async def return_crl() -> Response:
-    """Get the CRL from CFSSL. NOTE: This should not be used anymore, use the cosprest helper for CRLs"""
-    crl_der = await get_crl()
+@router.get("/crl/crl.der")
+async def return_crl_der() -> Response:
+    """Get the DER CRL from OCSPREST"""
+    crl_der = await get_ocsprest_crl("crl.der")
     return Response(content=crl_der, media_type="application/pkix-crl")
+
+
+@router.get("/crl/crl.pem")
+async def return_crl_pem() -> Response:
+    """Get the PEM CRL from OCSPREST"""
+    crl_pem = await get_ocsprest_crl("crl.pem")
+    return Response(content=crl_pem, media_type="application/x-pem-file")
 
 
 @router.get("/jwt.pub")
