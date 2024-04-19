@@ -1,4 +1,5 @@
 version: '3.4'
+# Use bump2version to bump the RELEASE_TAG default value
 
 x-kc_dbconfig_env: &kcdbconfig_env
   KEYCLOAK_DATABASE_NAME: &kcdbname ${KEYCLOAK_DATABASE_NAME:-keycloak}
