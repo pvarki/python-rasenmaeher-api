@@ -179,7 +179,7 @@ services:
     labels:
         - "autoheal=true"
     networks:
-      - ocspnet
+      - canet
     environment:
       <<: *cfssl_env
     volumes:
