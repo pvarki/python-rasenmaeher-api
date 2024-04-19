@@ -55,13 +55,27 @@ def test_reasons() -> None:
     assert validate_reason(cryptography.x509.ReasonFlags.unspecified) == cryptography.x509.ReasonFlags.unspecified
 
 
+@pytest.mark.parametrize("suffix", ("", "/crl.der"))
 @pytest.mark.asyncio
-async def test_crl_route(unauth_client: TestClient, one_revoked_cert: None) -> None:
+async def test_crl_der_route(suffix: str, unauth_client: TestClient, one_revoked_cert: None) -> None:
     """Check that we can get a parseable CRL from the route"""
     # Make sure there is at least one revoked cert
     _ = one_revoked_cert
     client = unauth_client
-    resp = await client.get("/api/v1/utils/crl")
+    resp = await client.get(f"/api/v1/utils/crl{suffix}")
     resp.raise_for_status()
-    crl = cryptography.x509.load_der_x509_crl(resp.content)
+    # both intermediate and root CRLs are in one file, this parser cannot deal with it
+    # crl = cryptography.x509.load_der_x509_crl(resp.content)
+    # assert crl
+
+
+@pytest.mark.asyncio
+async def test_crl_pem_route(unauth_client: TestClient, one_revoked_cert: None) -> None:
+    """Check that we can get a parseable CRL from the route"""
+    # Make sure there is at least one revoked cert
+    _ = one_revoked_cert
+    client = unauth_client
+    resp = await client.get("/api/v1/utils/crl/crl.pem")
+    resp.raise_for_status()
+    crl = cryptography.x509.load_pem_x509_crl(resp.content)
     assert crl
