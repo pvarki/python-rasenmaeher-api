@@ -19,6 +19,12 @@ server {
     # HTTPS configuration
     listen ${NGINX_HTTPS_PORT} ssl;
 
+    location ~ ^/ca/public/(.*)$ {
+        autoindex on;
+        root /ca_public;
+        try_files /$1 =404;
+    }
+
     location /ca/crl/ {
         proxy_pass  http://${OR_UPSTREAM}:${OR_PORT}/api/v1/crl/;
         proxy_redirect                      off;
