@@ -1,0 +1,28 @@
+name: Create tag for release
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  sphinx_docs_to_gh-pages:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+      - name: Parse tag to ENV
+        run: |
+          echo RELEASE_TAG=$(docker run --rm -v ${PWD}:/workdir mikefarah/yq .version version.yml ) >> ${GITHUB_ENV}
+          cat ${GITHUB_ENV}
+      - uses: rickstaa/action-create-tag@v1
+        id: "tag_create"
+        with:
+          tag: ${{ env.RELEASE_TAG }}
+          tag_exists_error: false

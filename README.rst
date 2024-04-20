@@ -10,6 +10,14 @@ RASENMAEHER integrations
 Docker compositions, helpers etc to bring it all together into something resembling grand old ones.
 
 
+WTF is RASENMAEHER anyway ?
+---------------------------
+
+This `Disobey24 talk`_ explains a lot.
+
+.. _`Disobey24 talk`: https://www.youtube.com/watch?v=m3xd7uygpaY&list=PLLvAhAn5sGfiB9AlEt2KD7H9Dnr6kbd64&index=23
+
+
 Git submodules
 --------------
 

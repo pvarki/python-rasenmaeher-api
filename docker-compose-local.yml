@@ -185,7 +185,7 @@ services:
       dockerfile: Dockerfile
       target: ocsprest
     networks:
-      - ocspnet
+      - canet
     environment:
       <<: *cfssl_env
     volumes:
