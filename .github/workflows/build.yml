@@ -6,6 +6,7 @@ on:
 jobs:
   versiontag:
     runs-on: ubuntu-latest
+    if: github.ref != 'ref/head/main'
     steps:
       - uses: actions/checkout@v3
       - name: Check version tag
