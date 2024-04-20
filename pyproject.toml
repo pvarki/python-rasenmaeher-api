@@ -65,7 +65,7 @@ min-similarity-lines = 8
 ignore-imports = true
 
 [tool.coverage.run]
-omit = ["tests/*","tests_v2/*"]
+omit = ["tests/*"]
 branch = true
 
 [tool.poetry.dependencies]

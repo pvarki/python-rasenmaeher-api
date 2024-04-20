@@ -25,6 +25,14 @@ async def test_get_healthcheck(app_client: TestClient) -> None:
     assert resp_dict["dns"] != ""
     assert resp_dict["version"] == __version__
 
+    # V2
+    resp = await app_client.get("/api/v2/healthcheck")
+    resp_dict = resp.json()
+    assert resp.status_code == 200
+    assert resp_dict["healthcheck"] == "success"
+    assert resp_dict["dns"] != ""
+    assert resp_dict["version"] == __version__
+
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
@@ -35,6 +43,16 @@ async def test_get_healthcheck_services(app_client: TestClient) -> None:
     There fakeproduct should be ok, nonexistentproduct should not...
     """
     resp = await app_client.get("/api/v1/healthcheck/services")
+    assert resp.status_code == 200
+    payload = resp.json()
+    parsed = AllProductsHealthCheckResponse.parse_obj(payload)
+    LOGGER.debug("parsed={}".format(parsed))
+    assert parsed.all_ok is False
+    assert parsed.products["fake"] is True
+    assert parsed.products["nonexistent"] is False
+
+    # V2
+    resp = await app_client.get("/api/v2/healthcheck/services")
     assert resp.status_code == 200
     payload = resp.json()
     parsed = AllProductsHealthCheckResponse.parse_obj(payload)

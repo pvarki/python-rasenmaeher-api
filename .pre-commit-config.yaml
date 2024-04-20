@@ -57,5 +57,5 @@ repos:
     hooks:
     -   id: detect-secrets
         language: system
-        exclude: "poetry\\.lock|tests/data/.*|tests_v2/data/.*"
+        exclude: "poetry\\.lock|tests/data/.*"
         # args: ['--baseline', '.secrets.baseline']

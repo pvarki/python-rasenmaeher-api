@@ -11,7 +11,7 @@ from libadvian.tasks import TaskMaster
 
 from ..rmsettings import RMSettings
 from .api.router import api_router
-from .api_v2.router import api_router as api_router2
+from .api.router import api_router2
 from ..mtlsinit import mtls_init
 from ..jwtinit import jwt_init
 from ..db import base as dbbase

@@ -2,12 +2,14 @@
 from typing import Dict, List, Any, Optional
 import logging
 
+# import uuid
+
+
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from multikeyjwt import Issuer
 
 from libpvarki.schemas.generic import OperationResultResponse
-from .schema import (
-    EnrollmentStatusIn,
+from ..enrollment.schema import (
     EnrollmentStatusOut,
     EnrollmentAcceptIn,
     EnrollmentGenVerifiOut,
@@ -15,37 +17,15 @@ from .schema import (
     EnrollmentShowVerificationCodeOut,
     EnrollmentHaveIBeenAcceptedOut,
     EnrollmentListOut,
-    EnrollmentPromoteIn,
     EnrollmentInitIn,
-    EnrollmentDemoteIn,
-    EnrollmentLockIn,
-    EnrollmentIsInvitecodeActiveIn,
     EnrollmentInviteCodeEnrollIn,
-    EnrollmentInviteCodeActivateIn,
-    EnrollmentInviteCodeDeactivateIn,
 )
+from ..invitecode.schema import EnrollmentInitOut
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ....db import Person
-from ....db import Enrollment
+from ....db import Enrollment, EnrollmentPool
 from ....db.errors import NotFound
-
-from ..invitecode.schema import (
-    EnrollmentPoolListItem,
-    EnrollmentPoolListOut,
-    EnrollmentInitOut,
-    EnrollmentIsInvitecodeActiveOut,
-    EnrollmentInviteCodeCreateOut,
-)
-from ..invitecode.invitecode_helpers import (
-    list_invitepools,
-    enroll_with_invite_code,
-    check_invite_code,
-    delete_invite_code,
-    deactivate_invite_code,
-    activate_invite_code,
-    new_invite_code,
-)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -53,15 +33,46 @@ ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))]
 NO_JWT_ENROLLMENT_ROUTER = APIRouter()
 
 
-@ENROLLMENT_ROUTER.get(
-    "/pools",
-    response_model=EnrollmentPoolListOut,
-    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
-)
-async def list_pools(owner_cs: Optional[str] = None) -> EnrollmentPoolListOut:
-    """List EnrollmentPools (aka invitecodes)"""
-    pools: List[EnrollmentPoolListItem] = await list_invitepools(owner_cs=owner_cs)
-    return EnrollmentPoolListOut(pools=pools)
+# GET /enrollment Palauttaa käynnissä olevat enrollmentit
+# POST /enrollment/:callsign:/decline
+
+
+# POST /enrollment (callsign/enrollment)
+@NO_JWT_ENROLLMENT_ROUTER.post("", response_model=EnrollmentInitOut)
+async def post_enroll_invite_code(
+    request: Request,
+    request_in: EnrollmentInviteCodeEnrollIn = Body(
+        None,
+        examples=EnrollmentInviteCodeEnrollIn.Config.schema_extra["examples"],
+    ),
+) -> EnrollmentInitOut:
+    """
+    Enroll with an invite code
+    """
+
+    # CHECK IF INVITE CODE CAN BE USED
+    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    if obj.active is False:
+        _reason = "Error. invitecode disabled."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+
+    # CHECK THAT THE CALLSIGN CAN BE USED
+    try:
+        await Enrollment.by_callsign(callsign=request_in.callsign)
+        _reason = "Error. callsign/callsign already taken."
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=400, detail=_reason)
+    except NotFound:
+        pass
+
+    enrollment = await obj.create_enrollment(callsign=request_in.callsign)
+
+    # Create JWT token for user
+    claims = {"sub": request_in.callsign}
+    new_jwt = Issuer.singleton().issue(claims)
+
+    return EnrollmentInitOut(callsign=enrollment.callsign, jwt=new_jwt, approvecode=enrollment.approvecode)
 
 
 @ENROLLMENT_ROUTER.post("/generate-verification-code", response_model=EnrollmentGenVerifiOut)
@@ -122,24 +133,26 @@ async def request_have_i_been_accepted(
     return EnrollmentHaveIBeenAcceptedOut(have_i_been_accepted=False)
 
 
-@ENROLLMENT_ROUTER.get("/status", response_model=EnrollmentStatusOut)
+# GET /enrollment/:callsign:
+@ENROLLMENT_ROUTER.get("/{callsign}", response_model=EnrollmentStatusOut)
 async def request_enrolment_status(
-    params: EnrollmentStatusIn = Depends(),
+    callsign: str,
 ) -> EnrollmentStatusOut:
     """
-    /status?callsign=xxxx
+    /:callsign:
     Check the status for given callsign (enrollment). status=-1 means that there is no enrollment with given callsign
     """
     try:
-        obj = await Enrollment.by_callsign(params.callsign)
+        obj = await Enrollment.by_callsign(callsign)
 
         return EnrollmentStatusOut(callsign=obj.callsign, status=obj.state)
     except NotFound:
         return EnrollmentStatusOut(callsign="", status=-1)
 
 
+# GET /enrollment Palauttaa käynnissä olevat enrollmentit
 @ENROLLMENT_ROUTER.get(
-    "/list",
+    "",
     response_model=EnrollmentListOut,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
@@ -190,22 +203,19 @@ async def request_enrollment_init(
 
 
 @ENROLLMENT_ROUTER.post(
-    "/promote",
+    "/{callsign}/promote",
     response_model=OperationResultResponse,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
 async def request_enrollment_promote(
+    callsign: str,
     request: Request,
-    request_in: EnrollmentPromoteIn = Body(
-        None,
-        examples=[EnrollmentPromoteIn.Config.schema_extra["examples"]],
-    ),
 ) -> OperationResultResponse:
     """
     "Promote" callsign/user/enrollment to have 'admin' rights
     """
 
-    obj = await Person.by_callsign(callsign=request_in.callsign)
+    obj = await Person.by_callsign(callsign=callsign)
 
     role_added = await obj.assign_role(role="admin")
     if role_added:
@@ -217,60 +227,58 @@ async def request_enrollment_promote(
 
 
 @ENROLLMENT_ROUTER.post(
-    "/demote",
+    "/{callsign}/demote",
     response_model=OperationResultResponse,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
 async def request_enrollment_demote(
+    callsign: str,
     request: Request,
-    request_in: EnrollmentDemoteIn = Body(
-        None,
-        examples=[EnrollmentDemoteIn.Config.schema_extra["examples"]],
-    ),
 ) -> OperationResultResponse:
     """
-    "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
+    "Demote" callsign from having 'admin' rights.
     """
 
-    obj = await Person.by_callsign(callsign=request_in.callsign)
+    obj = await Person.by_callsign(callsign=callsign)
     _role_removed = await obj.remove_role(role="admin")
     if _role_removed:
         return OperationResultResponse(success=True, extra="Demote done")
 
-    _reason = "Given callsign/callsign_hash doesn't have 'admin' privileges to take away."
+    _reason = "Given callsign doesn't have 'admin' privileges to take away."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=400, detail=_reason)
 
 
+# tää korvaa
+### DELETE /people/:callsign:
+# @ENROLLMENT_ROUTER.post(
+#     "/{callsign}/lock",
+#     response_model=OperationResultResponse,
+#     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+# )
+# async def request_enrollment_lock(
+#     callsign: str,
+#     request: Request,
+# ) -> OperationResultResponse:
+#     """
+#     Lock callsign so it cannot be used anymore.
+#     """
+#
+#     _admin_person = await Person.by_callsign(request.state.mtls_or_jwt.userid)
+#     _usr_enrollment = await Enrollment.by_callsign(callsign=callsign)
+#     await _usr_enrollment.reject(decider=_admin_person)
+#
+#     return OperationResultResponse(success=True, extra="Lock task done")
+
+
+# POST /enrollment/:callsign:/approve
 @ENROLLMENT_ROUTER.post(
-    "/lock",
+    "/{callsign}/approve",
     response_model=OperationResultResponse,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def request_enrollment_lock(
-    request: Request,
-    request_in: EnrollmentLockIn = Body(
-        None,
-        examples=[EnrollmentLockIn.Config.schema_extra["examples"]],
-    ),
-) -> OperationResultResponse:
-    """
-    Lock callsign/user/enrollment so it cannot be used anymore.
-    """
-
-    _admin_person = await Person.by_callsign(request.state.mtls_or_jwt.userid)
-    _usr_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
-    await _usr_enrollment.reject(decider=_admin_person)
-
-    return OperationResultResponse(success=True, extra="Lock task done")
-
-
-@ENROLLMENT_ROUTER.post(
-    "/accept",
-    response_model=OperationResultResponse,
-    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
-)
-async def post_enrollment_accept(
+async def post_enrollment_approve(
+    callsign: str,
     request: Request,
     request_in: EnrollmentAcceptIn = Body(
         None,
@@ -278,101 +286,13 @@ async def post_enrollment_accept(
     ),
 ) -> OperationResultResponse:
     """
-    Accept callsign_hash (callsign/enrollment)
+    Approve callsign enrollment
     """
 
     admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
-    pending_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
+    pending_enrollment = await Enrollment.by_callsign(callsign=callsign)
     if request_in.approvecode != pending_enrollment.approvecode:
         raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
     new_approved_user = await pending_enrollment.approve(approver=admin_user)
 
     return OperationResultResponse(success=True, extra=f"Approved {new_approved_user.callsign}")
-
-
-@ENROLLMENT_ROUTER.post(
-    "/invitecode/create",
-    response_model=EnrollmentInviteCodeCreateOut,
-    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
-)
-async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
-    """
-    Create a new invite code
-    """
-    code_response: EnrollmentInviteCodeCreateOut = await new_invite_code(request)
-    return code_response
-
-
-@ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=OperationResultResponse)
-async def put_activate_invite_code(
-    request: Request,
-    request_in: EnrollmentInviteCodeActivateIn = Body(
-        None,
-        examples=EnrollmentInviteCodeActivateIn.Config.schema_extra["examples"],
-    ),
-) -> OperationResultResponse:
-    """
-    Activate an invite code
-    """
-    op_response: OperationResultResponse = await activate_invite_code(
-        invite_code=request_in.invite_code, request=request
-    )
-    return op_response
-
-
-@ENROLLMENT_ROUTER.put("/invitecode/deactivate", response_model=OperationResultResponse)
-async def put_deactivate_invite_code(
-    request: Request,
-    request_in: EnrollmentInviteCodeDeactivateIn = Body(
-        None,
-        examples=EnrollmentInviteCodeDeactivateIn.Config.schema_extra["examples"],
-    ),
-) -> OperationResultResponse:
-    """
-    Deactivate an invite code
-    """
-    op_response: OperationResultResponse = await deactivate_invite_code(
-        invite_code=request_in.invite_code, request=request
-    )
-    return op_response
-
-
-@ENROLLMENT_ROUTER.delete("/invitecode/{invite_code}", response_model=OperationResultResponse)
-async def del_invite_code(
-    invite_code: str,
-) -> OperationResultResponse:
-    """
-    Delete an invite code
-    """
-    op_response: OperationResultResponse = await delete_invite_code(invite_code=invite_code)
-    return op_response
-
-
-@NO_JWT_ENROLLMENT_ROUTER.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
-async def get_invite_codes(
-    params: EnrollmentIsInvitecodeActiveIn = Depends(),
-) -> EnrollmentIsInvitecodeActiveOut:
-    """
-    /invitecode?invitecode=xxx
-    Returns true/false if the code is usable or not
-    """
-    is_active: EnrollmentIsInvitecodeActiveOut = await check_invite_code(invite_code=params.invitecode)
-    return is_active
-
-
-@NO_JWT_ENROLLMENT_ROUTER.post("/invitecode/enroll", response_model=EnrollmentInitOut)
-async def post_enrollment_invite_code_enroll(
-    request: Request,
-    request_in: EnrollmentInviteCodeEnrollIn = Body(
-        None,
-        examples=EnrollmentInviteCodeEnrollIn.Config.schema_extra["examples"],
-    ),
-) -> EnrollmentInitOut:
-    """
-    Enroll with an invite code
-    """
-
-    enroll_init: EnrollmentInitOut = await enroll_with_invite_code(
-        invite_code=request_in.invite_code, callsign=request_in.callsign, request=request
-    )
-    return enroll_init
