@@ -231,10 +231,13 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
+      - name: Fix ref slashes
+        run: |
+          echo REF_NO_SLASHES=$(echo "${{ github.ref_name }}" | sed 's/\//-/g') >> ${GITHUB_ENV}
       - name: Set DOCKER_TAG_EXTRA if date
         run: |
           test "${{ matrix.extra_env }}" = "date" && echo "DOCKER_TAG_EXTRA=-$(date +%Y%m%d)" >> ${GITHUB_ENV} || true
-          test "${{ github.ref }}" = "refs/heads/main" || echo "DOCKER_TAG_EXTRA=-${{ github.ref_name }}" >> ${GITHUB_ENV}
+          test "${{ github.ref }}" = "refs/heads/main" || echo "DOCKER_TAG_EXTRA=-$REF_NO_SLASHES" >> ${GITHUB_ENV}
           cat ${GITHUB_ENV}
       - name: Build and push takinit
         run: |
