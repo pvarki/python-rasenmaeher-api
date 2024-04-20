@@ -4,6 +4,15 @@ on:
   pull_request:
 
 jobs:
+  versiontag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check version tag
+        run: |
+          curl -f https://raw.githubusercontent.com/pvarki/docker-rasenmaeher-integration/main/version.yml -o /tmp/main_version.yml || touch /tmp/main_version.yml
+          diff /tmp/main_version.yml ./version.yml && exit 1 || exit 0
+
   apiunits:
     runs-on: ubuntu-latest
     permissions:
@@ -17,10 +26,6 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: recursive
-      - name: Check version tag
-        run: |
-          curl -f https://raw.githubusercontent.com/pvarki/docker-rasenmaeher-integration/main/version.yml -o /tmp/main_version.yml || touch /tmp/main_version.yml
-          diff /tmp/main_version.yml ./version.yml && exit 1 || exit 0
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -49,6 +54,7 @@ jobs:
           report_paths: 'api/pytest*.xml'
           detailed_summary: true
           check_name: 'api unit tests'
+
   rmlocal:
     runs-on: ubuntu-latest
     permissions:
