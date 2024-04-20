@@ -11,6 +11,7 @@ from libadvian.tasks import TaskMaster
 
 from ..rmsettings import RMSettings
 from .api.router import api_router
+from .api_v2.router import api_router as api_router2
 from ..mtlsinit import mtls_init
 from ..jwtinit import jwt_init
 from ..db import base as dbbase
@@ -43,6 +44,7 @@ def get_app_no_init() -> FastAPI:
     """Return the app without logging etc inits"""
     app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan, version=__version__)
     app.include_router(router=api_router, prefix="/api/v1")
+    app.include_router(router=api_router2, prefix="/api/v2")
     app.add_middleware(DBConnectionMiddleware, gino=dbbase.db, config=DBConfig.singleton())
     return app
 
