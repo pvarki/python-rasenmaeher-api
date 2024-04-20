@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref != 'ref/head/main'
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Check version tag
         run: |
           curl -f https://raw.githubusercontent.com/pvarki/docker-rasenmaeher-integration/main/version.yml -o /tmp/main_version.yml || touch /tmp/main_version.yml
@@ -24,7 +24,7 @@ jobs:
       matrix:
         python-version: ["3.11"] # , "3.12"]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Set up Python ${{ matrix.python-version }}
@@ -63,7 +63,7 @@ jobs:
       pull-requests: write
       checks: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: install dependencies
@@ -144,7 +144,7 @@ jobs:
       pull-requests: write
       checks: write
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: install dependencies
@@ -228,7 +228,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Fix ref slashes
