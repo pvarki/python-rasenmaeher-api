@@ -57,16 +57,17 @@ x-domains_env:
   OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:?domain must be defined}:${NGINX_HTTPS_PORT:-443}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
 
 x-nginxbuilds: &nginxbuildinfo
-  image: pvarki/nginx:1.25-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+  image: pvarki/nginx:1.25-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
   build:
     context: ./nginx
     dockerfile: Dockerfile
+    target: production
   labels:
       - "autoheal=true"
 
@@ -82,6 +83,9 @@ x-cfssl_env: &cfssl_env
   CFSSL_PERSISTENT_FOLDER: /data/persistent
   OR_PORT: &ocsprestport 8887
   OR_UPSTREAM: &ocspresthost ocsprest
+  CFSSL_CA_EXPIRY: &caexpiry ${CFSSL_CA_EXPIRY:-2016h}
+  CFSSL_SIGN_CA_EXPIRY: *caexpiry
+  CFSSL_SIGN_DEFAULT_EXPIRY: ${CFSSL_SIGN_DEFAULT_EXPIRY:-1008h}
 
 x-takserver_env: &takserver_env
   TAK_SERVER_ADDRESS: *takdomain
@@ -98,7 +102,7 @@ x-takserver_env: &takserver_env
 
 services:
   miniwerk:
-    image: pvarki/miniwerk:1.1.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/miniwerk:1.1.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./miniwerk
       dockerfile: Dockerfile
@@ -123,7 +127,7 @@ services:
       - "80:80"
 
   cfssl:
-    image: pvarki/cfssl:api-1.2.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/cfssl:api-1.2.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -146,7 +150,7 @@ services:
     restart: unless-stopped
 
   ocsp:
-    image: pvarki/cfssl:ocsp-1.2.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/cfssl:ocsp-1.2.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -172,7 +176,7 @@ services:
     restart: unless-stopped
 
   ocsprest:
-    image: pvarki/cfssl:ocsprest-1.0.4-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/cfssl:ocsprest-1.0.4-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -232,7 +236,7 @@ services:
         condition: service_completed_successfully
 
   openldap:
-    image: pvarki/openldap:1.0.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/openldap:1.0.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./openldap
       dockerfile: Dockerfile
@@ -319,7 +323,7 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: pvarki/rmapi:1.4.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/rmapi:1.4.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -370,7 +374,7 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:1.2.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/rmui:1.2.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./ui
       dockerfile: Dockerfile
@@ -378,11 +382,19 @@ services:
     volumes:
       - rmui_files:/deliver
 
+  nginx_templates:
+    image: pvarki/nginx:templates-d${RELEASE_TAG:-1.4.0}${DOCKER_TAG_EXTRA:-}
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+      target: configs
+    volumes:
+      - nginx_templates:/deliver
+
   rmnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_rasenmaeher:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
       - rmui_files:/rmui_files
@@ -398,6 +410,7 @@ services:
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_rasenmaeher"
     networks:
       - apinet
       - kcnet
@@ -411,6 +424,8 @@ services:
       rmapi:
         condition: service_healthy
       rmui:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       ocsp:
         condition: service_healthy
@@ -427,7 +442,7 @@ services:
     restart: unless-stopped
 
   kwinit:  # Mostly to make sure it's built
-    image: pvarki/kw_product_init:1.0.0-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/kw_product_init:1.0.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./kw_product_init
       dockerfile: Dockerfile
@@ -564,7 +579,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.2.0-tak${TAK_RELEASE:-4.10-RELEASE-12}-d${RELEASE_TAG:-1.2.0}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/takrmapi:1.2.0-tak${TAK_RELEASE:-4.10-RELEASE-12}-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
@@ -598,8 +613,7 @@ services:
   taknginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -611,6 +625,7 @@ services:
       CFSSL_OCSP_BIND_PORT: *oscpport
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_productapi"
     networks:
       - taknet
       - intranet
@@ -678,3 +693,4 @@ volumes:
   tak_data:
   takrmapi_data:
   rmui_files:
+  nginx_templates:

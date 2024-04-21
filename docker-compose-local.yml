@@ -63,10 +63,11 @@ x-takbuilds: &takbuildinfo
     dockerfile: Dockerfile
 
 x-nginxbuilds: &nginxbuildinfo
-  image: pvarki/nginx:1.25
+  image: pvarki/nginx:1.25${DOCKER_TAG_EXTRA:-}
   build:
     context: ./nginx
     dockerfile: Dockerfile
+    target: production
 
 x-cfssl_env: &cfssl_env
   INT_SHARED_CERT_FOLDER: /ca_public
@@ -79,6 +80,9 @@ x-cfssl_env: &cfssl_env
   CFSSL_PERSISTENT_FOLDER: /data/persistent
   OR_PORT: &ocsprestport 8887
   OR_UPSTREAM: &ocspresthost ocsprest
+  CFSSL_CA_EXPIRY: &caexpiry ${CFSSL_CA_EXPIRY:-2016h}
+  CFSSL_SIGN_CA_EXPIRY: *caexpiry
+  CFSSL_SIGN_DEFAULT_EXPIRY: ${CFSSL_SIGN_DEFAULT_EXPIRY:-1008h}
 
 x-takserver_env: &takserver_env
   TAK_SERVER_ADDRESS: *takdomain
@@ -385,11 +389,19 @@ services:
     volumes:
       - rmui_files:/deliver
 
+  nginx_templates:
+    image: pvarki/nginx:templates-${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+      target: configs
+    volumes:
+      - nginx_templates:/deliver
+
   rmnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_rasenmaeher:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
       - rmui_files:/rmui_files
@@ -405,6 +417,7 @@ services:
       NGINX_CERT_NAME: "rasenmaeher"
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_rasenmaeher"
     networks:
       - apinet
       - kcnet
@@ -421,6 +434,8 @@ services:
       rmapi:
         condition: service_healthy
       rmui:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       ocsp:
         condition: service_healthy
@@ -485,8 +500,7 @@ services:
   fpnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -498,6 +512,7 @@ services:
       CFSSL_OCSP_BIND_PORT: *oscpport
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_productapi"
     networks:
       - productnet
       - intranet
@@ -507,6 +522,8 @@ services:
       - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
     depends_on:
       miniwerk:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       rmfpapi:
         condition: service_healthy
@@ -681,8 +698,7 @@ services:
   taknginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -694,6 +710,7 @@ services:
       CFSSL_OCSP_BIND_PORT: *oscpport
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_productapi"
     networks:
       - taknet
       - intranet
@@ -702,6 +719,8 @@ services:
       - "${TAK_RMAPI_PORT:-4626}:${TAK_RMAPI_PORT:-4626}"
     depends_on:
       miniwerk:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       takrmapi:
         condition: service_healthy
@@ -746,3 +765,4 @@ volumes:
   tak_data:
   takrmapi_data:
   rmui_files:
+  nginx_templates:

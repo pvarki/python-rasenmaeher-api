@@ -31,6 +31,7 @@ jobs:
           spec-file: openapi.json
           version: ^5.0.0
       - name: Deploy to gh-pages
+        if: ${{ !env.ACT }}
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

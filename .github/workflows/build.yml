@@ -2,6 +2,7 @@ on:
   schedule:
     - cron:  '30 2 * * 1'
   pull_request:
+  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   versiontag:
@@ -237,15 +238,27 @@ jobs:
       - name: Set DOCKER_TAG_EXTRA if date
         run: |
           test "${{ matrix.extra_env }}" = "date" && echo "DOCKER_TAG_EXTRA=-$(date +%Y%m%d)" >> ${GITHUB_ENV} || true
+          cat ${GITHUB_ENV}
+      - name: Set DOCKER_TAG_EXTRA if not main
+        if: github.event.pull_request.merged != true
+        run: |
           test "${{ github.ref }}" = "refs/heads/main" || echo "DOCKER_TAG_EXTRA=-$REF_NO_SLASHES" >> ${GITHUB_ENV}
           cat ${GITHUB_ENV}
-      - name: Build and push takinit
+      - name: Build takinit
         run: |
           source example_env.sh
           docker compose build takinit
+      - name: push takinit
+        if: ${{ !env.ACT }}
+        run: |
+          source example_env.sh
           docker compose push takinit
-      - name: Build and push main composition
+      - name: Build main composition
         run: |
           source example_env.sh
           docker compose build
+      - name: Push main composition
+        if: ${{ !env.ACT }}
+        run: |
+          source example_env.sh
           docker compose push
