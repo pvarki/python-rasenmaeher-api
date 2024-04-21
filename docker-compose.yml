@@ -384,8 +384,7 @@ services:
   rmnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_rasenmaeher:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - ./nginx:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
       - rmui_files:/rmui_files
@@ -401,6 +400,7 @@ services:
       NGINX_UI_UPSTREAM_PORT: ${NGINX_UI_UPSTREAM_PORT:-8002}
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_rasenmaeher"
     networks:
       - apinet
       - kcnet
@@ -601,8 +601,7 @@ services:
   taknginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - ./nginx:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -614,6 +613,7 @@ services:
       CFSSL_OCSP_BIND_PORT: *oscpport
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_productapi"
     networks:
       - taknet
       - intranet

@@ -1,11 +1,6 @@
 #!/bin/bash
 set -ex
-/usr/local/bin/crl_watcher.sh &
-WATCHER_PID=$!
-echo "Calling original entrypoint"
+cp -r /nginx_templates/$NGINX_TEMPLATE_DIR /etc/nginx/templates
+cp -r /nginx_templates/includes /etc/nginx/includes
+
 . /docker-entrypoint.sh
-EXITCODE=$?
-echo "OG entrypint exited, trying to kill the inotify PID "$WATCHER_PID
-kill -9 $WATCHER_PID
-echo "Exiting with code "$EXITCODE
-exit EXITCODE

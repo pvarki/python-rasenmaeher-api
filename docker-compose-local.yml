@@ -63,7 +63,7 @@ x-takbuilds: &takbuildinfo
     dockerfile: Dockerfile
 
 x-nginxbuilds: &nginxbuildinfo
-  image: pvarki/nginx:1.25
+  image: pvarki/nginx:1.25${DOCKER_TAG_EXTRA:-}
   build:
     context: ./nginx
     dockerfile: Dockerfile
@@ -391,8 +391,7 @@ services:
   rmnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_rasenmaeher:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - ./nginx:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
       - rmui_files:/rmui_files
@@ -408,6 +407,7 @@ services:
       NGINX_CERT_NAME: "rasenmaeher"
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_rasenmaeher"
     networks:
       - apinet
       - kcnet
@@ -488,8 +488,7 @@ services:
   fpnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - ./nginx:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -501,6 +500,7 @@ services:
       CFSSL_OCSP_BIND_PORT: *oscpport
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_productapi"
     networks:
       - productnet
       - intranet
@@ -684,8 +684,7 @@ services:
   taknginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx/templates_productapi:/etc/nginx/templates
-      - ./nginx/includes:/etc/nginx/includes
+      - ./nginx:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -697,6 +696,7 @@ services:
       CFSSL_OCSP_BIND_PORT: *oscpport
       NGINX_OCSP_UPSTREAM: *ocsphost
       DNS_RESOLVER_IP: *dnsresolver
+      NGINX_TEMPLATE_DIR: "templates_productapi"
     networks:
       - taknet
       - intranet

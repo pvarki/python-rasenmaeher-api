@@ -3,7 +3,7 @@
 version: '3.7'
 
 x-nginxbuilds: &nginxbuildinfo
-  image: pvarki/nginx:1.25
+  image: pvarki/nginx:1.25${DOCKER_TAG_EXTRA:-}
   build:
     context: ./nginx
     dockerfile: Dockerfile
