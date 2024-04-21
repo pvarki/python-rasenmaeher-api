@@ -67,6 +67,7 @@ x-nginxbuilds: &nginxbuildinfo
   build:
     context: ./nginx
     dockerfile: Dockerfile
+    target: production
 
 x-cfssl_env: &cfssl_env
   INT_SHARED_CERT_FOLDER: /ca_public
@@ -388,10 +389,19 @@ services:
     volumes:
       - rmui_files:/deliver
 
+  nginx_templates:
+    image: pvarki/nginx:templates-${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+      target: configs
+    volumes:
+      - nginx_templates:/deliver
+
   rmnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx:/nginx_templates
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
       - rmui_files:/rmui_files
@@ -424,6 +434,8 @@ services:
       rmapi:
         condition: service_healthy
       rmui:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       ocsp:
         condition: service_healthy
@@ -488,7 +500,7 @@ services:
   fpnginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx:/nginx_templates
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -510,6 +522,8 @@ services:
       - "${NGINX_HTTPS_PRODUCT_PORT:-4625}:${NGINX_HTTPS_PRODUCT_PORT:-4625}"
     depends_on:
       miniwerk:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       rmfpapi:
         condition: service_healthy
@@ -684,7 +698,7 @@ services:
   taknginx:
     <<: *nginxbuildinfo
     volumes:
-      - ./nginx:/nginx_templates
+      - nginx_templates:/nginx_templates
       - ca_public:/ca_public
       - le_certs:/le_certs
     environment:
@@ -705,6 +719,8 @@ services:
       - "${TAK_RMAPI_PORT:-4626}:${TAK_RMAPI_PORT:-4626}"
     depends_on:
       miniwerk:
+        condition: service_completed_successfully
+      nginx_templates:
         condition: service_completed_successfully
       takrmapi:
         condition: service_healthy
@@ -749,3 +765,4 @@ volumes:
   tak_data:
   takrmapi_data:
   rmui_files:
+  nginx_templates:

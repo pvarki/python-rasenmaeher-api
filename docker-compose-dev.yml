@@ -7,6 +7,7 @@ x-nginxbuilds: &nginxbuildinfo
   build:
     context: ./nginx
     dockerfile: Dockerfile
+    target: production
 
 
 services:
