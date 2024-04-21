@@ -4,6 +4,12 @@ ssl_certificate_key /le_certs/${NGINX_CERT_NAME}/privkey.pem;
 
 include /etc/nginx/includes/le_common_settings.conf;
 
+map $http_host $redir_uri {
+    default "";
+
+    ~^(.*?)tak\. https://$1tak.${NGINX_HOST}:8443;
+}
+
 server {
     server_name ${NGINX_HOST};
 
@@ -65,6 +71,9 @@ server {
     }
 
     location / {
+        if ($redir_uri != "") {
+            return 301 $redir_uri$request_uri;
+        }
         index index.html;
         root /rmui_files;
         try_files $uri $uri/ /index.html =404;
@@ -117,6 +126,9 @@ server {
     error_page 495 https://${NGINX_HOST}:${NGINX_HTTPS_PORT}/error?code=mtls_fail;
 
     location / {
+        if ($redir_uri != "") {
+            return 301 $redir_uri$request_uri;
+        }
         if ($ssl_client_verify != SUCCESS) {
             return 302 https://${NGINX_HOST}:${NGINX_HTTPS_PORT}/error?code=mtls_fail;
         }
