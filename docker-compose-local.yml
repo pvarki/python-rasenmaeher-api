@@ -79,6 +79,9 @@ x-cfssl_env: &cfssl_env
   CFSSL_PERSISTENT_FOLDER: /data/persistent
   OR_PORT: &ocsprestport 8887
   OR_UPSTREAM: &ocspresthost ocsprest
+  CFSSL_CA_EXPIRY: &caexpiry ${CFSSL_CA_EXPIRY:-2016h}
+  CFSSL_SIGN_CA_EXPIRY: *caexpiry
+  CFSSL_SIGN_DEFAULT_EXPIRY: ${CFSSL_SIGN_DEFAULT_EXPIRY:-1008h}
 
 x-takserver_env: &takserver_env
   TAK_SERVER_ADDRESS: *takdomain
