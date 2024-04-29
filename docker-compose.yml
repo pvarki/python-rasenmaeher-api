@@ -57,13 +57,15 @@ x-domains_env:
   OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:?domain must be defined}:${NGINX_HTTPS_PORT:-443}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.1-RELEASE-11}-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
+    args:
+      TAK_RELEASE: ${TAK_RELEASE:-5.1-RELEASE-11}
 
 x-nginxbuilds: &nginxbuildinfo
-  image: pvarki/nginx:1.25-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+  image: pvarki/nginx:1.25-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
   build:
     context: ./nginx
     dockerfile: Dockerfile
@@ -102,7 +104,7 @@ x-takserver_env: &takserver_env
 
 services:
   miniwerk:
-    image: pvarki/miniwerk:1.1.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/miniwerk:1.1.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./miniwerk
       dockerfile: Dockerfile
@@ -114,6 +116,7 @@ services:
       MW_TAK__API_PORT: *takapiport
       MW_LE_EMAIL: ${MW_LE_EMAIL?LE contact email must be defined}
       MW_LE_TEST: ${MW_LE_TEST:-true}  # see example_env.sh
+      MW_MKCERT: ${MW_MKCERT:-false}  # When LetEncrypt cannot be used set to "true"
       MW_KEYTYPE: "rsa"
       MW_PRODUCTS: "tak"
     volumes:
@@ -127,7 +130,7 @@ services:
       - "80:80"
 
   cfssl:
-    image: pvarki/cfssl:api-1.2.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/cfssl:api-1.2.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -150,7 +153,7 @@ services:
     restart: unless-stopped
 
   ocsp:
-    image: pvarki/cfssl:ocsp-1.2.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/cfssl:ocsp-1.2.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -176,7 +179,7 @@ services:
     restart: unless-stopped
 
   ocsprest:
-    image: pvarki/cfssl:ocsprest-1.0.4-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/cfssl:ocsprest-1.0.4-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./cfssl
       dockerfile: Dockerfile
@@ -236,7 +239,7 @@ services:
         condition: service_completed_successfully
 
   openldap:
-    image: pvarki/openldap:1.0.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/openldap:1.0.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./openldap
       dockerfile: Dockerfile
@@ -323,7 +326,7 @@ services:
         condition: service_healthy
 
   rmapi:
-    image: pvarki/rmapi:1.4.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/rmapi:1.4.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./api
       dockerfile: Dockerfile
@@ -374,7 +377,7 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:1.2.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/rmui:1.3.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./ui
       dockerfile: Dockerfile
@@ -442,7 +445,7 @@ services:
     restart: unless-stopped
 
   kwinit:  # Mostly to make sure it's built
-    image: pvarki/kw_product_init:1.0.0-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/kw_product_init:1.0.0-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./kw_product_init
       dockerfile: Dockerfile
@@ -479,7 +482,7 @@ services:
       - ca_public:/ca_public
     command: /opt/scripts/firstrun_rm.sh
 
-  takmsg:
+  takconfig:
     <<: *takbuildinfo
     environment:
       <<: [*takdbconfig_env, *takserver_env]
@@ -498,10 +501,31 @@ services:
       - intranet
       - ocspnet
     ports:
-      - '8443:8443'
-      - '8444:8444'
-      - '8446:8446'
       - '8089:8089'
+      - '8443:8443'
+    command: ./opt/scripts/start-tak.sh config
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  takmsg:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      takconfig:
+        condition: service_healthy
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh messaging
     healthcheck:
       test: 'true'  # FIXME
@@ -524,7 +548,7 @@ services:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
       - le_certs:/le_certs
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh api
     healthcheck:
       test: 'true'  # FIXME
@@ -546,7 +570,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh retention
     healthcheck:
       test: 'true'  # FIXME
@@ -568,7 +592,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh pm
     healthcheck:
       test: 'true'  # FIXME
@@ -579,7 +603,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.2.0-tak${TAK_RELEASE:-4.10-RELEASE-12}-d${RELEASE_TAG:-1.2.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/takrmapi:1.3.0-tak${TAK_RELEASE:-5.1-RELEASE-11}-d${RELEASE_TAG:-1.3.0}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
@@ -588,7 +612,7 @@ services:
         TAKSERVER_IMAGE: *takimage
     labels:
         - "autoheal=true"
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     volumes:
       - ca_public:/ca_public
       - le_certs:/le_certs
@@ -619,7 +643,7 @@ services:
     environment:
       NGINX_HOST: *takdomain
       NGINX_HTTPS_PORT: *takapiport
-      NGINX_UPSTREAM: "takmsg"  # Due to the sidecar thing we must use the messaging container as host
+      NGINX_UPSTREAM: "takconfig"  # Due to the sidecar thing we must use the config container as host
       NGINX_UPSTREAM_PORT: "8003"
       NGINX_CERT_NAME: "rasenmaeher"
       CFSSL_OCSP_BIND_PORT: *oscpport

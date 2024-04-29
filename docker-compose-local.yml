@@ -57,10 +57,12 @@ x-domains_env:
   OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:-localmaeher.pvarki.fi}:${NGINX_HTTPS_PORT:-4439}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-4.10-RELEASE-12}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.1-RELEASE-11}${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
+    args:
+      TAK_RELEASE: ${TAK_RELEASE:-5.1-RELEASE-11}
 
 x-nginxbuilds: &nginxbuildinfo
   image: pvarki/nginx:1.25${DOCKER_TAG_EXTRA:-}
@@ -109,8 +111,11 @@ services:
       MW_TAK__API_PORT: *takapiport
       CAROOT: "/data/persistent/mkcert"
       MW_LE_EMAIL: "notusedwithmkcert@example.com"
+      MW_LE_TEST: "true"
       MW_MKCERT: "true"
       MW_KEYTYPE: "rsa"
+    ports:
+      - "80:80" # For letsencrypt
     volumes:
       - kraftwerk_shared_fake:/pvarkishares/fake
       - kraftwerk_shared_tak:/pvarkishares/tak
@@ -562,7 +567,7 @@ services:
       - ca_public:/ca_public
     command: /opt/scripts/firstrun_rm.sh
 
-  takmsg:
+  takconfig:
     <<: *takbuildinfo
     environment:
       <<: [*takdbconfig_env, *takserver_env]
@@ -587,6 +592,29 @@ services:
       - '8089:8089'
       - '8080:8080'  # NOTE: Do *NOT* expose this in production, this is non-tls port for debugging
       - "8003:8003"  # NOTE: Do *NOT* expose this in production, this is the port for takrmapi
+    command: ./opt/scripts/start-tak.sh config
+    healthcheck:
+      test: 'true'  # FIXME
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    restart: unless-stopped
+
+  takmsg:
+    <<: *takbuildinfo
+    environment:
+      <<: [*takdbconfig_env, *takserver_env]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      takconfig:
+        condition: service_healthy
+    volumes:
+      - tak_data:/opt/tak/data
+      - ca_public:/ca_public
+      - le_certs:/le_certs
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh messaging
     healthcheck:
       test: 'true'  # FIXME
@@ -609,7 +637,7 @@ services:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
       - le_certs:/le_certs
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh api
     healthcheck:
       test: 'true'  # FIXME
@@ -631,7 +659,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh retention
     healthcheck:
       test: 'true'  # FIXME
@@ -653,7 +681,7 @@ services:
     volumes:
       - tak_data:/opt/tak/data
       - ca_public:/ca_public
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     command: ./opt/scripts/start-tak.sh pm
     healthcheck:
       test: 'true'  # FIXME
@@ -664,14 +692,14 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-tak${TAK_RELEASE:-4.10-RELEASE-12}
+    image: pvarki/takrmapi:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-tak${TAK_RELEASE:-5.1-RELEASE-11}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
       target: production
       args:
         TAKSERVER_IMAGE: *takimage
-    network_mode: "service:takmsg"
+    network_mode: "service:takconfig"
     environment:
       LOG_CONSOLE_FORMATTER: "local"
     volumes:
@@ -704,7 +732,7 @@ services:
     environment:
       NGINX_HOST: *takdomain
       NGINX_HTTPS_PORT: *takapiport
-      NGINX_UPSTREAM: "takmsg"  # Due to the sidecar thing we must use the messaging container as host
+      NGINX_UPSTREAM: "takconfig"  # Due to the sidecar thing we must use the config container as host
       NGINX_UPSTREAM_PORT: "8003"
       NGINX_CERT_NAME: "rasenmaeher"
       CFSSL_OCSP_BIND_PORT: *oscpport
