@@ -67,28 +67,3 @@ class AllProdcutsInstructionFiles(BaseModel):
         """Example values for schema"""
 
         extra = Extra.forbid
-
-
-# FIXME: Move to libpvarki
-class ProductDescription(BaseModel):
-    """Description of a product"""
-
-    shortname: str = Field(description="Short name for the product, used as slug/key in dicts and urls")
-    title: str = Field(description="Fancy name for the product")
-    icon: Optional[str] = Field(description="URL for icon")
-    description: str = Field(description="Short-ish description of the product")
-    language: str = Field(description="Language of this response")
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
-
-        extra = Extra.forbid
-
-
-class ProductDescriptionList(BaseCollectionModel[ProductDescription]):  # type: ignore[misc]
-    """List of product descriptions"""
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
-
-        extra = Extra.forbid
