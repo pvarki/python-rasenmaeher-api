@@ -29,3 +29,15 @@ async def test_product_description(unauth_client: TestClient, lang: str) -> None
     LOGGER.debug(payload)
     assert payload
     assert payload["shortname"]
+
+
+@pytest.mark.parametrize("lang", ["fi", "en"])
+@pytest.mark.asyncio
+async def test_product_instructons(user_mtls_client: TestClient, lang: str) -> None:
+    """Make sure we get product instructions"""
+    resp = await user_mtls_client.get(f"/api/v1/instructions/fake/{lang}")
+    assert resp
+    payload = resp.json()
+    LOGGER.debug(payload)
+    assert payload
+    assert payload["callsign"]

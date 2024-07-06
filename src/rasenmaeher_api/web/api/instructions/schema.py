@@ -1,5 +1,5 @@
 """Instruction response schemas"""
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from pydantic import BaseModel, Extra, Field
 from libpvarki.schemas.product import UserInstructionFragment
@@ -62,6 +62,20 @@ class AllProdcutsInstructionFiles(BaseModel):
     files: Dict[str, Optional[ProductFileList]] = Field(
         description="files keyed by product short name, if fetching failed value for that product is null"
     )
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+
+
+# FIXME: Move to libpvarki
+class InstructionData(BaseModel):
+    """Instruction data response"""
+
+    callsign: str = Field(description="Which callsign this was created for (can be used for sanity-checking)")
+    language: str = Field(description="Language that was resolved, might not be same as requested")
+    instructions: Any = Field(description="The actual instruction data, in whatever format the React UI wants it")
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
