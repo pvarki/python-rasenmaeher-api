@@ -96,6 +96,21 @@ async def handle_description(request: web.Request) -> web.Response:
     )
 
 
+async def handle_instructions(request: web.Request) -> web.Response:
+    """Respond with hello_world for user"""
+    check_peer_cert(request)
+    _lang = request.match_info.get("language", "en")
+    payload = await request.json()
+
+    return web.json_response(
+        {
+            "callsign": payload["callsign"],
+            "instructions": "FIXME: Return something sane",
+            "language": "en",
+        }
+    )
+
+
 async def handle_health(request: web.Request) -> web.Response:
     """healthcheck response"""
     check_peer_cert(request)
@@ -136,6 +151,7 @@ def main() -> int:
             web.get("/api/v1/admins/fragment", handle_admin_fragment),
             web.get("/api/v1/healthcheck", handle_health),
             web.get("/api/v1/description/{language}", handle_description),
+            web.post("/api/v1/instructions/{language}", handle_instructions),
         ]
     )
 
