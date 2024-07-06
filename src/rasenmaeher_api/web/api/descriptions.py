@@ -1,12 +1,12 @@
 """product descriptions endpoints"""
-from typing import Optional
+from typing import Optional, cast
 import logging
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Extra, Field
 from pydantic_collections import BaseCollectionModel
 
-from ...prodcutapihelpers import get_from_all_products
+from ...prodcutapihelpers import get_from_all_products, get_from_product
 
 
 LOGGER = logging.getLogger(__name__)
@@ -49,3 +49,17 @@ async def list_product_descriptions(language: str) -> ProductDescriptionList:
     if responses is None:
         raise ValueError("Everything is broken")
     return ProductDescriptionList([res for res in responses.values() if res])
+
+
+@router.get(
+    "/{product}/{language}",
+    response_model=ProductDescription,
+)
+async def get_product_description(language: str, product: str) -> Optional[ProductDescription]:
+    """Fetch description from given product in manifest"""
+    response = await get_from_product(product, f"api/v1/description/{language}", ProductDescription)
+    if response is None:
+        # TODO: Raise a reasonable error instead
+        return None
+    response = cast(ProductDescription, response)
+    return response
