@@ -81,6 +81,21 @@ async def handle_fragment(request: web.Request) -> web.Response:
     )
 
 
+async def handle_description(request: web.Request) -> web.Response:
+    """Respond with hello_world for user"""
+    _lang = request.match_info.get("language", "en")
+
+    return web.json_response(
+        {
+            "shortname": "fake",
+            "title": "Test fake product",
+            "icon": None,
+            "description": "Testing things",
+            "language": "en",
+        }
+    )
+
+
 async def handle_health(request: web.Request) -> web.Response:
     """healthcheck response"""
     check_peer_cert(request)
@@ -120,6 +135,7 @@ def main() -> int:
             web.post("/api/v1/clients/fragment", handle_fragment),
             web.get("/api/v1/admins/fragment", handle_admin_fragment),
             web.get("/api/v1/healthcheck", handle_health),
+            web.get("/api/v1/description/{language}", handle_description),
         ]
     )
 
