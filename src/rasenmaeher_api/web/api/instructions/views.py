@@ -10,8 +10,6 @@ from .schema import (
     AllProdcutsInstructionFragments,
     ProductFileList,
     AllProdcutsInstructionFiles,
-    ProductDescriptionList,
-    ProductDescription,
 )
 from ..middleware.user import ValidUser
 from ....prodcutapihelpers import get_from_all_products, post_to_all_products
@@ -55,15 +53,3 @@ async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionF
     if responses is None:
         raise ValueError("Everything is broken")
     return AllProdcutsInstructionFiles(files={key: cast(ProductFileList, val) for key, val in responses.items()})
-
-
-@router.get(
-    "/{language}",
-    response_model=ProductDescriptionList,
-)
-async def list_product_descriptions(language: str) -> ProductDescriptionList:
-    """Fetch description from each product in manifest"""
-    responses = await get_from_all_products(f"api/v1/description/{language}", ProductDescription)
-    if responses is None:
-        raise ValueError("Everything is broken")
-    return ProductDescriptionList([res for res in responses.values() if res])
