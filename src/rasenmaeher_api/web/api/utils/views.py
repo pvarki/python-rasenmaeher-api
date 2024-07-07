@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from libpvarki.middleware.mtlsheader import MTLSHeader
 
 
-from .schema import LdapConnString, KeyCloakConnString
+from .schema import LdapConnString
 from ....rmsettings import RMSettings
 from ....cfssl.public import get_ocsprest_crl
 from ....jwtinit import resolve_rm_jwt_pubkey_path
@@ -41,38 +41,6 @@ async def request_utils_ldap_conn_string() -> LdapConnString:
         ldap_conn_string=conf.ldap_conn_string,
         ldap_user=conf.ldap_username,
         ldap_client_secret=conf.ldap_client_secret,
-        reason="",
-    )
-
-
-@router.get("/keycloak-conn-string", dependencies=[Depends(MTLSHeader(auto_error=True))])
-async def request_utils_keycloak_conn_string() -> KeyCloakConnString:
-    """
-    TODO keycloak-conn-string
-    """
-
-    conf = RMSettings.singleton()
-    if None in (
-        conf.keycloak_server_url,
-        conf.keycloak_client_id,
-        conf.keycloak_realm_name,
-        conf.keycloak_client_secret,
-    ):
-        return KeyCloakConnString(
-            success=False,
-            reason="One or more Keycloak connection variables are undefined.",
-            keycloak_server_url="",
-            keycloak_client_id="",
-            keycloak_realm_name="",
-            keycloak_client_s_sting="",
-        )
-
-    return KeyCloakConnString(
-        success=True,
-        keycloak_server_url=conf.keycloak_server_url,
-        keycloak_client_id=conf.keycloak_client_id,
-        keycloak_realm_name=conf.keycloak_realm_name,
-        keycloak_client_s_sting=conf.keycloak_client_secret,
         reason="",
     )
 
