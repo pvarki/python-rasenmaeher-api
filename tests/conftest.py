@@ -115,8 +115,9 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setattr(switchme_to_singleton_call, "ocsprest_host", f"http://{docker_ip}")
         mpatch.setenv("RM_OCSPREST_HOST", switchme_to_singleton_call.ocsprest_host)
         mpatch.setattr(switchme_to_singleton_call, "persistent_data_dir", str(sessionpersistent))
-
         mpatch.setenv("RM_PERSISTENT_DATA_DIR", switchme_to_singleton_call.persistent_data_dir)
+        mpatch.setattr(switchme_to_singleton_call, "kc_enabled", False)
+        mpatch.setenv("RM_KC_ENABLED", str(switchme_to_singleton_call.kc_enabled))
 
         mpatch.setenv("LOCAL_CA_CERTS_PATH", str(capath))
         mpatch.setattr(
