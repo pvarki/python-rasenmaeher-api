@@ -3,8 +3,11 @@ from typing import Optional, Any, ClassVar, Dict
 from dataclasses import dataclass, field
 import logging
 import time
+import uuid
 
 import aiohttp
+from libpvarki.schemas.product import UserCRUDRequest
+
 
 from .mtlsinit import get_session_winit
 from .rmsettings import RMSettings
@@ -27,7 +30,9 @@ class KCClient:
         return KCClient._singleton
 
     # TODO: Use the root admin account to create a service account that uses our mTLS cert
-    #       create a service account for each product in manifest as well, just in case...
+    #       product integrations must make all user manipulations through rasenmaeher so we can
+    #       tall other products about changes too.
+    # TODO: Make sure the group "admins" exists, or should we use direct role for that ??
 
     async def refresh_token(self) -> None:
         """Check token and refresh if needed"""
@@ -82,3 +87,84 @@ class KCClient:
             }
         )
         return session
+
+    # FIXME: create pydantic schemas for responses
+    # FIXME: Create a KC specific schema instead of the product one
+    async def create_kc_user(self, user: UserCRUDRequest) -> Optional[Any]:
+        """Create a new user in KC"""
+        conf = RMSettings.singleton()
+        if not conf.kc_enabled:
+            return None
+        manifest = conf.kraftwerk_manifest_dict
+        send_payload = {
+            "username": user.callsign,
+            "email": f"{user.callsign}@{manifest['dns']}",
+            "firstName": user.callsign,
+            "lastName": manifest["deployment"],
+            "enabled": True,
+            "credentials": [
+                {  # FIXME: How to allow only x509 ??
+                    "type": "password",
+                    "value": str(uuid.uuid4()),
+                    "temporary": False,
+                }
+            ],
+        }
+        uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users"
+        session = await self.get_kc_client()
+        async with session as client:
+            resp = await client.post(
+                uri,
+                json=send_payload,
+            )
+            resp.raise_for_status()
+            lresp = await client.get(resp.headers["Location"])
+            lresp_payload = await lresp.json()
+            LOGGER.debug(lresp_payload)
+            # FIXME: How to store the KC UUID ??
+            return lresp_payload
+
+    async def update_kc_user(self, user: UserCRUDRequest) -> Optional[Any]:
+        """Update user"""
+        conf = RMSettings.singleton()
+        if not conf.kc_enabled:
+            return None
+        manifest = conf.kraftwerk_manifest_dict
+        send_payload = {
+            "username": user.callsign,
+            "email": f"{user.callsign}@{manifest['dns']}",
+            "firstname": user.callsign,
+            "lastname": manifest["deployment"],
+            "enabled": True,
+        }
+        # FIXME: How to add admin to correct group/role ??
+        # FIXME: How to resolve the KC UUID ??
+        kc_uuid = user.uuid
+        uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users/{kc_uuid}"
+        session = await self.get_kc_client()
+        async with session as client:
+            resp = await client.put(
+                uri,
+                json=send_payload,
+            )
+            resp.raise_for_status()
+            resp_payload = await resp.json()
+            LOGGER.debug(resp_payload)
+            return resp_payload
+
+    async def delete_kc_user(self, user: UserCRUDRequest) -> Optional[Any]:
+        """delete user"""
+        conf = RMSettings.singleton()
+        if not conf.kc_enabled:
+            return None
+        kc_uuid = user.uuid
+        uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users/{kc_uuid}"
+        session = await self.get_kc_client()
+        async with session as client:
+            resp = await client.delete(
+                uri,
+            )
+            resp.raise_for_status()
+            resp_payload = await resp.json()
+            LOGGER.debug(resp_payload)
+            return resp_payload

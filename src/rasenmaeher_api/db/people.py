@@ -22,6 +22,7 @@ from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
 from ..prodcutapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
+from ..kchelpers import KCClient
 
 LOGGER = logging.getLogger(__name__)
 
@@ -292,19 +293,35 @@ async def post_user_crud(userinfo: UserCRUDRequest, endpoint_suffix: str) -> Non
 
 async def user_created(person: Person) -> None:
     """New user was created"""
-    return await post_user_crud(person.productapidata, "created")
+    kclient = KCClient.singleton()
+    await asyncio.gather(
+        post_user_crud(person.productapidata, "created"),
+        kclient.create_kc_user(person.productapidata),
+    )
 
 
 async def user_revoked(person: Person) -> None:
     """Old user was revoked"""
-    return await post_user_crud(person.productapidata, "revoked")
+    kclient = KCClient.singleton()
+    await asyncio.gather(
+        post_user_crud(person.productapidata, "revoked"),
+        kclient.delete_kc_user(person.productapidata),
+    )
 
 
 async def user_promoted(person: Person) -> None:
     """Old user was promoted to admin (granted role 'admin')"""
-    return await post_user_crud(person.productapidata, "promoted")
+    kclient = KCClient.singleton()
+    await asyncio.gather(
+        post_user_crud(person.productapidata, "promoted"),
+        kclient.update_kc_user(person.productapidata),
+    )
 
 
 async def user_demoted(person: Person) -> None:
     """Old user was demoted from admin (removed role 'admin')"""
-    return await post_user_crud(person.productapidata, "demoted")
+    kclient = KCClient.singleton()
+    await asyncio.gather(
+        post_user_crud(person.productapidata, "demoted"),
+        kclient.update_kc_user(person.productapidata),
+    )
