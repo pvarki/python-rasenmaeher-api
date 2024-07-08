@@ -69,26 +69,26 @@ async def post_admin_add(
 
     # Check that the anon_admin is added to persons. This 'user' is used to approve the
     # newly created actual new admin user.
-    _anon_admin_added = await Person.is_callsign_available(callsign="anon_admin")
-    if _anon_admin_added is False:
-        _anon_user = await Person.create_with_cert(callsign="anon_admin", extra={})
-        _ = await _anon_user.assign_role(role="anon_admin")
+    anon_admin_added = await Person.is_callsign_available(callsign="anon_admin")
+    if not anon_admin_added:
+        anon_user = await Person.create_with_cert(callsign="anon_admin", extra={})
+        await anon_user.assign_role(role="anon_admin")
 
     # Create new admin user enrollment
     enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
 
     # Get the anon_admin 'user' that will be used to approve the new admin user
     # and approve the user
-    _anon_admin_user = await Person.by_callsign(callsign="anon_admin")
-    _new_admin = await enrollment.approve(approver=_anon_admin_user)
-    role_add_success = await _new_admin.assign_role(role="admin")
+    anon_admin_user = await Person.by_callsign(callsign="anon_admin")
+    new_admin = await enrollment.approve(approver=anon_admin_user)
+    role_add_success = await new_admin.assign_role(role="admin")
 
     if role_add_success is False:
-        _reason = "Error. User already admin. This shouldn't happen..."
-        LOGGER.error("{} : {}".format(request.url, _reason))
-        raise HTTPException(status_code=400, detail=_reason)
+        reason = "Error. User already admin. This shouldn't happen..."
+        LOGGER.error("{} : {}".format(request.url, reason))
+        raise HTTPException(status_code=400, detail=reason)
 
     # Create JWT token for new admin user
-    _code = await LoginCode.create_for_claims(claims={"sub": request_in.callsign})
+    code = await LoginCode.create_for_claims(claims={"sub": request_in.callsign})
 
-    return FirstuserAddAdminOut(admin_added=True, jwt_exchange_code=_code)
+    return FirstuserAddAdminOut(admin_added=True, jwt_exchange_code=code)

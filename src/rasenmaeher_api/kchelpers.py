@@ -1,5 +1,5 @@
 """Keycloak helpers"""
-from typing import Optional, Any, ClassVar, Dict
+from typing import Optional, Any, ClassVar, Dict, Set
 from dataclasses import dataclass, field
 import logging
 import time
@@ -7,12 +7,27 @@ import uuid
 
 import aiohttp
 from libpvarki.schemas.product import UserCRUDRequest
+from pydantic import BaseModel, Extra, Field
 
 
 from .mtlsinit import get_session_winit
 from .rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
+
+
+class KCUserData(BaseModel):
+    """Represent KC user object manipulations"""
+
+    productdata: UserCRUDRequest = Field(description="Data that would be sent to productAPIs")
+    roles: Set[str] = Field(default_factory=set, description="Local roles")
+    kc_id: Optional[str] = Field(description="KC id (uuid)", default=None)
+    kc_data: Dict[str, Any] = Field(description="Full KC data", default_factory=dict)
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
 
 
 @dataclass
@@ -88,20 +103,33 @@ class KCClient:
         )
         return session
 
-    # FIXME: create pydantic schemas for responses
-    # FIXME: Create a KC specific schema instead of the product one
-    async def create_kc_user(self, user: UserCRUDRequest) -> Optional[Any]:
+    async def _refresh_user(self, client: aiohttp.ClientSession, uri: str, pdata: UserCRUDRequest) -> KCUserData:
+        """Refresh user"""
+        lresp = await client.get(uri)
+        lresp_payload = await lresp.json()
+        LOGGER.debug(lresp_payload)
+        return KCUserData(
+            kc_id=lresp_payload["id"],
+            productdata=pdata,
+            kc_data=lresp_payload,
+        )
+
+    async def create_kc_user(self, user: KCUserData) -> Optional[KCUserData]:
         """Create a new user in KC"""
         conf = RMSettings.singleton()
         if not conf.kc_enabled:
             return None
         manifest = conf.kraftwerk_manifest_dict
+        if user.kc_id:
+            raise ValueError("Cannot specify KC id when creating")
+        pdata = user.productdata
         send_payload = {
-            "username": user.callsign,
-            "email": f"{user.callsign}@{manifest['dns']}",
-            "firstName": user.callsign,
+            "username": pdata.callsign,
+            "email": f"{pdata.uuid}@{manifest['dns']}",
+            "firstName": pdata.callsign,
             "lastName": manifest["deployment"],
             "enabled": True,
+            "emailVerified": True,
             "credentials": [
                 {  # FIXME: How to allow only x509 ??
                     "type": "password",
@@ -113,58 +141,60 @@ class KCClient:
         uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users"
         session = await self.get_kc_client()
         async with session as client:
+            LOGGER.debug("POSTing to {}".format(uri))
             resp = await client.post(
                 uri,
                 json=send_payload,
             )
             resp.raise_for_status()
-            lresp = await client.get(resp.headers["Location"])
-            lresp_payload = await lresp.json()
-            LOGGER.debug(lresp_payload)
-            # FIXME: How to store the KC UUID ??
-            return lresp_payload
+            return await self._refresh_user(client, resp.headers["Location"], pdata)
 
-    async def update_kc_user(self, user: UserCRUDRequest) -> Optional[Any]:
+    async def update_kc_user(self, user: KCUserData) -> Optional[KCUserData]:
         """Update user"""
         conf = RMSettings.singleton()
         if not conf.kc_enabled:
             return None
+        if not user.kc_id:
+            LOGGER.error("No KC id defined")
+            return None
         manifest = conf.kraftwerk_manifest_dict
+        pdata = user.productdata
         send_payload = {
-            "username": user.callsign,
-            "email": f"{user.callsign}@{manifest['dns']}",
-            "firstname": user.callsign,
-            "lastname": manifest["deployment"],
+            "username": pdata.callsign,
+            "email": f"{pdata.uuid}@{manifest['dns']}",
+            "firstName": pdata.callsign,
+            "lastName": manifest["deployment"],
             "enabled": True,
         }
         # FIXME: How to add admin to correct group/role ??
-        # FIXME: How to resolve the KC UUID ??
-        kc_uuid = user.uuid
+        kc_uuid = user.kc_id
         uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users/{kc_uuid}"
         session = await self.get_kc_client()
         async with session as client:
+            LOGGER.debug("PUTting to {}".format(uri))
             resp = await client.put(
                 uri,
                 json=send_payload,
             )
             resp.raise_for_status()
-            resp_payload = await resp.json()
-            LOGGER.debug(resp_payload)
-            return resp_payload
+            LOGGER.debug("resp={}".format(resp))
+            return await self._refresh_user(client, uri, pdata)
 
-    async def delete_kc_user(self, user: UserCRUDRequest) -> Optional[Any]:
+    async def delete_kc_user(self, user: KCUserData) -> bool:
         """delete user"""
         conf = RMSettings.singleton()
         if not conf.kc_enabled:
-            return None
-        kc_uuid = user.uuid
-        uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users/{kc_uuid}"
+            return False
+        if not user.kc_id:
+            LOGGER.error("No KC id defined")
+            return False
+        uri = f"{conf.kc_url}/admin/realms/{conf.kc_realm}/users/{user.kc_id}"
         session = await self.get_kc_client()
         async with session as client:
+            LOGGER.info("Calling DELETE at {}".format(uri))
             resp = await client.delete(
                 uri,
             )
             resp.raise_for_status()
-            resp_payload = await resp.json()
-            LOGGER.debug(resp_payload)
-            return resp_payload
+            LOGGER.debug("resp={}".format(resp))
+            return True
