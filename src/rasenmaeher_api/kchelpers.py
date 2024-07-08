@@ -1,5 +1,5 @@
 """Keycloak helpers"""
-from typing import Optional, Any, ClassVar, Dict, Set
+from typing import Optional, Any, ClassVar, Dict, Set, Union
 from dataclasses import dataclass, field
 import logging
 import uuid
@@ -34,6 +34,7 @@ class KCClient:
     """Client for Keycloak"""
 
     kcadmin: KeycloakAdmin = field()
+    _kc_admin_role: Optional[dict[str, Union[str, bool]]] = field(default=None)
     _singleton: ClassVar[Optional["KCClient"]] = None
 
     @classmethod
@@ -67,6 +68,34 @@ class KCClient:
             kc_data=lresp_payload,
         )
 
+    async def _check_admin_role(self) -> None:
+        """Cache the admin role definition"""
+        if self._kc_admin_role:
+            return
+        ret = await self.kcadmin.a_get_realm_roles(search_text="admin")
+        # If multipe roles match the search choose exact match
+        flt = [rolerep for rolerep in ret if rolerep["name"] == "admin"]
+        if not flt:
+            raise ValueError("KC has no configured 'admin' role")
+        self._kc_admin_role = flt[0]
+
+    async def check_user_roles(self, user: KCUserData) -> bool:
+        """Chekc users roles in KC and update as needed, returns true if changes were made"""
+        await self._check_admin_role()
+        kc_roles = {role["name"]: role for role in await self.kcadmin.a_get_realm_roles_of_user(user.kc_id)}
+        LOGGER.debug("Found KC roles: {} (user: {})".format(list(kc_roles.keys()), user.roles))
+        if "admin" in user.roles:
+            if "admin" not in kc_roles:
+                LOGGER.info("Adding admin role in KC to {}".format(user.productdata.callsign))
+                await self.kcadmin.a_assign_realm_roles(user.kc_id, [self._kc_admin_role])
+                return True
+        else:
+            if "admin" in kc_roles:
+                LOGGER.info("Removing admin role in KC from {}".format(user.productdata.callsign))
+                await self.kcadmin.a_delete_realm_roles_of_user(user.kc_id, [self._kc_admin_role])
+                return True
+        return False
+
     async def create_kc_user(self, user: KCUserData) -> Optional[KCUserData]:
         """Create a new user in KC"""
         conf = RMSettings.singleton()
@@ -93,6 +122,8 @@ class KCClient:
         }
 
         user_id = await self.kcadmin.a_create_user(send_payload, exist_ok=False)
+        user.kc_id = user_id
+        await self.check_user_roles(user)
         return await self._refresh_user(user_id, pdata)
 
     async def update_kc_user(self, user: KCUserData) -> Optional[KCUserData]:
@@ -113,7 +144,7 @@ class KCClient:
             "enabled": True,
         }
         await self.kcadmin.a_update_user(user.kc_id, send_payload)
-        # FIXME: How to add admin to correct group/role ??
+        await self.check_user_roles(user)
         return await self._refresh_user(user.kc_id, pdata)
 
     async def delete_kc_user(self, user: KCUserData) -> bool:
