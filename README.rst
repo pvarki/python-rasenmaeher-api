@@ -78,6 +78,16 @@ you make under /api will soon be reflected in the running instance.
 If rasenmaeher-ui devel server complains make sure to delete ui/node_modules -directory from host first
 the dockder node distribution probably is not compatible with whatever you have installed on the host.
 
+Gaining first admin access in dev and production mode
+----------------
+
+In dev mode::
+    docker exec -it rmdev-rmapi-1 /bin/bash -c "source /.venv/bin/activate && rasenmaeher_api addcode"
+
+In VM production mode:
+    docker exec -it rmvm-rmapi-1 /bin/bash -c "rasenmaeher_api addcode"
+
+
 pre-commit notes
 ----------------
 
