@@ -10,6 +10,8 @@ from multikeyjwt import Issuer
 
 from rasenmaeher_api.db import Person
 
+from .test_db import ginosession  # pylint: disable=W0611
+
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621
@@ -38,7 +40,7 @@ def check_response(resp: Any, expect_type: str) -> Dict[str, Any]:
     return cast(Dict[str, Any], payload)
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_jwt_jwt(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test JWT-check endpoint with JWT authenticated client"""
     client = tilauspalvelu_jwt_client
@@ -51,7 +53,7 @@ async def test_jwt_jwt(tilauspalvelu_jwt_client: TestClient) -> None:
     assert payload["sub"] == "tpadminsession"
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_mtls_jwt(mtls_client: TestClient) -> None:
     """Test JWT-check endpoint with mTLS authenticated client"""
     client = mtls_client
@@ -60,7 +62,7 @@ async def test_mtls_jwt(mtls_client: TestClient) -> None:
     assert resp.status_code == 403
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_mtls_mtls(mtls_client: TestClient) -> None:
     """Test mTLS-check endpoint with mTLS authenticated client"""
     client = mtls_client
@@ -75,7 +77,7 @@ async def test_mtls_mtls(mtls_client: TestClient) -> None:
     assert payload["O"] == "N/A"
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_jwt_mtls(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test mTLS-check endpoint with JWT authenticated client"""
     client = tilauspalvelu_jwt_client
@@ -84,7 +86,7 @@ async def test_jwt_mtls(tilauspalvelu_jwt_client: TestClient) -> None:
     assert resp.status_code == 403
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_jwt_both_permissive(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test JWT-or-mTLS -check endpoint with JWT authenticated client"""
     client = tilauspalvelu_jwt_client
@@ -94,7 +96,7 @@ async def test_jwt_both_permissive(tilauspalvelu_jwt_client: TestClient) -> None
     assert payload["userid"] == subload["sub"]
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_jwt_both_notp(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test JWT-or-mTLS -check endpoint with JWT authenticated client"""
     client = tilauspalvelu_jwt_client
@@ -105,7 +107,7 @@ async def test_jwt_both_notp(tilauspalvelu_jwt_client: TestClient) -> None:
     assert resp.status_code == 403
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_mtls_both(mtls_client: TestClient) -> None:
     """Test JWT-or-mTLS -check endpoint with mTLS authenticated client"""
     client = mtls_client
@@ -115,10 +117,10 @@ async def test_mtls_both(mtls_client: TestClient) -> None:
     assert payload["userid"] == subload["CN"]
 
 
-@pytest.mark.asyncio(scope="session")
-async def test_valid_user_mtls(unauth_client_session: TestClient, two_users: Tuple[Person, Person]) -> None:
+@pytest.mark.asyncio
+async def test_valid_user_mtls(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
     """Test the valid user endpoint with valid and invalid CNs"""
-    client = unauth_client_session
+    client = unauth_client
     for user in two_users:
         client.headers.update({"X-ClientCert-DN": f"CN={user.callsign},O=N/A"})
         resp = await client.get("/api/v1/check-auth/validuser")
@@ -129,11 +131,11 @@ async def test_valid_user_mtls(unauth_client_session: TestClient, two_users: Tup
     resp = await client.get("/api/v1/check-auth/validuser")
     assert resp.status_code == 403
 
-# jotain häikkää Issuer.singleton() ??
-@pytest.mark.asyncio(scope="session")
-async def test_valid_user_jwt(unauth_client_session: TestClient, two_users: Tuple[Person, Person]) -> None:
+
+@pytest.mark.asyncio
+async def test_valid_user_jwt(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
     """Test the valid user endpoint with valid and invalid subs"""
-    client = unauth_client_session
+    client = unauth_client
     for user in two_users:
         token = Issuer.singleton().issue({"sub": user.callsign})
         client.headers.update({"Authorization": f"Bearer {token}"})
@@ -147,10 +149,10 @@ async def test_valid_user_jwt(unauth_client_session: TestClient, two_users: Tupl
     assert resp.status_code == 403
 
 
-@pytest.mark.asyncio(scope="session")
-async def test_valid_admin_mtls(unauth_client_session: TestClient, two_users: Tuple[Person, Person]) -> None:
+@pytest.mark.asyncio
+async def test_valid_admin_mtls(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
     """Test the valid user endpoint with admin and non-admin CNs"""
-    client = unauth_client_session
+    client = unauth_client
     for user in two_users:
         client.headers.update({"X-ClientCert-DN": f"CN={user.callsign},O=N/A"})
         resp = await client.get("/api/v1/check-auth/validuser/admin")
@@ -162,11 +164,10 @@ async def test_valid_admin_mtls(unauth_client_session: TestClient, two_users: Tu
         assert payload["userid"] == user.callsign
 
 
-# jotain häikkää Issuer.singleton() ??
-@pytest.mark.asyncio(scope="session")
-async def test_valid_admin_jwt(unauth_client_session: TestClient, two_users: Tuple[Person, Person]) -> None:
+@pytest.mark.asyncio
+async def test_valid_admin_jwt(unauth_client: TestClient, two_users: Tuple[Person, Person]) -> None:
     """Test the valid user endpoint with admin and non-admin subs"""
-    client = unauth_client_session
+    client = unauth_client
     for user in two_users:
         token = Issuer.singleton().issue({"sub": user.callsign})
         client.headers.update({"Authorization": f"Bearer {token}"})

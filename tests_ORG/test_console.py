@@ -7,7 +7,7 @@ from libadvian.binpackers import ensure_str
 from rasenmaeher_api import __version__
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_version_cli():  # type: ignore
     """Test the CLI parsing for default version dumping works"""
     cmd = "rasenmaeher_api --version"

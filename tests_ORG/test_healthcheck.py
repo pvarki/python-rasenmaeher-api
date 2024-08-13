@@ -11,7 +11,7 @@ from rasenmaeher_api.web.api.healthcheck.schema import AllProductsHealthCheckRes
 LOGGER = logging.getLogger(__name__)
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_get_healthcheck(app_client: TestClient) -> None:
     """
@@ -26,7 +26,7 @@ async def test_get_healthcheck(app_client: TestClient) -> None:
     assert resp_dict["version"] == __version__
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_get_healthcheck_services(app_client: TestClient) -> None:
     """

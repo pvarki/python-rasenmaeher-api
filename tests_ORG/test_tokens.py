@@ -54,23 +54,23 @@ async def use_code(client: TestClient, code: str) -> str:
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_use_code(tilauspalvelu_jwt_client: TestClient, unauth_client_session: TestClient) -> None:
+async def test_use_code(tilauspalvelu_jwt_client: TestClient, unauth_client: TestClient) -> None:
     """Test that we can get a new code and use one with fresh session"""
     code = await get_code(tilauspalvelu_jwt_client)
-    token = await use_code(unauth_client_session, code)
+    token = await use_code(unauth_client, code)
     assert token
 
 
 @pytest.mark.asyncio(scope="session")
-async def test_use_code_twice(tilauspalvelu_jwt_client: TestClient, unauth_client_session: TestClient) -> None:
+async def test_use_code_twice(tilauspalvelu_jwt_client: TestClient, unauth_client: TestClient) -> None:
     """Test that we can get a new code and re-using it fails"""
     code = await get_code(tilauspalvelu_jwt_client)
-    token = await use_code(unauth_client_session, code)
+    token = await use_code(unauth_client, code)
     assert token
 
     # TODO: How to check it's 403 specifically
     with pytest.raises(HTTPError):
-        await use_code(unauth_client_session, code)
+        await use_code(unauth_client, code)
 
 
 @pytest.mark.asyncio(scope="session")

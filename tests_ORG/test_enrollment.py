@@ -12,7 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 # GENERATE VERIFICATEION CODE
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_enroll_verif_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -26,13 +26,13 @@ async def test_enroll_verif_code(tilauspalvelu_jwt_admin_client: TestClient) -> 
 
 
 # GENERATE VERIFICATEION CODE - NO JWT - FAIL
-@pytest.mark.asyncio(scope="session")
-async def test_enroll_verif_code_fail_no_jwt(unauth_client_session: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_enroll_verif_code_fail_no_jwt(unauth_client: TestClient) -> None:
     """
     Test - No JWT --> fail
     """
 
-    resp = await unauth_client_session.post("/api/v1/enrollment/generate-verification-code")
+    resp = await unauth_client.post("/api/v1/enrollment/generate-verification-code")
 
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -40,7 +40,7 @@ async def test_enroll_verif_code_fail_no_jwt(unauth_client_session: TestClient) 
 
 
 # SHOW VERIFICATION CODE INFO
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_enroll_show_verif_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -63,7 +63,7 @@ async def test_enroll_show_verif_code(tilauspalvelu_jwt_admin_client: TestClient
 
 # SHOW VERIFICATION CODE INFO - BAD CODE
 # SHOW VERIFICATION CODE INFO - CODE EMPTY
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_enroll_show_verifcode_bad_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -87,12 +87,12 @@ async def test_enroll_show_verifcode_bad_code(tilauspalvelu_jwt_admin_client: Te
 
 
 # SHOW VERIFICATION CODE INFO - NO JWT
-@pytest.mark.asyncio(scope="session")
-async def test_show_verifcode_no_jwt(unauth_client_session: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_show_verifcode_no_jwt(unauth_client: TestClient) -> None:
     """
     Test - no JWT, should fail
     """
-    resp = await unauth_client_session.get("/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode")
+    resp = await unauth_client.get("/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode")
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
@@ -100,7 +100,7 @@ async def test_show_verifcode_no_jwt(unauth_client_session: TestClient) -> None:
 
 
 # SHOW VERIFICATION CODE INFO - NO PERMISSION
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_show_verifcode_no_permission(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - no such code --> fail
@@ -115,7 +115,7 @@ async def test_show_verifcode_no_permission(tilauspalvelu_jwt_user_client: TestC
 
 
 # SHOW VERIFICATION CODE INFO - JWT SUB CANNOT BE FOUND
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_show_verifcode_sub_is_bonkers(tilauspalvelu_jwt_without_proper_user_client: TestClient) -> None:
     """
     Test - sub in JWT cannot be found
@@ -130,7 +130,7 @@ async def test_show_verifcode_sub_is_bonkers(tilauspalvelu_jwt_without_proper_us
 
 
 # HAVE I BEEN ACCEPTED - YES
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_have_i_been_accepted_yes(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - have i been accepted, yes
@@ -143,7 +143,7 @@ async def test_have_i_been_accepted_yes(tilauspalvelu_jwt_user_client: TestClien
 
 
 # HAVE I BEEN ACCEPTED - NO
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_have_i_been_accepted_no(tilauspalvelu_jwt_user_koira_client: TestClient) -> None:
     """
     Test - have i been accepted, no
@@ -156,12 +156,12 @@ async def test_have_i_been_accepted_no(tilauspalvelu_jwt_user_koira_client: Test
 
 
 # HAVE I BEEN ACCEPTED - NO - NO JWT
-@pytest.mark.asyncio(scope="session")
-async def test_have_i_been_accepted_no_jwt(unauth_client_session: TestClient) -> None:
+@pytest.mark.asyncio
+async def test_have_i_been_accepted_no_jwt(unauth_client: TestClient) -> None:
     """
     Test - have i been - no JWt
     """
-    resp = await unauth_client_session.get("/api/v1/enrollment/have-i-been-accepted")
+    resp = await unauth_client.get("/api/v1/enrollment/have-i-been-accepted")
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
@@ -169,7 +169,7 @@ async def test_have_i_been_accepted_no_jwt(unauth_client_session: TestClient) ->
 
 
 # STATUS USER FOUND
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_status_koira(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - get status
@@ -181,7 +181,7 @@ async def test_status_koira(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 
 # STATUS USER NOT FOUND
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_status_not_found(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - no such status
@@ -194,7 +194,7 @@ async def test_status_not_found(tilauspalvelu_jwt_admin_client: TestClient) -> N
 
 
 # LIST AS ADMIN USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_list_as_adm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - list enrollments
@@ -209,7 +209,7 @@ async def test_list_as_adm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 
 # LIST AS NORMAL USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_list_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - list enrollments as normal user
@@ -222,7 +222,7 @@ async def test_list_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 
 
 # INIT NEW USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_post_init(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -244,7 +244,7 @@ async def test_post_init(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 
 # INIT AS NORMAL USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_init_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - init as normal user --> fail
@@ -258,7 +258,7 @@ async def test_init_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 
 
 # PROMOTE NORMAL USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_promote_demote(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -286,7 +286,7 @@ async def test_promote_demote(tilauspalvelu_jwt_admin_client: TestClient) -> Non
 
 # PROMOTE AS NORMAL USER - NO PERMISSION
 # DEMOTE AS NORMAL USER - NO PERMISSION
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_promote_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - promote user, no permissions
@@ -300,7 +300,7 @@ async def test_promote_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None
 
 
 # LOCK USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_lock(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -318,7 +318,7 @@ async def test_lock(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 
 # LOCK USER - NO PERMISSION
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_lock_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - lock as normal use
@@ -332,7 +332,7 @@ async def test_lock_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 
 
 # ACCEPT
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -359,7 +359,7 @@ async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 
 # ACCEPT - NO PERMISSIONS
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_accept_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - accept, no permissions -> fail
@@ -373,7 +373,7 @@ async def test_accept_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 
 
 # ACCEPT - NO SUCH USER
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_accept_no_such_user(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -388,7 +388,7 @@ async def test_accept_no_such_user(tilauspalvelu_jwt_admin_client: TestClient) -
 
 
 # CREATE INVITE CODE
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_invitecode_create(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -410,7 +410,7 @@ async def test_invitecode_create(tilauspalvelu_jwt_admin_client: TestClient) -> 
 
 
 # CREATE INVITE - NO RIGHTS
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_create_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - normal user create invite code --> fail
@@ -423,7 +423,7 @@ async def test_create_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 
 
 # INVITE CODE DEACTIVATE
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_invitecode_dectivate(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -451,7 +451,7 @@ async def test_invitecode_dectivate(tilauspalvelu_jwt_admin_client: TestClient) 
 
 
 # INVITE CODE ACTIVATE
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
 async def test_invitecode_activate(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
@@ -479,7 +479,7 @@ async def test_invitecode_activate(tilauspalvelu_jwt_admin_client: TestClient) -
 
 
 # CHECK INVITE CODE
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_invite_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - check invite code
@@ -506,9 +506,9 @@ async def test_invite_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 
 # ENROLL WITH INVITE CODE
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio
 async def test_enroll_with_invite_code(  # pylint: disable=R0915
-    tilauspalvelu_jwt_admin_client: TestClient, unauth_client_session: TestClient
+    tilauspalvelu_jwt_admin_client: TestClient, unauth_client: TestClient
 ) -> None:
     """
     Test - enroll with invite code
@@ -521,7 +521,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     assert _inv_code != ""
 
     json_dict: Dict[Any, Any] = {"invite_code": _inv_code, "callsign": "enrollenrique"}
-    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    resp = await unauth_client.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
@@ -539,7 +539,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
 
     # ENROLL WITH INVITE CODE - BAD CODE
     json_dict = {"invite_code": "nosuchcode123", "callsign": "asdasds"}
-    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    resp = await unauth_client.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 404
@@ -547,7 +547,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
 
     # ENROLL WITH INVITE CODE - USERNAME TAKEN
     json_dict = {"invite_code": _inv_code, "callsign": "enrollenrique"}
-    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    resp = await unauth_client.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 400
@@ -561,7 +561,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     assert resp.status_code == 200
 
     json_dict = {"invite_code": _inv_code, "callsign": "enriquescousin"}
-    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    resp = await unauth_client.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 400
@@ -575,10 +575,10 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     assert resp.status_code == 200
 
     # Fetch the PFX
-    unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
-    resp = await unauth_client_session.get("/api/v1/enduserpfx/enrollenrique")
+    unauth_client.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
+    resp = await unauth_client.get("/api/v1/enduserpfx/enrollenrique")
     resp.raise_for_status()
     pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"enrollenrique")
     assert pfxdata.key
     assert pfxdata.cert
-    del unauth_client_session.headers["Authorization"]
+    del unauth_client.headers["Authorization"]
