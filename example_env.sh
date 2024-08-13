@@ -11,3 +11,4 @@ export MW_LE_EMAIL="example@example.com"
 export MW_LE_TEST="true"  # switch to false when you are ready for production
 export TAKSERVER_CERT_PASS="KissaKoira123!AlpakkaMursu"  # used for the JKS
 export TAK_CA_PASS="AlpakkaMursu!KissaKoira123"  # used for the JKS
+export VITE_ASSET_SET="fdf"  # used RMUI to define asset sets (logos, etc).
