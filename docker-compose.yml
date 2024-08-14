@@ -381,8 +381,8 @@ services:
       context: ./ui
       dockerfile: Dockerfile
       target: production
-    environment:
-      VITE_ASSET_SET: ${VITE_ASSET_SET:-neutral}
+      args:
+        VITE_ASSET_SET: ${VITE_ASSET_SET:-neutral}
     volumes:
       - rmui_files:/deliver
 
