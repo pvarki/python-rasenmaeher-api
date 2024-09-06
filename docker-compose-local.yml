@@ -388,11 +388,13 @@ services:
     restart: unless-stopped
 
   rmui:
-    image: pvarki/rmui:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/rmui:${VITE_ASSET_SET:-neutral}-${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./ui
       dockerfile: Dockerfile
       target: production
+      args:
+        VITE_ASSET_SET: ${VITE_ASSET_SET:-neutral}
     volumes:
       - rmui_files:/deliver
 
