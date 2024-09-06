@@ -214,6 +214,7 @@ services:
 
 
   postgres:
+    platform: linux/amd64  # It seems there are no arm images available
     image: postgis/postgis:15-3.4
     networks:
       - dbnet
