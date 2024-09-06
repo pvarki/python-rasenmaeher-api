@@ -1,4 +1,5 @@
-version: '3.4'
+# For local testing
+#   `docker-compose -p rmloc -f docker-compose-local.yml up -d`
 
 x-kc_dbconfig_env: &kcdbconfig_env
   KEYCLOAK_DATABASE_NAME: &kcdbname keycloak
@@ -57,12 +58,12 @@ x-domains_env:
   OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:-localmaeher.pvarki.fi}:${NGINX_HTTPS_PORT:-4439}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.1-RELEASE-11}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.2-RELEASE-30}${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
     args:
-      TAK_RELEASE: ${TAK_RELEASE:-5.1-RELEASE-11}
+      TAK_RELEASE: ${TAK_RELEASE:-5.2-RELEASE-30}
 
 x-nginxbuilds: &nginxbuildinfo
   image: pvarki/nginx:1.25${DOCKER_TAG_EXTRA:-}
@@ -692,7 +693,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-tak${TAK_RELEASE:-5.1-RELEASE-11}
+    image: pvarki/takrmapi:${PVARKI_VERSION_TAG:-latest}${DOCKER_TAG_EXTRA:-}-tak${TAK_RELEASE:-5.2-RELEASE-30}
     build:
       context: ./takintegration
       dockerfile: Dockerfile

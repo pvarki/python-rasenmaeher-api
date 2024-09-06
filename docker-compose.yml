@@ -1,4 +1,3 @@
-version: '3.4'
 # Use bump2version to bump the RELEASE_TAG default value
 
 x-kc_dbconfig_env: &kcdbconfig_env
@@ -57,12 +56,12 @@ x-domains_env:
   OCSCP_RESPONDER:  &publicocsp "https://${SERVER_DOMAIN:?domain must be defined}:${NGINX_HTTPS_PORT:-443}/ca/ocsp"  # The public URL
 
 x-takbuilds: &takbuildinfo
-  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.1-RELEASE-11}-d${RELEASE_TAG:-1.4.1}${DOCKER_TAG_EXTRA:-}"
+  image: &takimage "pvarki/takserver:${TAK_RELEASE:-5.2-RELEASE-30}-d${RELEASE_TAG:-1.4.1}${DOCKER_TAG_EXTRA:-}"
   build:
     context: ./takserver
     dockerfile: Dockerfile
     args:
-      TAK_RELEASE: ${TAK_RELEASE:-5.1-RELEASE-11}
+      TAK_RELEASE: ${TAK_RELEASE:-5.2-RELEASE-30}
 
 x-nginxbuilds: &nginxbuildinfo
   image: pvarki/nginx:1.25-d${RELEASE_TAG:-1.4.1}${DOCKER_TAG_EXTRA:-}
@@ -603,7 +602,7 @@ services:
     restart: unless-stopped
 
   takrmapi:
-    image: pvarki/takrmapi:1.3.0-tak${TAK_RELEASE:-5.1-RELEASE-11}-d${RELEASE_TAG:-1.4.1}${DOCKER_TAG_EXTRA:-}
+    image: pvarki/takrmapi:1.3.0-tak${TAK_RELEASE:-5.2-RELEASE-30}-d${RELEASE_TAG:-1.4.1}${DOCKER_TAG_EXTRA:-}
     build:
       context: ./takintegration
       dockerfile: Dockerfile
