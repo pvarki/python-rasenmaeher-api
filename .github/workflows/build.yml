@@ -1,6 +1,4 @@
 on:
-  schedule:
-    - cron:  '30 2 * * 1'
   pull_request:
   workflow_dispatch:  # Allow manual triggering
 
