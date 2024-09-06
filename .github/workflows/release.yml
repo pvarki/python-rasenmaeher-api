@@ -1,16 +1,13 @@
 name: Create tag for release
 
 on:
-  pull_request:
+  workflow_dispatch:  # Allow manual triggering
+  push:
     branches:
       - main
-    types:
-      - closed
-  workflow_dispatch:  # Allow manual triggering
 
 jobs:
   tag_release:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     permissions:
       contents: write
