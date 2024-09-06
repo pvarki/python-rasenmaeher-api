@@ -55,12 +55,14 @@ _________________________________
 TLDR::
 
     alias rmdev="docker compose -p rmdev -f docker-compose-local.yml -f docker-compose-dev.yml"
+    rmdev build takinit
     rmdev build
     rmdev up
 
 or::
 
     alias rmlocal="docker compose -p rmlocal -f docker-compose-local.yml"
+    rmlocal build takinit
     rmlocal build
     rmlocal up
 
