@@ -106,12 +106,16 @@ class KCClient:
             raise ValueError("Cannot specify KC id when creating")
         pdata = user.productdata
         send_payload = {
-            "username": pdata.callsign,
+            "username": pdata.callsign,  # NOTE: KeyCloak now forces this all lowercase
             "email": f"{pdata.uuid}@{manifest['dns']}",
             "firstName": pdata.callsign,
             "lastName": manifest["deployment"],
             "enabled": True,
             "emailVerified": True,
+            "attributes": {
+                "callsign": pdata.callsign,
+                "certpem": pdata.x509cert,
+            },
             "credentials": [
                 {  # FIXME: How to allow only x509, especially with the LDAP there too ??
                     "type": "password",
@@ -137,7 +141,11 @@ class KCClient:
         manifest = conf.kraftwerk_manifest_dict
         pdata = user.productdata
         send_payload = {
-            "username": pdata.callsign,
+            "username": pdata.callsign,  # NOTE: KeyCloak now forces this all lowercase
+            "attributes": {
+                "callsign": pdata.callsign,
+                "certpem": pdata.x509cert,
+            },
             "email": f"{pdata.uuid}@{manifest['dns']}",
             "firstName": pdata.callsign,
             "lastName": manifest["deployment"],
