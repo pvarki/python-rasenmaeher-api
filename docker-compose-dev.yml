@@ -38,6 +38,7 @@ services:
     environment:
       SERVER_DOMAIN: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
       API_PORT: ${NGINX_HTTPS_PORT:-4439}
+      VITE_ASSET_SET: ${VITE_ASSET_SET:-neutral}
     networks:
       - intranet
     ports:  # REMINDER Do not expose these in production
