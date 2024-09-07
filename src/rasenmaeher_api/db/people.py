@@ -48,6 +48,10 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         """Update the local record with KC deta"""
         if not person:
             person = await cls.by_callsign(kcdata["username"])
+            if person.extra is None:
+                LOGGER.warning("self.extra was None for some reason, this should not happen")
+                person.extra = {}
+        # This *is* in correct indent
         person.extra.update(
             {
                 "kc_uuid": kcdata["id"],
@@ -172,6 +176,9 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     async def get_kcdata(self) -> KCUserData:
         """KC integration data"""
         pdata = self.productapidata
+        if self.extra is None:
+            LOGGER.warning("self.extra was None for some reason, this should not happen")
+            self.extra = {}
         if "kc_uuid" not in self.extra:
             self.extra["kc_uuid"] = None
         if "kc_data" not in self.extra:
