@@ -10,6 +10,7 @@ import uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
+from sqlalchemy.sql import func
 
 from .base import ORMBaseModel, utcnow, db
 from .people import Person
@@ -184,7 +185,7 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
     @classmethod
     async def by_callsign(cls, callsign: str) -> Self:
         """Get by callsign"""
-        obj = await Enrollment.query.where(Enrollment.callsign == callsign).gino.first()
+        obj = await Enrollment.query.where(func.lower(Enrollment.callsign) == func.lower(callsign)).gino.first()
         if not obj:
             raise NotFound()
         if obj.deleted:
