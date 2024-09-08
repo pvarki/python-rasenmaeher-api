@@ -10,6 +10,7 @@ import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
+from sqlalchemy.sql import func
 from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
 from libpvarki.schemas.product import UserCRUDRequest
 from libpvarki.schemas.generic import OperationResultResponse
@@ -47,7 +48,10 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
         """Update the local record with KC deta"""
         if not person:
-            person = await cls.by_callsign(kcdata["callsign"])
+            if "callsign" in kcdata:
+                person = await cls.by_callsign(kcdata["callsign"])
+            else:
+                person = await cls.by_callsign(kcdata["username"])
             if person.extra is None:
                 LOGGER.warning("self.extra was None for some reason, this should not happen")
                 person.extra = {}
@@ -251,7 +255,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def by_callsign(cls, callsign: str, allow_deleted: bool = False) -> Self:
         """Get by callsign"""
-        obj = await Person.query.where(Person.callsign == callsign).gino.first()
+        obj = await Person.query.where(func.lower(Person.callsign) == func.lower(callsign)).gino.first()
         if not obj:
             raise NotFound()
         if obj.deleted and not allow_deleted:
@@ -261,7 +265,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def is_callsign_available(cls, callsign: str) -> bool:
         """Is callsign available"""
-        obj = await Person.query.where(Person.callsign == callsign).gino.first()
+        obj = await Person.query.where(func.lower(Person.callsign) == func.lower(callsign)).gino.first()
         if not obj:
             return False
         return True
