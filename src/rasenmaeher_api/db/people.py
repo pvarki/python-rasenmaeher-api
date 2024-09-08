@@ -52,6 +52,11 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                 LOGGER.warning("self.extra was None for some reason, this should not happen")
                 person.extra = {}
         # This *is* in correct indent
+        # Do not bother having second copy of local properties
+        for key in ("callsign", "certpem"):
+            if key not in kcdata:
+                continue
+            del kcdata[key]
         person.extra.update(
             {
                 "kc_uuid": kcdata["id"],
