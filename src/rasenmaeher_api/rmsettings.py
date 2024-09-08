@@ -109,6 +109,10 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     kc_realm: str = "RASENMAEHER"  # In which realm the real users are
     kc_enabled: bool = True  # Whether to use KC or not (mainly so that unit tests have less dependencies for now)
 
+    # Enrollment code generation related
+    code_size: int = 8
+    code_avoid_confusion: bool = True  # Replace 1 and 0 with O and I to avoid confusion
+
     _singleton: ClassVar[Optional["RMSettings"]] = None
 
     @classmethod
