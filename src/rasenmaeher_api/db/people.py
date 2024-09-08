@@ -47,7 +47,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
         """Update the local record with KC deta"""
         if not person:
-            person = await cls.by_callsign(kcdata["username"])
+            person = await cls.by_callsign(kcdata["callsign"])
             if person.extra is None:
                 LOGGER.warning("self.extra was None for some reason, this should not happen")
                 person.extra = {}

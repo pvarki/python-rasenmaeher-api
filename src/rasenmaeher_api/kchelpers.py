@@ -138,21 +138,24 @@ class KCClient:
         if not user.kc_id:
             LOGGER.error("No KC id defined")
             return None
+        await self.check_user_roles(user)
         manifest = conf.kraftwerk_manifest_dict
         pdata = user.productdata
-        send_payload = {
-            "username": pdata.callsign,  # NOTE: KeyCloak now forces this all lowercase
-            "attributes": {
-                "callsign": pdata.callsign,
+        send_payload = user.kc_data
+        send_payload.update(
+            {
+                "email": f"{pdata.uuid}@{manifest['dns']}",
+                "firstName": pdata.callsign,
+                "lastName": manifest["deployment"],
+                "enabled": True,
+            }
+        )
+        send_payload["attributes"].update(
+            {
                 "certpem": pdata.x509cert,
-            },
-            "email": f"{pdata.uuid}@{manifest['dns']}",
-            "firstName": pdata.callsign,
-            "lastName": manifest["deployment"],
-            "enabled": True,
-        }
+            }
+        )
         await self.kcadmin.a_update_user(user.kc_id, send_payload)
-        await self.check_user_roles(user)
         return await self._refresh_user(user.kc_id, pdata)
 
     async def delete_kc_user(self, user: KCUserData) -> bool:
