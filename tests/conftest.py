@@ -159,7 +159,7 @@ def session_env_config(  # pylint: disable=R0915,R0914
 
         yield None
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def announce_server() -> AsyncGenerator[str, None]:
     """Simple test server"""
     bind_port = random.randint(1000, 64000)  # nosec
