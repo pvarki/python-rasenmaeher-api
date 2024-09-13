@@ -92,7 +92,9 @@ async def test_show_verifcode_no_jwt(unauth_client_session: TestClient) -> None:
     """
     Test - no JWT, should fail
     """
-    resp = await unauth_client_session.get("/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode")
+    resp = await unauth_client_session.get(
+        "/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode"
+    )
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""

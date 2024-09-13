@@ -14,6 +14,7 @@ LOGGER = logging.getLogger(__name__)
 
 # POISTA
 from pprint import pprint
+
 # pylint: disable=W0621
 
 
@@ -131,6 +132,7 @@ async def test_valid_user_mtls(unauth_client_session: TestClient, two_users: Tup
     resp = await client.get("/api/v1/check-auth/validuser")
     assert resp.status_code == 403
 
+
 # jotain häikkää Issuer.singleton() ??
 @pytest.mark.asyncio(scope="session")
 async def test_valid_user_jwt(unauth_client_session: TestClient, two_users: Tuple[Person, Person]) -> None:
@@ -171,7 +173,6 @@ async def test_valid_admin_mtls(unauth_client_session: TestClient, two_users: Tu
             continue
         payload = check_response(resp, "mtls")
         assert payload["userid"] == user.callsign
-
 
 
 @pytest.mark.asyncio(scope="session")

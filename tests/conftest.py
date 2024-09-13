@@ -42,6 +42,7 @@ async def ginosession() -> None:
     await bind_config()
     await init_db()
 
+
 # pylint: disable=W0621
 @pytest.fixture(scope="session", autouse=True)
 def session_env_config(  # pylint: disable=R0915,R0914
@@ -159,6 +160,7 @@ def session_env_config(  # pylint: disable=R0915,R0914
 
         yield None
 
+
 @pytest_asyncio.fixture(scope="session")
 async def announce_server() -> AsyncGenerator[str, None]:
     """Simple test server"""
@@ -207,6 +209,7 @@ async def mtls_client() -> AsyncGenerator[TestClient, None]:
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
         yield instance
 
+
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
     """Client with tilauspalvely style JWT"""
@@ -220,6 +223,7 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
         )
         instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
+
 
 @pytest_asyncio.fixture()
 async def unauth_client() -> AsyncGenerator[TestClient, None]:
@@ -261,6 +265,7 @@ async def tilauspalvelu_jwt_admin_client(
         instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
 
+
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_client(
     issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
@@ -278,6 +283,7 @@ async def tilauspalvelu_jwt_user_client(
         instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
 
+
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
@@ -290,6 +296,7 @@ async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> Asy
         )
         instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
+
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_koira_client(
@@ -307,6 +314,7 @@ async def tilauspalvelu_jwt_user_koira_client(
         instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
 
+
 @pytest_asyncio.fixture(scope="session")
 async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
     """Create a few test users and work ids returns
@@ -317,13 +325,14 @@ async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[s
     _ = session_env_config
     return await create_test_users()
 
+
 # Issues in tests in ubuntu-latest
 # error: Untyped decorator makes function "app_client" untyped  [misc] # no-untyped-def
 # pyproject.toml
 # [[tool.mypy.overrides]]
 # disallow_untyped_decorators=false
 # adding '# type: ignore' ends up giving 'error: Unused "type: ignore" comment'
-#@pytest_asyncio.fixture(scope="function")
+# @pytest_asyncio.fixture(scope="function")
 @pytest_asyncio.fixture(scope="session")
 async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
     """Create default client"""

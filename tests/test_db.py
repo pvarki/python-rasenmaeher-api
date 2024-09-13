@@ -36,6 +36,7 @@ LOGGER = logging.getLogger(__name__)
 #     await bind_config()
 #     await init_db()
 
+
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the env loading works without import side effects"""
     host = str(uuid.uuid4())
@@ -58,6 +59,7 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
     config = DBConfig()
     assert config.port == 5542
     assert config.host == docker_ip
+
 
 # .
 @pytest.mark.asyncio(scope="session")
@@ -120,6 +122,7 @@ async def test_person_crud(ginosession: None) -> None:
     assert "DOGGO01a" in callsigns
     assert "DOGGO01b" in callsigns
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_enrollments_crud(ginosession: None) -> None:
@@ -166,6 +169,7 @@ async def test_enrollments_crud(ginosession: None) -> None:
     person2 = await obj5.approve(person)
     assert person2.callsign == "ERAPPROVTEST01a"
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_enrollmentpools_crud(ginosession: None) -> None:
@@ -209,6 +213,7 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     new_code = await pool2.reset_invitecode()
     assert old_code != new_code
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_enrollmentpools_list(ginosession: None) -> None:
@@ -242,6 +247,7 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
         pool = await EnrollmentPool.by_invitecode(code)
         assert pool.owner == owner2.pk
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_enrollments_list(ginosession: None) -> None:
@@ -269,6 +275,7 @@ async def test_enrollments_list(ginosession: None) -> None:
     assert pool2_codes.issubset(all_codes)
     assert not pool1_codes.intersection(pool2_codes)
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_seentokens_crud(ginosession: None) -> None:
@@ -293,6 +300,7 @@ async def test_seentokens_crud(ginosession: None) -> None:
     with pytest.raises(ForbiddenOperation):
         await obj2.delete()
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_logincodes_crud(ginosession: None) -> None:
@@ -316,6 +324,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
     with pytest.raises(TokenReuse):
         await LoginCode.use_code(code)
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_person_with_cert(ginosession: None) -> None:
@@ -336,6 +345,7 @@ async def test_person_with_cert(ginosession: None) -> None:
     refresh = await Person.by_callsign("BINGO01a", allow_deleted=True)
     assert refresh.deleted
     assert refresh.revoke_reason
+
 
 # .
 @pytest.mark.xfail(reason="monkeypatching the host does not work as expected")
@@ -358,6 +368,7 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
         with pytest.raises(NotFound):
             await Person.by_callsign("BONGO01a")
 
+
 # .
 @pytest.mark.asyncio(scope="session")
 async def test_person_with_cert_duplicatename(ginosession: None) -> None:
@@ -376,6 +387,7 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
         await Person.create_with_cert(callsign)
     new_files = set(peoplepath.rglob("*"))
     assert new_files == old_files
+
 
 # .
 @pytest.mark.asyncio(scope="session")
@@ -398,6 +410,7 @@ async def test_pfx_parse(ginosession: None) -> None:
     pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, b"PFXMAN01a")
     assert pfxdata.key
     assert pfxdata.cert
+
 
 # .
 @pytest.mark.asyncio(scope="session")
