@@ -92,14 +92,14 @@ async def test_show_verifcode_no_jwt(unauth_client_session: TestClient) -> None:
     """
     Test - no JWT, should fail
     """
+    unauth_client_session.headers.clear()
     resp = await unauth_client_session.get(
         "/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode"
     )
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
-    # Oli 403, mitä tän pitäis palauttaa???
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 # SHOW VERIFICATION CODE INFO - NO PERMISSION
@@ -164,12 +164,12 @@ async def test_have_i_been_accepted_no_jwt(unauth_client_session: TestClient) ->
     """
     Test - have i been - no JWt
     """
+    unauth_client_session.headers.clear()
     resp = await unauth_client_session.get("/api/v1/enrollment/have-i-been-accepted")
     resp_dict: Dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
-    # TODO oli 403.. mitä pitäis olla?
-    assert resp.status_code == 404
+    assert resp.status_code == 403
 
 
 # STATUS USER FOUND
