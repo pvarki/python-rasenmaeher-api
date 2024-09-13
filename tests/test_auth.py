@@ -12,9 +12,6 @@ from rasenmaeher_api.db import Person
 
 LOGGER = logging.getLogger(__name__)
 
-# POISTA
-from pprint import pprint
-
 # pylint: disable=W0621
 
 

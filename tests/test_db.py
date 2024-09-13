@@ -24,7 +24,6 @@ from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call, RMSettings
 from rasenmaeher_api.cfssl.public import get_crl
-from rasenmaeher_api.db.base import init_db, bind_config
 
 
 LOGGER = logging.getLogger(__name__)
