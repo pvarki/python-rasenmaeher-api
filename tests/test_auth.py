@@ -139,18 +139,10 @@ async def test_valid_user_jwt(unauth_client_session: TestClient, two_users: Tupl
     """Test the valid user endpoint with valid and invalid subs"""
     client = unauth_client_session
     for user in two_users:
-        LOGGER.debug(vars(user))
-        LOGGER.debug(f"CALLSIGN : {user.callsign}")
-        LOGGER.debug(f"UUID : {str(user.pk)}")
         token = Issuer.singleton().issue({"sub": user.callsign})
-        LOGGER.debug(f"TOKEN : {token}")
         client.headers.clear()
-
         client.headers.update({"Authorization": f"Bearer {token}"})
-        LOGGER.debug(f"HEADERS : {client.headers}")
-
         resp = await client.get("/api/v1/check-auth/validuser")
-        LOGGER.debug(f"resp : {resp}")
         payload = check_response(resp, "jwt")
         assert payload["userid"] == user.callsign
     # Invalid user should fail
