@@ -10,7 +10,9 @@ from starlette.config import Config
 from starlette.datastructures import Secret
 
 LOGGER = logging.getLogger(__name__)
-config = Config()  # not supporting .env files anymore because https://github.com/encode/starlette/discussions/2446
+config = cast(
+    Callable[..., Any], Config()
+)  # not supporting .env files anymore because https://github.com/encode/starlette/discussions/2446
 
 # FIXME: this should probably be in some common library of ours
 
