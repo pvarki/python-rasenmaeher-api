@@ -1,14 +1,19 @@
 """Instruction routes"""
-from typing import cast
+from typing import cast, Optional
 import logging
 
 from fastapi import Depends, APIRouter, Request
 from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 
 
-from .schema import AllProdcutsInstructionFragments, ProductFileList, AllProdcutsInstructionFiles
+from .schema import (
+    AllProdcutsInstructionFragments,
+    ProductFileList,
+    AllProdcutsInstructionFiles,
+    InstructionData,
+)
 from ..middleware.user import ValidUser
-from ....prodcutapihelpers import get_from_all_products, post_to_all_products
+from ....prodcutapihelpers import get_from_all_products, post_to_all_products, post_to_product
 from ....db import Person
 
 
@@ -20,6 +25,7 @@ router = APIRouter()
     "/admin",
     response_model=AllProdcutsInstructionFragments,
     dependencies=[Depends(ValidUser(auto_error=True))],
+    deprecated=True,
 )
 async def admin_instruction_fragment() -> AllProdcutsInstructionFragments:
     """Return admin instructions"""
@@ -35,6 +41,7 @@ async def admin_instruction_fragment() -> AllProdcutsInstructionFragments:
     "/user",
     response_model=AllProdcutsInstructionFiles,
     dependencies=[Depends(ValidUser(auto_error=True))],
+    deprecated=True,
 )
 async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionFiles:
     """Return end-user files"""
@@ -47,3 +54,22 @@ async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionF
     if responses is None:
         raise ValueError("Everything is broken")
     return AllProdcutsInstructionFiles(files={key: cast(ProductFileList, val) for key, val in responses.items()})
+
+
+@router.get(
+    "/{product}/{language}",
+    dependencies=[Depends(ValidUser(auto_error=True))],
+    response_model=InstructionData,
+)
+async def get_product_instructions(request: Request, product: str, language: str) -> Optional[InstructionData]:
+    """Get instructions JSON for given product and language"""
+    person = cast(Person, request.state.person)
+    user = UserCRUDRequest(
+        uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
+    )
+    response = await post_to_product(product, f"api/v1/instructions/{language}", user.dict(), InstructionData)
+    if response is None:
+        # TODO: Raise a reasonable error instead
+        return None
+    response = cast(InstructionData, response)
+    return response
