@@ -15,6 +15,7 @@ from libadvian.logging import init_logging
 
 LOGGER = logging.getLogger(__name__)
 DATAPATH = Path("/data/persistent")
+TIMEOUT = aiohttp.ClientTimeout(total=2.0)
 
 # we know we have copy-pasted this shit here, it's for the best, this time...
 # pylint: disable=R0801
@@ -80,7 +81,7 @@ async def get_ca() -> str:
         payload: Dict[str, Any] = {}
 
         # FIXME: Why does this need to be a POST ??
-        async with session.post(url, json=payload, timeout=2.0) as response:
+        async with session.post(url, json=payload, timeout=TIMEOUT) as response:
             data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
             result = data.get("result")
             if not result:
@@ -103,7 +104,7 @@ async def sign_csr(csr: str) -> str:
         session.headers.add("Content-Type", "application/json")
         url = f"{cfssl_host}:{cfssl_port}/api/v1/cfssl/sign"
         payload = {"certificate_request": csr}
-        async with session.post(url, json=payload, timeout=2.0) as response:
+        async with session.post(url, json=payload, timeout=TIMEOUT) as response:
             data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
             result = data.get("result")
             if not result:

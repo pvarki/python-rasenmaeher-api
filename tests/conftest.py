@@ -4,27 +4,26 @@ import logging
 from pathlib import Path
 import uuid
 import json
-import asyncio
 import random
 
-import pytest
 from multikeyjwt import Issuer, Verifier
 from multikeyjwt.config import Secret
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
-import pytest_asyncio  # pylint: disable=import-error
+import pytest  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
-from libadvian.tasks import TaskMaster
 from libadvian.logging import init_logging
-from libadvian.binpackers import uuid_to_b64
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
 from pytest_docker.plugin import Services
 from aiohttp import web
+
+import pytest_asyncio  # pylint: disable=import-error
 
 from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
 from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
+from rasenmaeher_api.db.base import init_db, bind_config
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -32,55 +31,14 @@ DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
 
-# pylint: disable=W0621
-
-
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    """Session scoped event loop so the db connection can stay up"""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
-
-
-@pytest.mark.asyncio(scope="session")
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def taskmaster_closer() -> AsyncGenerator[None, None]:
-    """Make sure taskmaster tasks are closed cleanly"""
-    # Ensure we fetch the loop
-    TaskMaster.singleton().create_task(asyncio.sleep(1.0))
-    yield None
-    await TaskMaster.singleton().stop_lingering_tasks()
-
-
 @pytest_asyncio.fixture(scope="session")
-async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
-    """Create a few test users and work ids returns
-    list of work-ids and their corresponding "hashes"
-
-    First one has "enrollment" special role
-    """
-    _ = session_env_config
-    return await create_test_users()
+async def ginosession() -> None:
+    """make sure db is bound etc"""
+    await bind_config()
+    await init_db()
 
 
-# pylint: disable=redefined-outer-name
-@pytest.fixture(scope="session")
-def issuer_cl() -> Issuer:
-    """issuer using cl-key"""
-    return Issuer(
-        privkeypath=JWT_PATH / Path("cl_jwtRS256.key"),
-        keypasswd=Secret("Cache_Latitude_Displease_Hardcopy"),  # pragma: allowlist secret
-    )
-
-
-@pytest.fixture(scope="session")
-def verifier() -> Verifier:
-    """issuer using all keys in data"""
-    return Verifier(pubkeypath=JWT_PATH)
-
-
+# pylint: disable=W0621
 @pytest.fixture(scope="session", autouse=True)
 def session_env_config(  # pylint: disable=R0915,R0914
     monkeysession: pytest.MonkeyPatch,
@@ -198,7 +156,56 @@ def session_env_config(  # pylint: disable=R0915,R0914
         yield None
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="session")
+async def announce_server() -> AsyncGenerator[str, None]:
+    """Simple test server"""
+    bind_port = random.randint(1000, 64000)  # nosec
+    hostname = "localmaeher.pvarki.fi"
+
+    request_payloads: List[Dict[str, Any]] = []
+
+    async def handle_announce(request: web.Request) -> web.Response:
+        """Handle the POST"""
+        nonlocal request_payloads
+        LOGGER.debug("request={}".format(request))
+        payload = await request.json()
+        request_payloads.append(payload)
+        return web.json_response(payload)
+
+    async def handle_log(request: web.Request) -> web.Response:
+        """Return payload log"""
+        nonlocal request_payloads
+        LOGGER.debug("request={}".format(request))
+        return web.json_response({"payloads": request_payloads})
+
+    app = web.Application()
+    app.add_routes([web.post("/announce", handle_announce), web.get("/log", handle_log)])
+
+    LOGGER.debug("Starting the async server task(s)")
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=hostname, port=bind_port)
+    await site.start()
+
+    uri = f"http://{hostname}:{bind_port}"
+    LOGGER.debug("yielding {}".format(uri))
+    yield uri
+
+    LOGGER.debug("Stopping the async server task(s)")
+    await runner.cleanup()
+
+
+@pytest_asyncio.fixture(scope="session")
+async def mtls_client() -> AsyncGenerator[TestClient, None]:
+    """Client with mocked NGinx mTLS headers"""
+    # TODO: make sure this user is in db, should it be admin too ??
+    user_uuid = str(uuid.uuid4())
+    async with TestClient(get_app()) as instance:
+        instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
+        yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
     """Client with tilauspalvely style JWT"""
     async with TestClient(get_app()) as instance:
@@ -214,18 +221,26 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
 
 
 @pytest_asyncio.fixture()
-async def kraftwerk_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
-    """Client with KRAFTWERK style JWT"""
+async def unauth_client() -> AsyncGenerator[TestClient, None]:
+    """Client with no auth headers"""
     async with TestClient(get_app()) as instance:
-        token = issuer_cl.issue(
-            {
-                "sub": "productname",
-                "csr": True,
-                "nonce": uuid_to_b64(uuid.uuid4()),
-            }
-        )
-        instance.headers.update({"Authorization": f"Bearer {token}"})
         yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def unauth_client_session() -> AsyncGenerator[TestClient, None]:
+    """Client with no auth headers"""
+    async with TestClient(get_app()) as instance:
+        yield instance
+
+
+@pytest.fixture(scope="session")
+def issuer_cl() -> Issuer:
+    """issuer using cl-key"""
+    return Issuer(
+        privkeypath=JWT_PATH / Path("cl_jwtRS256.key"),
+        keypasswd=Secret("Cache_Latitude_Displease_Hardcopy"),  # pragma: allowlist secret
+    )
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -265,6 +280,20 @@ async def tilauspalvelu_jwt_user_client(
 
 
 @pytest_asyncio.fixture(scope="session")
+async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
+    """Client with normal user JWT"""
+    async with TestClient(get_app()) as instance:
+        token = issuer_cl.issue(
+            {
+                "sub": "nosuchusershouldbefound",
+                "anon_admin_session": True,
+            }
+        )
+        instance.headers.update({"Authorization": f"Bearer {token}"})
+        yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_koira_client(
     issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
 ) -> AsyncGenerator[TestClient, None]:
@@ -282,48 +311,14 @@ async def tilauspalvelu_jwt_user_koira_client(
 
 
 @pytest_asyncio.fixture(scope="session")
-async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
-    """Client with normal user JWT"""
-    async with TestClient(get_app()) as instance:
-        token = issuer_cl.issue(
-            {
-                "sub": "nosuchusershouldbefound",
-                "anon_admin_session": True,
-            }
-        )
-        instance.headers.update({"Authorization": f"Bearer {token}"})
-        yield instance
+async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
+    """Create a few test users and work ids returns
+    list of work-ids and their corresponding "hashes"
 
-
-@pytest_asyncio.fixture()
-async def mtls_client() -> AsyncGenerator[TestClient, None]:
-    """Client with mocked NGinx mTLS headers"""
-    # TODO: make sure this user is in db, should it be admin too ??
-    user_uuid = str(uuid.uuid4())
-    async with TestClient(get_app()) as instance:
-        instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
-        yield instance
-
-
-@pytest_asyncio.fixture()
-async def unauth_client() -> AsyncGenerator[TestClient, None]:
-    """Client with no auth headers"""
-    async with TestClient(get_app()) as instance:
-        yield instance
-
-
-@pytest_asyncio.fixture()
-async def rm_jwt_client() -> AsyncGenerator[TestClient, None]:
-    """Client with no auth headers"""
-    async with TestClient(get_app()) as instance:
-        token = Issuer.singleton().issue(
-            {
-                "sub": "rmsession",
-                "anon_admin_session": True,
-            }
-        )
-        instance.headers.update({"Authorization": f"Bearer {token}"})
-        yield instance
+    First one has "enrollment" special role
+    """
+    _ = session_env_config
+    return await create_test_users()
 
 
 # Issues in tests in ubuntu-latest
@@ -332,7 +327,8 @@ async def rm_jwt_client() -> AsyncGenerator[TestClient, None]:
 # [[tool.mypy.overrides]]
 # disallow_untyped_decorators=false
 # adding '# type: ignore' ends up giving 'error: Unused "type: ignore" comment'
-@pytest_asyncio.fixture(scope="function")
+# @pytest_asyncio.fixture(scope="function")
+@pytest_asyncio.fixture(scope="session")
 async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
     """Create default client"""
     _request_params: Dict[Any, Any] = request.param
@@ -351,42 +347,3 @@ async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
             )
 
         yield instance
-
-
-@pytest_asyncio.fixture(scope="session")
-async def announce_server() -> AsyncGenerator[str, None]:
-    """Simple test server"""
-    bind_port = random.randint(1000, 64000)  # nosec
-    hostname = "localmaeher.pvarki.fi"
-
-    request_payloads: List[Dict[str, Any]] = []
-
-    async def handle_announce(request: web.Request) -> web.Response:
-        """Handle the POST"""
-        nonlocal request_payloads
-        LOGGER.debug("request={}".format(request))
-        payload = await request.json()
-        request_payloads.append(payload)
-        return web.json_response(payload)
-
-    async def handle_log(request: web.Request) -> web.Response:
-        """Return payload log"""
-        nonlocal request_payloads
-        LOGGER.debug("request={}".format(request))
-        return web.json_response({"payloads": request_payloads})
-
-    app = web.Application()
-    app.add_routes([web.post("/announce", handle_announce), web.get("/log", handle_log)])
-
-    LOGGER.debug("Starting the async server task(s)")
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host=hostname, port=bind_port)
-    await site.start()
-
-    uri = f"http://{hostname}:{bind_port}"
-    LOGGER.debug("yielding {}".format(uri))
-    yield uri
-
-    LOGGER.debug("Stopping the async server task(s)")
-    await runner.cleanup()

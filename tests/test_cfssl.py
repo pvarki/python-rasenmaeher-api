@@ -11,14 +11,13 @@ from rasenmaeher_api.cfssl.public import get_ca, get_crl
 from rasenmaeher_api.cfssl.private import validate_reason
 from rasenmaeher_api.db import Person
 
-from .test_db import ginosession  # pylint: disable=W0611
 
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_get_ca() -> None:
     """Test CA fetching"""
     capem = await get_ca()
@@ -34,7 +33,7 @@ async def one_revoked_cert(ginosession: None) -> None:
     await person.revoke("key_compromise")
 
 
-@pytest.mark.asyncio
+@pytest.mark.asyncio(scope="session")
 async def test_get_crl(one_revoked_cert: None) -> None:
     """Test CA fetching"""
     # Make sure there is at least one revoked cert
@@ -56,12 +55,12 @@ def test_reasons() -> None:
 
 
 @pytest.mark.parametrize("suffix", ("", "/crl.der"))
-@pytest.mark.asyncio
-async def test_crl_der_route(suffix: str, unauth_client: TestClient, one_revoked_cert: None) -> None:
+@pytest.mark.asyncio(scope="session")
+async def test_crl_der_route(suffix: str, unauth_client_session: TestClient, one_revoked_cert: None) -> None:
     """Check that we can get a parseable CRL from the route"""
     # Make sure there is at least one revoked cert
     _ = one_revoked_cert
-    client = unauth_client
+    client = unauth_client_session
     resp = await client.get(f"/api/v1/utils/crl{suffix}")
     resp.raise_for_status()
     # both intermediate and root CRLs are in one file, this parser cannot deal with it
@@ -69,12 +68,12 @@ async def test_crl_der_route(suffix: str, unauth_client: TestClient, one_revoked
     # assert crl
 
 
-@pytest.mark.asyncio
-async def test_crl_pem_route(unauth_client: TestClient, one_revoked_cert: None) -> None:
+@pytest.mark.asyncio(scope="session")
+async def test_crl_pem_route(unauth_client_session: TestClient, one_revoked_cert: None) -> None:
     """Check that we can get a parseable CRL from the route"""
     # Make sure there is at least one revoked cert
     _ = one_revoked_cert
-    client = unauth_client
+    client = unauth_client_session
     resp = await client.get("/api/v1/utils/crl/crl.pem")
     resp.raise_for_status()
     crl = cryptography.x509.load_pem_x509_crl(resp.content)
