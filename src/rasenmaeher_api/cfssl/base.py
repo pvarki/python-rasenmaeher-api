@@ -9,7 +9,11 @@ from libpvarki.mtlshelp.context import get_ca_context
 from ..rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
-DEFAULT_TIMEOUT = RMSettings.singleton().cfssl_timeout
+
+
+def default_timeout() -> aiohttp.ClientTimeout:
+    """Return configured timeout wrapped in the new aiohttp way"""
+    return aiohttp.ClientTimeout(total=RMSettings.singleton().cfssl_timeout)
 
 
 class CFSSLError(RuntimeError):
