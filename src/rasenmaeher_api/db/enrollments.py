@@ -10,6 +10,7 @@ import uuid
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
+from sqlalchemy.sql import func
 
 from .base import ORMBaseModel, utcnow, db
 from .people import Person
@@ -17,9 +18,17 @@ from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, Poo
 from ..rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
-CODE_CHAR_COUNT = 8  # TODO: Make configurable ??
 CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
+
+
+def generate_code() -> str:
+    """Generate a code"""
+    settings = RMSettings.singleton()
+    code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(settings.code_size))
+    if settings.code_avoid_confusion:
+        code = code.replace("0", "O").replace("1", "I")
+    return code
 
 
 class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
@@ -81,7 +90,7 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
         attempt = 0
         while True:
             attempt += 1
-            code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
+            code = generate_code()
             try:
                 await EnrollmentPool.by_invitecode(code)
             except NotFound:
@@ -184,7 +193,7 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
     @classmethod
     async def by_callsign(cls, callsign: str) -> Self:
         """Get by callsign"""
-        obj = await Enrollment.query.where(Enrollment.callsign == callsign).gino.first()
+        obj = await Enrollment.query.where(func.lower(Enrollment.callsign) == func.lower(callsign)).gino.first()
         if not obj:
             raise NotFound()
         if obj.deleted:
@@ -227,7 +236,7 @@ class Enrollment(ORMBaseModel):  # pylint: disable=R0903
         attempt = 0
         while True:
             attempt += 1
-            code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_CHAR_COUNT))
+            code = generate_code()
             try:
                 await Enrollment.by_approvecode(code)
             except NotFound:
