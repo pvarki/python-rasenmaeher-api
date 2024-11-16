@@ -72,8 +72,8 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
             async with db.acquire() as conn:
                 async with conn.transaction():  # do it in a transaction so if something fails we can roll back
                     await person.update(extra=person.extra).apply()
-            refresh = await cls.by_pk(person.pk)
-            return refresh
+                refresh = await cls.by_pk(person.pk)
+                return refresh
         except Exception as exc:
             raise BackendError(str(exc)) from exc
 
