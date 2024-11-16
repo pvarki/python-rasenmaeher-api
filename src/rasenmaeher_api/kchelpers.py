@@ -115,6 +115,7 @@ class KCClient:
             "attributes": {
                 "callsign": pdata.callsign,
                 "certpem": pdata.x509cert,
+                "altUsernames": [f"{pdata.callsign}_{productname}" for productname in manifest["products"].keys()],
             },
             "credentials": [
                 {  # FIXME: How to allow only x509, especially with the LDAP there too ??
@@ -153,6 +154,7 @@ class KCClient:
         send_payload["attributes"].update(
             {
                 "certpem": pdata.x509cert,
+                "altUsernames": [f"{pdata.callsign}_{productname}" for productname in manifest["products"].keys()],
             }
         )
         await self.kcadmin.a_update_user(user.kc_id, send_payload)
