@@ -81,7 +81,7 @@ async def get_ca() -> str:
         payload: Dict[str, Any] = {}
 
         # FIXME: Why does this need to be a POST ??
-        async with session.post(url, json=payload, timeout=TIMEOUT) as response:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
             data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
             result = data.get("result")
             if not result:
@@ -104,7 +104,7 @@ async def sign_csr(csr: str) -> str:
         session.headers.add("Content-Type", "application/json")
         url = f"{cfssl_host}:{cfssl_port}/api/v1/cfssl/sign"
         payload = {"certificate_request": csr}
-        async with session.post(url, json=payload, timeout=TIMEOUT) as response:
+        async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
             data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
             result = data.get("result")
             if not result:
@@ -127,7 +127,7 @@ async def main() -> int:
     LOGGER.info("Initializing server cert")
     keypair = await asyncio.get_event_loop().run_in_executor(None, create_keypair, "server")
     csr_path = await asyncio.get_event_loop().run_in_executor(
-        None, create_csr, keypair, "server", environ.get("FPAPI_HOST_NAME", "fake.localmaeher.pvarki.fi")
+        None, create_csr, keypair, "server", environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
     )
     certpem = (await sign_csr(csr_path.read_text())).replace("\\n", "\n")
     capem = (await get_ca()).replace("\\n", "\n")

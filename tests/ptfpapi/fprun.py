@@ -129,7 +129,7 @@ def main() -> int:
     LOGGER.debug("Called")
     persistentdir = Path(environ.get("PERSISTENT_DATA_PATH", "/data/persistent"))
     extra_ca_certs_path = Path(environ.get("LOCAL_CA_CERTS_PATH", "/ca_public"))
-    _hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.pvarki.fi")
+    _hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
     bind_port = int(environ.get("FPAPI_BIND_PORT", 7788))
     bind_address = environ.get("FPAPI_BIND_ADDRESS", "0.0.0.0")  # nosec
     server_cert = (persistentdir / "public" / "server_chain.pem", persistentdir / "private" / "server.key")

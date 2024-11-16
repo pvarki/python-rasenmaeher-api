@@ -55,17 +55,17 @@ def session_env_config(  # pylint: disable=R0915,R0914
     kfmanifest.write_text(
         json.dumps(
             {
-                "dns": "localmaeher.pvarki.fi",
+                "dns": "localmaeher.dev.pvarki.fi",
                 "products": {
                     "fake": {
-                        "api": f"https://fake.localmaeher.pvarki.fi:{fakeproduct_port}/",
-                        "uri": "https://fake.localmaeher.pvarki.fi:844/",  # Not actually there
-                        "certcn": "fake.localmaeher.pvarki.fi",
+                        "api": f"https://fake.localmaeher.dev.pvarki.fi:{fakeproduct_port}/",
+                        "uri": "https://fake.localmaeher.dev.pvarki.fi:844/",  # Not actually there
+                        "certcn": "fake.localmaeher.dev.pvarki.fi",
                     },
                     "nonexistent": {
                         "api": "https://localhost:4657/",
-                        "uri": "https://nonexistent.localmaeher.pvarki.fi:844/",  # Not actually there
-                        "certcn": "nonexistent.localmaeher.pvarki.fi",
+                        "uri": "https://nonexistent.localmaeher.dev.pvarki.fi:844/",  # Not actually there
+                        "certcn": "nonexistent.localmaeher.dev.pvarki.fi",
                     },
                 },
             }
@@ -348,3 +348,42 @@ async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
             )
 
         yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def announce_server() -> AsyncGenerator[str, None]:
+    """Simple test server"""
+    bind_port = random.randint(1000, 64000)  # nosec
+    hostname = "localmaeher.dev.pvarki.fi"
+
+    request_payloads: List[Dict[str, Any]] = []
+
+    async def handle_announce(request: web.Request) -> web.Response:
+        """Handle the POST"""
+        nonlocal request_payloads
+        LOGGER.debug("request={}".format(request))
+        payload = await request.json()
+        request_payloads.append(payload)
+        return web.json_response(payload)
+
+    async def handle_log(request: web.Request) -> web.Response:
+        """Return payload log"""
+        nonlocal request_payloads
+        LOGGER.debug("request={}".format(request))
+        return web.json_response({"payloads": request_payloads})
+
+    app = web.Application()
+    app.add_routes([web.post("/announce", handle_announce), web.get("/log", handle_log)])
+
+    LOGGER.debug("Starting the async server task(s)")
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, host=hostname, port=bind_port)
+    await site.start()
+
+    uri = f"http://{hostname}:{bind_port}"
+    LOGGER.debug("yielding {}".format(uri))
+    yield uri
+
+    LOGGER.debug("Stopping the async server task(s)")
+    await runner.cleanup()

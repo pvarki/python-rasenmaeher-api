@@ -31,7 +31,7 @@ async def test_get_openapi_json(app_client: TestClient) -> None:
 def test_settings() -> None:
     """Test settings defaults"""
     conf = RMSettings.singleton()
-    assert "fake.localmaeher.pvarki.fi" in conf.valid_product_cns
+    assert "fake.localmaeher.dev.pvarki.fi" in conf.valid_product_cns
 
 
 @pytest.mark.asyncio(scope="session")
