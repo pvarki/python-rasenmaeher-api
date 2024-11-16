@@ -102,10 +102,5 @@ class DBConnectionMiddleware:  # pylint: disable=R0903
             return
 
         # Get and release connection
-        scope["connection"] = await self.gino.acquire(lazy=True)
-        try:
+        async with self.gino.acquire(lazy=True):
             await self.app(scope, receive, send)
-        finally:
-            conn = scope.pop("connection", None)
-            if conn is not None:
-                await conn.release()
