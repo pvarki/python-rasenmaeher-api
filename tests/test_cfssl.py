@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 # pylint: disable=W0621
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_ca() -> None:
     """Test CA fetching"""
     capem = await get_ca()
@@ -33,7 +33,7 @@ async def one_revoked_cert(ginosession: None) -> None:
     await person.revoke("key_compromise")
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_get_crl(one_revoked_cert: None) -> None:
     """Test CA fetching"""
     # Make sure there is at least one revoked cert
@@ -55,7 +55,7 @@ def test_reasons() -> None:
 
 
 @pytest.mark.parametrize("suffix", ("", "/crl.der"))
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_crl_der_route(suffix: str, unauth_client_session: TestClient, one_revoked_cert: None) -> None:
     """Check that we can get a parseable CRL from the route"""
     # Make sure there is at least one revoked cert
@@ -68,7 +68,7 @@ async def test_crl_der_route(suffix: str, unauth_client_session: TestClient, one
     # assert crl
 
 
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_crl_pem_route(unauth_client_session: TestClient, one_revoked_cert: None) -> None:
     """Check that we can get a parseable CRL from the route"""
     # Make sure there is at least one revoked cert

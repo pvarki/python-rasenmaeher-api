@@ -61,7 +61,7 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction of persons and roles"""
     _ = ginosession
@@ -123,7 +123,7 @@ async def test_person_crud(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_enrollments_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments"""
     _ = ginosession
@@ -170,7 +170,7 @@ async def test_enrollments_crud(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_enrollmentpools_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments and enrollmentpools"""
     _ = ginosession
@@ -214,7 +214,7 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_enrollmentpools_list(ginosession: None) -> None:
     """Test list methods"""
     _ = ginosession
@@ -248,7 +248,7 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_enrollments_list(ginosession: None) -> None:
     """Test list methods"""
     _ = ginosession
@@ -276,7 +276,7 @@ async def test_enrollments_list(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_seentokens_crud(ginosession: None) -> None:
     """Test the db abstraction for seen tokens"""
     _ = ginosession
@@ -301,7 +301,7 @@ async def test_seentokens_crud(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_logincodes_crud(ginosession: None) -> None:
     """Test the db abstraction for login codes"""
     _ = ginosession
@@ -325,7 +325,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert(ginosession: None) -> None:
     """Test the cert creation with the classmethod (and revocation)"""
     _ = ginosession
@@ -348,7 +348,7 @@ async def test_person_with_cert(ginosession: None) -> None:
 
 # .
 @pytest.mark.xfail(reason="monkeypatching the host does not work as expected")
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the cert creation with the classmethod with CFSSL failure"""
     _ = ginosession
@@ -369,7 +369,7 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     """Test the cert creation with the classmethod but reserved callsign"""
     _ = ginosession
@@ -389,7 +389,7 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_pfx_parse(ginosession: None) -> None:
     """Test that the PFX file gets done"""
     _ = ginosession
@@ -412,7 +412,7 @@ async def test_pfx_parse(ginosession: None) -> None:
 
 
 # .
-@pytest.mark.asyncio(scope="session")
+@pytest.mark.asyncio(loop_scope="session")
 async def test_productcn_forbid(ginosession: None) -> None:
     """Test that trying to create enrollment or person with callsign that matches a product CN fails"""
     _ = ginosession
