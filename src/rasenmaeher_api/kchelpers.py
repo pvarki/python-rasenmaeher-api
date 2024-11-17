@@ -129,7 +129,8 @@ class KCClient:
 
         user_id = await self.kcadmin.a_create_user(send_payload, exist_ok=False)
         user.kc_id = user_id
-        await self.user_initial_groups(user)
+        if pdata.callsign != "anon_admin":
+            await self.user_initial_groups(user)
         await self.check_user_roles(user)
         return await self._refresh_user(user_id, pdata)
 
