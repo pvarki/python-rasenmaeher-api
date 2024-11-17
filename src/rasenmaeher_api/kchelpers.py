@@ -36,6 +36,7 @@ class KCClient:
     kcadmin: KeycloakAdmin = field()
     _kc_admin_role: Optional[dict[str, Union[str, bool]]] = field(default=None)
     _singleton: ClassVar[Optional["KCClient"]] = None
+    _product_initial_grps: Optional[Dict[str, Dict[str, Any]]] = None
 
     @classmethod
     def singleton(cls) -> "KCClient":
@@ -128,8 +129,26 @@ class KCClient:
 
         user_id = await self.kcadmin.a_create_user(send_payload, exist_ok=False)
         user.kc_id = user_id
+        await self.user_initial_groups(user)
         await self.check_user_roles(user)
         return await self._refresh_user(user_id, pdata)
+
+    async def user_initial_groups(self, user: KCUserData) -> Optional[bool]:
+        """Assign user to initial product groups"""
+        conf = RMSettings.singleton()
+        if not conf.kc_enabled:
+            return None
+        if not user.kc_id:
+            LOGGER.error("No KC id defined")
+            return None
+        await self.ensure_product_groups()
+        if not self._product_initial_grps:
+            return None
+        pdata = user.productdata
+        for group in self._product_initial_grps.values():
+            LOGGER.info("Assigning {} to {}".format(pdata.callsign, group["path"]))
+            await self.kcadmin.a_group_user_add(user.kc_id, group["id"])
+        return True
 
     async def update_kc_user(self, user: KCUserData) -> Optional[KCUserData]:
         """Update user"""
@@ -170,3 +189,33 @@ class KCClient:
             return False
         await self.kcadmin.a_delete_user(user.kc_id)
         return True
+
+    async def ensure_product_groups(self) -> Optional[bool]:
+        """Make sure each product in manifest has a root level group and initial child-group"""
+        conf = RMSettings.singleton()
+        if not conf.kc_enabled:
+            return None
+        manifest = conf.kraftwerk_manifest_dict
+        groups = await self.kcadmin.a_get_groups()
+        groups_by_name = {group["name"]: group for group in groups}
+        created = False
+        for productname in manifest["products"].keys():
+            if productname not in groups_by_name:
+                LOGGER.info("Creating KC group /{}".format(productname))
+                new_id = await self.kcadmin.a_create_group({"name": productname})
+                groups_by_name[productname] = await self.kcadmin.a_get_group(new_id)
+                created = True
+            group = groups_by_name[productname]
+            subgroups_by_name: Dict[str, Dict[str, Any]] = {
+                subgroup["name"]: subgroup for subgroup in group["subGroups"]
+            }
+            if "initial" not in subgroups_by_name:
+                LOGGER.info("Creating KC group /{}/initial".format(productname))
+                new_id = await self.kcadmin.a_create_group({"name": "initial"}, parent=group["id"])
+                subgroups_by_name["initial"] = await self.kcadmin.a_get_group(new_id)
+                created = True
+            if self._product_initial_grps is None:
+                self._product_initial_grps = {}
+            self._product_initial_grps[productname] = subgroups_by_name["initial"]
+        LOGGER.debug("Product initial KC groups: {}".format(self._product_initial_grps))
+        return created
