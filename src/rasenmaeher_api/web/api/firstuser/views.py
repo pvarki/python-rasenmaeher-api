@@ -1,8 +1,10 @@
 """Firstuser API views."""
+import asyncio
 import logging
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
 from multikeyjwt.middleware import JWTBearer, JWTPayload
+from libadvian.tasks import TaskMaster
 
 from rasenmaeher_api.web.api.firstuser.schema import (
     FirstuserCheckCodeIn,
@@ -81,6 +83,18 @@ async def post_admin_add(
     # and approve the user
     anon_admin_user = await Person.by_callsign(callsign="anon_admin")
     new_admin = await enrollment.approve(approver=anon_admin_user)
+
+    # FIXME Should tbe TaskMaster feature
+    async def tms_wait() -> None:
+        """Wait for background tasks to avoid race conditions"""
+        tma = TaskMaster.singleton()
+        while tma._tasks:  # pylint: disable=W0212
+            await asyncio.sleep(0.1)
+
+    try:
+        await asyncio.wait_for(tms_wait(), timeout=3.0)
+    except asyncio.TimeoutError:
+        LOGGER.warning("Timed out while waiting for background tasks, continuing anyway")
     role_add_success = await new_admin.assign_role(role="admin")
 
     if role_add_success is False:
