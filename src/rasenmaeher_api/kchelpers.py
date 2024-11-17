@@ -210,13 +210,14 @@ class KCClient:
             subgroups_by_name: Dict[str, Dict[str, Any]] = {
                 subgroup["name"]: subgroup for subgroup in group["subGroups"]
             }
-            if "initial" not in subgroups_by_name:
-                LOGGER.info("Creating KC group /{}/initial".format(productname))
-                new_id = await self.kcadmin.a_create_group({"name": "initial"}, parent=group["id"])
-                subgroups_by_name["initial"] = await self.kcadmin.a_get_group(new_id)
+            subgrpname = f"{productname}_dflt"
+            if subgrpname not in subgroups_by_name:
+                LOGGER.info("Creating KC group /{}/{}".format(productname, subgrpname))
+                new_id = await self.kcadmin.a_create_group({"name": subgrpname}, parent=group["id"])
+                subgroups_by_name[subgrpname] = await self.kcadmin.a_get_group(new_id)
                 created = True
             if self._product_initial_grps is None:
                 self._product_initial_grps = {}
-            self._product_initial_grps[productname] = subgroups_by_name["initial"]
+            self._product_initial_grps[productname] = subgroups_by_name[subgrpname]
         LOGGER.debug("Product initial KC groups: {}".format(self._product_initial_grps))
         return created
