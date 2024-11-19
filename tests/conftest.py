@@ -7,6 +7,7 @@ import uuid
 import json
 import random
 
+from fastapi import FastAPI
 from multikeyjwt import Issuer, Verifier
 from multikeyjwt.config import Secret
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
@@ -66,6 +67,13 @@ async def taskmaster() -> AsyncGenerator[None, None]:
         await asyncio.wait_for(tms_wait(), timeout=10.0)
     except asyncio.TimeoutError:
         LOGGER.warning("Taskmaster wait timed out")
+
+
+@pytest.fixture(scope="session")
+def app_instance() -> FastAPI:
+    """Singleton app instance"""
+    app = get_app()
+    return app
 
 
 # pylint: disable=W0621
@@ -188,21 +196,21 @@ def session_env_config(  # pylint: disable=R0915,R0914
 
 
 @pytest_asyncio.fixture(scope="session")
-async def mtls_client() -> AsyncGenerator[TestClient, None]:
+async def mtls_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
     """Client with mocked NGinx mTLS headers"""
     # TODO: make sure this user is in db, should it be admin too ??
     user_uuid = str(uuid.uuid4())
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
         yield instance
 
 
 @pytest_asyncio.fixture(scope="session")
-async def user_mtls_client() -> AsyncGenerator[TestClient, None]:
+async def user_mtls_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
     """Client with mocked NGinx mTLS headers and valid user in DB"""
     # TODO: make sure this user is in db, should it be admin too ??
     user_uuid = str(uuid.uuid4())
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         await Person.create_with_cert(user_uuid)
         try:
             await asyncio.wait_for(tms_wait(), timeout=10.0)
@@ -213,9 +221,9 @@ async def user_mtls_client() -> AsyncGenerator[TestClient, None]:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
+async def tilauspalvelu_jwt_client(issuer_cl: Issuer, app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
     """Client with tilauspalvely style JWT"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         token = issuer_cl.issue(
             {
                 "sub": "tpadminsession",
@@ -228,16 +236,16 @@ async def tilauspalvelu_jwt_client(issuer_cl: Issuer) -> AsyncGenerator[TestClie
 
 
 @pytest_asyncio.fixture()
-async def unauth_client() -> AsyncGenerator[TestClient, None]:
+async def unauth_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
     """Client with no auth headers"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         yield instance
 
 
 @pytest_asyncio.fixture(scope="session")
-async def unauth_client_session() -> AsyncGenerator[TestClient, None]:
+async def unauth_client_session(app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
     """Client with no auth headers"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         yield instance
 
 
@@ -252,10 +260,10 @@ def issuer_cl() -> Issuer:
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_admin_client(
-    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
+    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]], app_instance: FastAPI
 ) -> AsyncGenerator[TestClient, None]:
     """Client with admin JWT"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         work_ids, _ = test_user_secrets
         pyteststuff_id = work_ids[0]
         token = issuer_cl.issue(
@@ -270,10 +278,10 @@ async def tilauspalvelu_jwt_admin_client(
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_client(
-    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
+    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]], app_instance: FastAPI
 ) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         work_ids, _ = test_user_secrets
         kissa_id = work_ids[2]
         token = issuer_cl.issue(
@@ -287,9 +295,11 @@ async def tilauspalvelu_jwt_user_client(
 
 
 @pytest_asyncio.fixture(scope="session")
-async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> AsyncGenerator[TestClient, None]:
+async def tilauspalvelu_jwt_without_proper_user_client(
+    issuer_cl: Issuer, app_instance: FastAPI
+) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         token = issuer_cl.issue(
             {
                 "sub": "nosuchusershouldbefound",
@@ -302,10 +312,10 @@ async def tilauspalvelu_jwt_without_proper_user_client(issuer_cl: Issuer) -> Asy
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_koira_client(
-    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]]
+    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]], app_instance: FastAPI
 ) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
-    async with TestClient(get_app()) as instance:
+    async with TestClient(app_instance) as instance:
         work_ids, _ = test_user_secrets
         koira_id = work_ids[3]
         token = issuer_cl.issue(
