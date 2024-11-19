@@ -24,7 +24,7 @@ async def test_get_ca() -> None:
     assert capem.startswith("-----BEGIN CERTIFICATE-----")
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def one_revoked_cert(ginosession: None) -> None:
     """Make sure we have at least one revoked cert"""
     _ = ginosession
@@ -33,7 +33,7 @@ async def one_revoked_cert(ginosession: None) -> None:
     await person.revoke("key_compromise")
 
 
-@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.asyncio(loop_scope="function")
 async def test_get_crl(one_revoked_cert: None) -> None:
     """Test CA fetching"""
     # Make sure there is at least one revoked cert

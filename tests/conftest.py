@@ -1,4 +1,5 @@
 """pytest automagics"""
+import asyncio
 from typing import Dict, Any, AsyncGenerator, Generator, Tuple, List
 import logging
 from pathlib import Path
@@ -13,8 +14,10 @@ import pytest  # pylint: disable=import-error
 from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
 from libadvian.logging import init_logging
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
+from libadvian.tasks import TaskMaster
 from pytest_docker.plugin import Services
 from aiohttp import web
+
 
 import pytest_asyncio  # pylint: disable=import-error
 
@@ -24,6 +27,8 @@ from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
 from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
 from rasenmaeher_api.db.base import init_db, bind_config
+from rasenmaeher_api.db.base import db as ginoinstance
+from rasenmaeher_api.db.people import Person
 
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
@@ -31,11 +36,37 @@ DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
 
-@pytest_asyncio.fixture(scope="session")
-async def ginosession() -> None:
+# FIXME Should tbe TaskMaster feature
+async def tms_wait() -> None:
+    """Wait for background tasks to avoid race conditions"""
+    tma = TaskMaster.singleton()
+    while tma._tasks:  # pylint: disable=W0212
+        try:
+            await asyncio.sleep(0.1)
+        except asyncio.CancelledError:
+            LOGGER.warning("Waiting for tasks cancelled")
+            LOGGER.debug("Remaining tasks: {}".format(tma._tasks))  # pylint: disable=W0212
+            return
+
+
+@pytest_asyncio.fixture(scope="function")
+async def ginosession() -> AsyncGenerator[None, None]:
     """make sure db is bound etc"""
     await bind_config()
     await init_db()
+    async with ginoinstance.acquire():
+        yield
+
+
+@pytest_asyncio.fixture(scope="function", autouse=True)
+async def taskmaster() -> AsyncGenerator[None, None]:
+    """Wait for taskmaster tasks"""
+    TaskMaster.singleton()
+    yield
+    try:
+        await asyncio.wait_for(tms_wait(), timeout=10.0)
+    except asyncio.TimeoutError:
+        LOGGER.warning("Taskmaster wait timed out")
 
 
 # pylint: disable=W0621
@@ -163,6 +194,21 @@ async def mtls_client() -> AsyncGenerator[TestClient, None]:
     # TODO: make sure this user is in db, should it be admin too ??
     user_uuid = str(uuid.uuid4())
     async with TestClient(get_app()) as instance:
+        instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
+        yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
+async def user_mtls_client() -> AsyncGenerator[TestClient, None]:
+    """Client with mocked NGinx mTLS headers and valid user in DB"""
+    # TODO: make sure this user is in db, should it be admin too ??
+    user_uuid = str(uuid.uuid4())
+    async with TestClient(get_app()) as instance:
+        await Person.create_with_cert(user_uuid)
+        try:
+            await asyncio.wait_for(tms_wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            LOGGER.warning("Taskmaster wait timed out")
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
         yield instance
 

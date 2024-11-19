@@ -9,19 +9,26 @@ from async_asgi_testclient import TestClient
 from multikeyjwt import Issuer
 
 from rasenmaeher_api.db import Person
+from rasenmaeher_api.db.errors import NotFound
 
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture(scope="function")
 async def two_users(ginosession: None) -> Tuple[Person, Person]:
     """First one is normal, second is admin"""
     _ = ginosession
-    normal = await Person.create_with_cert("TestNormalUser")
-    admin = await Person.create_with_cert("TestAdminUser")
-    await admin.assign_role("admin")
+    try:
+        normal = await Person.by_callsign("TestNormalUser")
+    except NotFound:
+        normal = await Person.create_with_cert("TestNormalUser")
+    try:
+        admin = await Person.by_callsign("TestAdminUser")
+    except NotFound:
+        admin = await Person.create_with_cert("TestAdminUser")
+        await admin.assign_role("admin")
     return normal, admin
 
 
