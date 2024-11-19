@@ -11,7 +11,6 @@ from multikeyjwt import Issuer, Verifier
 from multikeyjwt.config import Secret
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 import pytest  # pylint: disable=import-error
-from _pytest.fixtures import SubRequest  # FIXME: Should we be importing from private namespaces ??
 from libadvian.logging import init_logging
 from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
 from libadvian.tasks import TaskMaster
@@ -327,34 +326,6 @@ async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[s
     """
     _ = session_env_config
     return await create_test_users()
-
-
-# Issues in tests in ubuntu-latest
-# error: Untyped decorator makes function "app_client" untyped  [misc] # no-untyped-def
-# pyproject.toml
-# [[tool.mypy.overrides]]
-# disallow_untyped_decorators=false
-# adding '# type: ignore' ends up giving 'error: Unused "type: ignore" comment'
-# @pytest_asyncio.fixture(scope="function")
-@pytest_asyncio.fixture(scope="session")
-async def app_client(request: SubRequest) -> AsyncGenerator[TestClient, None]:
-    """Create default client"""
-    _request_params: Dict[Any, Any] = request.param
-    async with TestClient(get_app()) as instance:
-        if "xclientcert" in _request_params.keys() and _request_params["xclientcert"] is True:
-            LOGGER.debug(
-                "set header '{}:'{}'".format(
-                    switchme_to_singleton_call.api_client_cert_header,
-                    switchme_to_singleton_call.test_api_client_cert_header_value,
-                )
-            )
-            instance.headers.update(
-                {
-                    switchme_to_singleton_call.api_client_cert_header: switchme_to_singleton_call.test_api_client_cert_header_value  # pylint: disable=C0301
-                }
-            )
-
-        yield instance
 
 
 @pytest_asyncio.fixture(scope="session")

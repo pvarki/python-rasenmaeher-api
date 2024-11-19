@@ -19,10 +19,9 @@ def test_version() -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-@pytest.mark.parametrize("app_client", [{"test": "value", "xclientcert": False}], indirect=True)
-async def test_get_openapi_json(app_client: TestClient) -> None:
+async def test_get_openapi_json(unauth_client_session: TestClient) -> None:
     """Check that we can get the openapi spec"""
-    resp = await app_client.get("/api/openapi.json")
+    resp = await unauth_client_session.get("/api/openapi.json")
     resp_dict: Dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert len(resp_dict) > 0
