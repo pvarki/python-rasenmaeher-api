@@ -10,6 +10,7 @@ import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as saUUID
 import sqlalchemy as sa
+from sqlalchemy.sql import func
 from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
 from libpvarki.schemas.product import UserCRUDRequest
 from libpvarki.schemas.generic import OperationResultResponse
@@ -22,6 +23,7 @@ from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
 from ..prodcutapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
+from ..kchelpers import KCClient, KCUserData
 
 LOGGER = logging.getLogger(__name__)
 
@@ -41,6 +43,39 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")
     revoke_reason = sa.Column(sa.String(), nullable=True, index=False)
+
+    @classmethod
+    async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
+        """Update the local record with KC deta"""
+        if not person:
+            if "callsign" in kcdata:
+                person = await cls.by_callsign(kcdata["callsign"])
+            else:
+                person = await cls.by_callsign(kcdata["username"])
+            if person.extra is None:
+                LOGGER.warning("self.extra was None for some reason, this should not happen")
+                person.extra = {}
+        # This *is* in correct indent
+        # Do not bother having second copy of local properties
+        for key in ("callsign", "certpem"):
+            if key not in kcdata:
+                continue
+            del kcdata[key]
+        person.extra.update(
+            {
+                "kc_uuid": kcdata["id"],
+                "kc_data": kcdata,
+            }
+        )
+        try:
+            LOGGER.debug("Updating extra for {}".format(person.callsign))
+            async with db.acquire() as conn:
+                async with conn.transaction():  # do it in a transaction so if something fails we can roll back
+                    await person.update(extra=person.extra).apply()
+                refresh = await cls.by_pk(person.pk)
+                return refresh
+        except Exception as exc:
+            raise BackendError(str(exc)) from exc
 
     @classmethod
     async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID], allow_deleted: bool = False) -> "Person":
@@ -82,10 +117,24 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     raise BackendError(str(exc)) from exc
                 # Return refreshed object if everything went ok
                 refresh = await cls.by_pk(newperson.pk)
-                TaskMaster.singleton().create_task(refresh.create_pfx())
-                TaskMaster.singleton().create_task(refresh_ocsp())
-                TaskMaster.singleton().create_task(user_created(refresh))
-                return refresh
+        # Drop the DB transaction for rest of the actions
+        return await refresh._post_create()  # pylint: disable=W0212
+
+    async def _post_create(self) -> "Person":
+        """Post creation actions, in separate method for readability"""
+        refresh = self
+        kclient = KCClient.singleton()
+        kcdata = await kclient.create_kc_user(await refresh.get_kcdata())
+        if not kcdata:
+            LOGGER.warning("create_kc_user returned none")
+        else:
+            LOGGER.debug("Calling update_from_kcdata")
+            refresh = await Person.update_from_kcdata(kcdata.kc_data, refresh)
+        # Trigger some background tasks
+        TaskMaster.singleton().create_task(refresh.create_pfx())
+        TaskMaster.singleton().create_task(refresh_ocsp())
+        TaskMaster.singleton().create_task(user_created(refresh))
+        return refresh
 
     async def create_pfx(self) -> Path:
         """Put cert and key to PKCS12 container"""
@@ -132,6 +181,23 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         else:
             cert_pem = self.certfile.read_text("utf-8")
         return UserCRUDRequest(uuid=str(self.pk), callsign=self.callsign, x509cert=cert_pem.replace("\n", "\\n"))
+
+    async def get_kcdata(self) -> KCUserData:
+        """KC integration data"""
+        pdata = self.productapidata
+        if self.extra is None:
+            LOGGER.warning("self.extra was None for some reason, this should not happen")
+            self.extra = {}
+        if "kc_uuid" not in self.extra:
+            self.extra["kc_uuid"] = None
+        if "kc_data" not in self.extra:
+            self.extra["kc_data"] = {}
+        return KCUserData(
+            productdata=pdata,
+            roles=await self.roles_set(),
+            kc_id=self.extra["kc_uuid"],
+            kc_data=self.extra["kc_data"],
+        )
 
     @property
     def certsubject(self) -> Dict[str, str]:
@@ -189,7 +255,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def by_callsign(cls, callsign: str, allow_deleted: bool = False) -> Self:
         """Get by callsign"""
-        obj = await Person.query.where(Person.callsign == callsign).gino.first()
+        obj = await Person.query.where(func.lower(Person.callsign) == func.lower(callsign)).gino.first()
         if not obj:
             raise NotFound()
         if obj.deleted and not allow_deleted:
@@ -199,7 +265,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def is_callsign_available(cls, callsign: str) -> bool:
         """Is callsign available"""
-        obj = await Person.query.where(Person.callsign == callsign).gino.first()
+        obj = await Person.query.where(func.lower(Person.callsign) == func.lower(callsign)).gino.first()
         if not obj:
             return False
         return True
@@ -235,26 +301,40 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
 
     async def assign_role(self, role: str) -> bool:
         """Assign a role, return true if role was created, false if it already existed"""
-        if role == "admin":
-            TaskMaster.singleton().create_task(user_promoted(self))
         if await self.has_role(role):
+            if role == "admin":
+                LOGGER.debug("{} already promoted but informing anyway".format(self.callsign))
+                TaskMaster.singleton().create_task(user_promoted(self))
             return False
-        role = Role(user=self.pk, role=role)
-        # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
-        await role.create()
-        await self.update(updated=utcnow).apply()
+        dbrole = Role(user=self.pk, role=role)
+        async with db.acquire() as conn:
+            async with conn.transaction():
+                # These MUST be done sequentially or asyncpg breaks
+                # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
+                await dbrole.create()
+                await self.update(updated=utcnow).apply()
+        if role == "admin":
+            LOGGER.debug("{} promoted, informing".format(self.callsign))
+            TaskMaster.singleton().create_task(user_promoted(self))
         return True
 
     async def remove_role(self, role: str) -> bool:
         """Remove a role, return true if role was removed, false if it wasn't assigned"""
-        if role == "admin":
-            TaskMaster.singleton().create_task(user_demoted(self))
         obj = await self._get_role(role)
         if not obj:
+            if role == "admin":
+                LOGGER.debug("{} already demoted but informing anyway".format(self.callsign))
+                TaskMaster.singleton().create_task(user_demoted(self))
             return False
-        # These MUST be done sequentially or asyncpg: "cannot perform operation: another operation is in progress"
-        await obj.delete()
-        await self.update(updated=utcnow).apply()
+        async with db.acquire() as conn:
+            async with conn.transaction():
+                # These MUST be done sequentially or asyncpg breaks
+                # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
+                await obj.delete()
+                await self.update(updated=utcnow).apply()
+        if role == "admin":
+            LOGGER.debug("{} demoted, informing".format(self.callsign))
+            TaskMaster.singleton().create_task(user_demoted(self))
         return True
 
     async def roles_set(self) -> Set[str]:
@@ -292,19 +372,35 @@ async def post_user_crud(userinfo: UserCRUDRequest, endpoint_suffix: str) -> Non
 
 async def user_created(person: Person) -> None:
     """New user was created"""
-    return await post_user_crud(person.productapidata, "created")
+    await post_user_crud(person.productapidata, "created")
 
 
 async def user_revoked(person: Person) -> None:
     """Old user was revoked"""
-    return await post_user_crud(person.productapidata, "revoked")
+    kclient = KCClient.singleton()
+    # NOTE: asyncio.gather breaks things in Gino
+    # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
+    await post_user_crud(person.productapidata, "revoked")
+    await kclient.delete_kc_user(await person.get_kcdata())
 
 
 async def user_promoted(person: Person) -> None:
     """Old user was promoted to admin (granted role 'admin')"""
-    return await post_user_crud(person.productapidata, "promoted")
+    kclient = KCClient.singleton()
+    # NOTE: asyncio.gather breaks things in Gino
+    # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
+    kcuser = await kclient.update_kc_user(await person.get_kcdata())
+    if kcuser and isinstance(kcuser, KCUserData):
+        await Person.update_from_kcdata(kcuser.kc_data)
+    await post_user_crud(person.productapidata, "promoted")
 
 
 async def user_demoted(person: Person) -> None:
     """Old user was demoted from admin (removed role 'admin')"""
-    return await post_user_crud(person.productapidata, "demoted")
+    kclient = KCClient.singleton()
+    # NOTE: asyncio.gather breaks things in Gino
+    # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
+    kcuser = await kclient.update_kc_user(await person.get_kcdata())
+    if kcuser and isinstance(kcuser, KCUserData):
+        await Person.update_from_kcdata(kcuser.kc_data)
+    await post_user_crud(person.productapidata, "demoted")

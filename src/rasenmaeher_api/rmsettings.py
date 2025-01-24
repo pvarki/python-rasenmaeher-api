@@ -68,7 +68,7 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
 
     # Api access management
     api_client_cert_header: str = "X-ClientCert-DN"
-    test_api_client_cert_header_value: str = "CN=fake.localmaeher.pvarki.fi,O=N/A"
+    test_api_client_cert_header_value: str = "CN=fake.localmaeher.dev.pvarki.fi,O=N/A"
     api_healthcheck_proto: str = "http://"
     api_healthcheck_url: str = "/api/v1/healthcheck"
     api_healthcheck_headers: str = '{"propably":"not_needed"}'
@@ -91,12 +91,6 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     mtls_client_key_path: Optional[str] = None
     mtls_client_cert_cn = "rasenmaeher"
 
-    # Keycloak configuration.
-    keycloak_server_url: Optional[str] = None
-    keycloak_client_id: Optional[str] = None
-    keycloak_realm_name: Optional[str] = None
-    keycloak_client_secret: Optional[str] = None
-
     # LDAP configuration
     ldap_conn_string: Optional[str] = None
     ldap_username: Optional[str] = None
@@ -106,6 +100,18 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     tilauspalvelu_jwt: str = "https://tilaa.pvarki.fi/api/v1/config/jwtPublicKey.pem"
     kraftwerk_announce: Optional[str] = None  # When KRAFTWERK actually exists
     kraftwerk_timeout: float = 2.0
+
+    # keycloak integration
+    kc_url: str = "http://keycloak:8080"
+    kc_username: str = "admin"
+    kc_password: Optional[str] = None
+    kc_user_realm: str = "master"  # Which realm to use to auth the user
+    kc_realm: str = "RASENMAEHER"  # In which realm the real users are
+    kc_enabled: bool = True  # Whether to use KC or not (mainly so that unit tests have less dependencies for now)
+
+    # Enrollment code generation related
+    code_size: int = 8
+    code_avoid_confusion: bool = True  # Replace 1 and 0 with O and I to avoid confusion
 
     _singleton: ClassVar[Optional["RMSettings"]] = None
 

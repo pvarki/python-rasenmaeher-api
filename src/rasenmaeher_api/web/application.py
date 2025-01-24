@@ -25,15 +25,19 @@ LOGGER = logging.getLogger(__name__)
 async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handle lifespan management things, like mTLS client init"""
     # init
+    LOGGER.debug("DB startup")
     dbwrapper = DBWrapper(gino=dbbase.db, config=DBConfig.singleton())
     await dbwrapper.app_startup_event()
     _ = app
+    LOGGER.debug("JWT and mTLS inits")
     await jwt_init()
     await mtls_init()
     reporter = asyncio.get_running_loop().create_task(report_to_kraftwerk())
     # App runs
+    LOGGER.debug("Yield")
     yield
     # Cleanup
+    LOGGER.debug("Cleanup")
     await reporter  # Just to avoid warning about task that was not awaited
     await TaskMaster.singleton().stop_lingering_tasks()  # Make sure teasks get finished
     await dbwrapper.app_shutdown_event()

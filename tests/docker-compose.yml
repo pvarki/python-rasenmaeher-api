@@ -18,7 +18,7 @@ x-cfssl_env: &cfssl_env
     CFSSL_BIND_PORT: &cfsslport ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
     CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-7778}  # different from default on purpose
     CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
-    OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.pvarki.fi}
+    OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.dev.pvarki.fi}
     OCSP_PORT: ${NGINX_HTTPS_PORT:-4440}
     CFSSL_PERSISTENT_FOLDER: /data/persistent
     OR_BIND: &or_port 7776  # different from default on purpose
@@ -84,7 +84,7 @@ services:
       LOCAL_CA_CERTS_PATH: /ca_public
       CFSSL_PORT: *cfsslport
       CFSSL_HOST: "http://cfssl"
-      FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"
+      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi"
     volumes:
       - fpinit_data:/data/persistent
       - ./data/ca_public:/ca_public
@@ -105,7 +105,7 @@ services:
       LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_BIND_ADDRESS: ${FPAPI_BIND_ADDRESS:-0.0.0.0}
       FPAPI_BIND_PORT: ${FPAPI_BIND_PORT:-7788}
-      FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
+      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi"  # must match above
     ports:
       - '7788:7788'
     volumes:
@@ -134,7 +134,7 @@ services:
       PERSISTENT_DATA_PATH: /data/persistent
       LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_PORT: ${FPAPI_BIND_PORT:-7788}
-      FPAPI_HOST_NAME: "fake.localmaeher.pvarki.fi"  # must match above
+      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi"  # must match above
     networks:
       - intranet
     volumes:

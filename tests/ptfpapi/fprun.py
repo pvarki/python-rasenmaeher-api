@@ -81,6 +81,36 @@ async def handle_fragment(request: web.Request) -> web.Response:
     )
 
 
+async def handle_description(request: web.Request) -> web.Response:
+    """Respond with hello_world for user"""
+    _lang = request.match_info.get("language", "en")
+
+    return web.json_response(
+        {
+            "shortname": "fake",
+            "title": "Test fake product",
+            "icon": None,
+            "description": "Testing things",
+            "language": "en",
+        }
+    )
+
+
+async def handle_instructions(request: web.Request) -> web.Response:
+    """Respond with hello_world for user"""
+    check_peer_cert(request)
+    _lang = request.match_info.get("language", "en")
+    payload = await request.json()
+
+    return web.json_response(
+        {
+            "callsign": payload["callsign"],
+            "instructions": "FIXME: Return something sane",
+            "language": "en",
+        }
+    )
+
+
 async def handle_health(request: web.Request) -> web.Response:
     """healthcheck response"""
     check_peer_cert(request)
@@ -99,7 +129,7 @@ def main() -> int:
     LOGGER.debug("Called")
     persistentdir = Path(environ.get("PERSISTENT_DATA_PATH", "/data/persistent"))
     extra_ca_certs_path = Path(environ.get("LOCAL_CA_CERTS_PATH", "/ca_public"))
-    _hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.pvarki.fi")
+    _hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
     bind_port = int(environ.get("FPAPI_BIND_PORT", 7788))
     bind_address = environ.get("FPAPI_BIND_ADDRESS", "0.0.0.0")  # nosec
     server_cert = (persistentdir / "public" / "server_chain.pem", persistentdir / "private" / "server.key")
@@ -120,6 +150,8 @@ def main() -> int:
             web.post("/api/v1/clients/fragment", handle_fragment),
             web.get("/api/v1/admins/fragment", handle_admin_fragment),
             web.get("/api/v1/healthcheck", handle_health),
+            web.get("/api/v1/description/{language}", handle_description),
+            web.post("/api/v1/instructions/{language}", handle_instructions),
         ]
     )
 

@@ -12,6 +12,7 @@ from rasenmaeher_api.web.api import (
     tokens,
     instructions,
     people,
+    descriptions,
 )
 
 
@@ -27,3 +28,4 @@ api_router.include_router(firstuser.router, prefix="/firstuser", tags=["firstuse
 api_router.include_router(tokens.router, prefix="/token", tags=["tokens"])
 api_router.include_router(instructions.router, prefix="/instructions", tags=["instructions"])
 api_router.include_router(people.router, prefix="/people", tags=["people"])
+api_router.include_router(descriptions.router, prefix="/descriptions", tags=["descriptions"])

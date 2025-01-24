@@ -1,13 +1,15 @@
 """Instruction response schemas"""
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 from pydantic import BaseModel, Extra, Field
 from libpvarki.schemas.product import UserInstructionFragment
 from pydantic_collections import BaseCollectionModel
 
+# pylint: disable=too-few-public-methods
 
-class AllProdcutsInstructionFragments(BaseModel):  # pylint: disable=too-few-public-methods
-    """Fragments for all products"""
+
+class AllProdcutsInstructionFragments(BaseModel):
+    """DEPRECATED! Fragments for all products"""
 
     fragments: Dict[str, Optional[UserInstructionFragment]] = Field(
         description="Instructions keyed by product short name, if fetching of fragment failed value for that product is null"  # pylint: disable=C0301
@@ -45,7 +47,7 @@ class ProductFile(BaseModel):  # pylint: disable=too-few-public-methods
         extra = Extra.forbid
 
 
-class ProductFileList(BaseCollectionModel[ProductFile]):  # type: ignore[misc]  # pylint: disable=too-few-public-methods
+class ProductFileList(BaseCollectionModel[ProductFile]):  # type: ignore[misc]
     """List of files"""
 
     class Config:  # pylint: disable=too-few-public-methods
@@ -54,12 +56,26 @@ class ProductFileList(BaseCollectionModel[ProductFile]):  # type: ignore[misc]  
         extra = Extra.forbid
 
 
-class AllProdcutsInstructionFiles(BaseModel):  # pylint: disable=too-few-public-methods
-    """user files for all products"""
+class AllProdcutsInstructionFiles(BaseModel):
+    """DEPRECATED! user files for all products"""
 
     files: Dict[str, Optional[ProductFileList]] = Field(
-        description="files keyed by product short name, if fetching failed value for that product is null"  # pylint: disable=C0301
+        description="files keyed by product short name, if fetching failed value for that product is null"
     )
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+
+
+# FIXME: Move to libpvarki
+class InstructionData(BaseModel):
+    """Instruction data response"""
+
+    callsign: str = Field(description="Which callsign this was created for (can be used for sanity-checking)")
+    language: str = Field(description="Language that was resolved, might not be same as requested")
+    instructions: Any = Field(description="The actual instruction data, in whatever format the React UI wants it")
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""

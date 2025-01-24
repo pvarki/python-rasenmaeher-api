@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 async def main() -> int:
     """Main entrypoint"""
     LOGGER.debug("Called")
-    hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.pvarki.fi")
+    hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
     api_port = int(environ.get("FPAPI_PORT", 7788))
     url_base = f"https://{hostname}:{api_port}/"
 
