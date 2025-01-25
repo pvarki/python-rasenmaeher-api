@@ -21,7 +21,7 @@ class ValidUser(MTLSorJWT):  # pylint: disable=too-few-public-methods
         self.require_roles = require_roles
         super().__init__(auto_error=auto_error)
 
-    async def __call__(self, request: Request) -> Optional[Person]:
+    async def __call__(self, request: Request) -> Optional[Person]:  # type: ignore[override]
         """Call parent and check the userid"""
         request.state.person = None
         payload = await super().__call__(request)

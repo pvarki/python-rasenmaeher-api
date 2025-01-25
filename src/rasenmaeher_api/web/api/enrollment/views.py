@@ -102,7 +102,7 @@ async def request_show_verification_code(
 
     return EnrollmentShowVerificationCodeOut(
         callsign=obj.callsign,
-        state=obj.state,
+        state=str(obj.state),
         accepted="????",
         locked="????",
     )
