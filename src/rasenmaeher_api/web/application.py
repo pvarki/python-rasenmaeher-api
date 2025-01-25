@@ -9,12 +9,11 @@ from libpvarki.logging import init_logging
 import aiohttp
 from libadvian.tasks import TaskMaster
 
+from ..db.config import DBConfig
 from ..rmsettings import RMSettings
 from .api.router import api_router
 from ..mtlsinit import mtls_init
 from ..jwtinit import jwt_init
-from ..db import base as dbbase
-from ..db.config import DBConfig
 from ..db.middleware import DBConnectionMiddleware, DBWrapper
 from .. import __version__
 
@@ -26,7 +25,7 @@ async def app_lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Handle lifespan management things, like mTLS client init"""
     # init
     LOGGER.debug("DB startup")
-    dbwrapper = DBWrapper(gino=dbbase.db, config=DBConfig.singleton())
+    dbwrapper = DBWrapper(config=DBConfig.singleton())
     await dbwrapper.app_startup_event()
     _ = app
     LOGGER.debug("JWT and mTLS inits")
@@ -47,7 +46,7 @@ def get_app_no_init() -> FastAPI:
     """Return the app without logging etc inits"""
     app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan, version=__version__)
     app.include_router(router=api_router, prefix="/api/v1")
-    app.add_middleware(DBConnectionMiddleware, gino=dbbase.db, config=DBConfig.singleton())
+    app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())
     return app
 
 

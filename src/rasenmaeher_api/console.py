@@ -16,7 +16,6 @@ from rasenmaeher_api import __version__
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.testhelpers import create_test_users
 from rasenmaeher_api.db import LoginCode
-from rasenmaeher_api.db import base as dbbase
 from rasenmaeher_api.db.config import DBConfig
 from rasenmaeher_api.db.middleware import DBWrapper
 from rasenmaeher_api.web.application import get_app_no_init
@@ -43,7 +42,7 @@ def cli_group(ctx: click.Context, loglevel: int, verbose: int) -> None:
     LOGGER.setLevel(loglevel)
     ctx.ensure_object(dict)
     ctx.obj["loop"] = asyncio.get_event_loop()
-    ctx.obj["dbwrapper"] = DBWrapper(gino=dbbase.db, config=DBConfig.singleton())
+    ctx.obj["dbwrapper"] = DBWrapper(config=DBConfig.singleton())
 
 
 @cli_group.command(name="openapi")

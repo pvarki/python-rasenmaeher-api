@@ -5,10 +5,11 @@ import uuid
 import logging
 from pathlib import Path
 import shutil
+import datetime
 
 import cryptography.x509
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.dialects.postgresql import UUID as saUUID
+from sqlmodel import Field, SQLModel, select
 import sqlalchemy as sa
 from sqlalchemy.sql import func
 from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
@@ -17,18 +18,20 @@ from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.mtlshelp.pkcs12 import convert_pem_to_pkcs12
 from libadvian.tasks import TaskMaster
 
-from .base import ORMBaseModel, DBModel, utcnow, db
+
+from .base import ORMBaseModel, utcnow
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
 from ..prodcutapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
 from ..kchelpers import KCClient, KCUserData
+from .engine import EngineWrapper
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
+class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-methods
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -38,11 +41,11 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
 
     __tablename__ = "users"
 
-    callsign = sa.Column(sa.String(), nullable=False, index=True, unique=True)
+    callsign: str = Field(nullable=False, index=True, unique=True)
     # Directory with the key, cert and pfx
-    certspath = sa.Column(sa.String(), nullable=False, index=False, unique=True)
-    extra = sa.Column(JSONB, nullable=False, server_default="{}")
-    revoke_reason = sa.Column(sa.String(), nullable=True, index=False)
+    certspath: str = Field(nullable=False, index=False, unique=True)
+    extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    revoke_reason: str = Field(nullable=True, index=False)
 
     @classmethod
     async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
@@ -69,11 +72,11 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
         )
         try:
             LOGGER.debug("Updating extra for {}".format(person.callsign))
-            async with db.acquire() as conn:
-                async with conn.transaction():  # do it in a transaction so if something fails we can roll back
-                    await person.update(extra=person.extra).apply()
-                refresh = await cls.by_pk(person.pk)
-                return refresh
+            with EngineWrapper.get_session() as session:
+                session.add(person)
+                session.commit()
+                session.refresh(person)
+                return person
         except Exception as exc:
             raise BackendError(str(exc)) from exc
 
@@ -96,29 +99,30 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
             raise CallsignReserved()
         except NotFound:
             pass
-        async with db.acquire() as conn:
-            async with conn.transaction():  # do it in a transaction so if something fails we can roll back
-                puuid = uuid.uuid4()
-                certspath = Path(cnf.persistent_data_dir) / "private" / "people" / str(puuid)
-                certspath.mkdir(parents=True)
-                certspath.chmod(PRIVDIR_MODE)
-                try:
-                    newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
-                    await newperson.create()
-                    ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
-                    csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
-                    certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
-                    newperson.certfile.write_text(certpem)
-                except Exception as exc:
-                    LOGGER.exception("Something went wrong, doing cleanup")
-                    shutil.rmtree(certspath)
-                    remaining = list(certspath.rglob("*"))
-                    LOGGER.debug("Remaining files: {}".format(remaining))
-                    raise BackendError(str(exc)) from exc
-                # Return refreshed object if everything went ok
-                refresh = await cls.by_pk(newperson.pk)
+
+        with EngineWrapper.get_session() as session:
+            puuid = uuid.uuid4()
+            certspath = Path(cnf.persistent_data_dir) / "private" / "people" / str(puuid)
+            certspath.mkdir(parents=True)
+            certspath.chmod(PRIVDIR_MODE)
+            try:
+                newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
+                session.add(newperson)
+                session.commit()
+                ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
+                csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
+                certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
+                newperson.certfile.write_text(certpem)
+            except Exception as exc:
+                LOGGER.exception("Something went wrong, doing cleanup")
+                shutil.rmtree(certspath)
+                remaining = list(certspath.rglob("*"))
+                LOGGER.debug("Remaining files: {}".format(remaining))
+                raise BackendError(str(exc)) from exc
+            # refresh object if everything went ok
+            session.refresh(newperson)
         # Drop the DB transaction for rest of the actions
-        return await refresh._post_create()  # pylint: disable=W0212
+        return await newperson._post_create()  # pylint: disable=W0212
 
     async def _post_create(self) -> "Person":
         """Post creation actions, in separate method for readability"""
@@ -153,16 +157,18 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     async def revoke(self, reason: ReasonTypes) -> bool:
         """Revokes the cert with given reason and makes user deleted see validate_reason for info on reasons"""
         reason = validate_reason(reason)
-        async with db.acquire() as conn:
-            async with conn.transaction():  # do it in a transaction so if CFSSL fails we can roll back
-                try:
-                    await self.update(deleted=utcnow, revoke_reason=str(reason.value)).apply()
-                    await revoke_pem(self.certfile, reason)
-                    await user_revoked(self)
-                except Exception as exc:
-                    LOGGER.exception("Something went wrong, rolling back")
-                    raise BackendError(str(exc)) from exc
-                return True
+        with EngineWrapper.get_session() as session:
+            try:
+                self.deleted = datetime.datetime.now(datetime.UTC)
+                self.revoke_reason = str(reason.value)
+                session.add(self)
+                session.commit()
+                await revoke_pem(self.certfile, reason)
+                await user_revoked(self)
+            except Exception as exc:
+                LOGGER.exception("Something went wrong, rolling back")
+                raise BackendError(str(exc)) from exc
+            return True
 
     async def delete(self) -> bool:
         """Revoke the cert on delete"""
@@ -232,43 +238,49 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
     @classmethod
     async def list(cls, include_deleted: bool = False) -> AsyncGenerator["Person", None]:
         """List people"""
-        async with db.acquire() as conn:  # Cursors need transaction
-            async with conn.transaction():
-                query = Person.query
-                if not include_deleted:
-                    query = query.where(
-                        Person.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
-                    )
-                async for person in query.order_by(Person.callsign).gino.iterate():
-                    yield person
+        with EngineWrapper.get_session() as session:
+            statement = select(cls)
+            if not include_deleted:
+                statement = statement.where(
+                    cls.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
+                )
+            results = session.exec(statement)
+            for result in results:
+                LOGGER.debug("result={}".format(result))
+                yield cls(**result)
 
     @classmethod
     async def by_role(cls, role: str) -> AsyncGenerator["Person", None]:
         """List people that have given role, if role is None list all people"""
-        async with db.acquire() as conn:  # Cursors need transaction
-            async with conn.transaction():
-                async for lnk in Role.load(user=Person).query.where(Role.role == role).where(
-                    Person.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
-                ).order_by(Person.callsign).gino.iterate():
-                    yield lnk.user
+        raise NotImplementedError("Need rewrite for SQLModel")
 
     @classmethod
     async def by_callsign(cls, callsign: str, allow_deleted: bool = False) -> Self:
         """Get by callsign"""
-        obj = await Person.query.where(func.lower(Person.callsign) == func.lower(callsign)).gino.first()
-        if not obj:
-            raise NotFound()
+        with EngineWrapper.get_session() as session:
+            LOGGER.debug("Create query")
+            # statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
+            statement = select(Person).where(Person.callsign == callsign)
+            LOGGER.debug("execute query")
+            data = session.exec(statement).first()
+            LOGGER.debug("data={}".format(data))
+            if not data:
+                raise NotFound()
+        obj = cls(**data)
         if obj.deleted and not allow_deleted:
             raise Deleted()
         return cast(Person, obj)
 
+    # FIXME: Change the method name to be clearer about the purpose
     @classmethod
     async def is_callsign_available(cls, callsign: str) -> bool:
-        """Is callsign available"""
-        obj = await Person.query.where(func.lower(Person.callsign) == func.lower(callsign)).gino.first()
-        if not obj:
-            return False
-        return True
+        """Is user with this callsign available?"""
+        with EngineWrapper.get_session() as session:
+            statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
+            data = session.exec(statement).first()
+            if not data:
+                return False
+            return True
 
     @classmethod
     async def by_mtlsjwt_payload(cls, payload: MTLSorJWTPayload, allow_deleted: bool = False) -> Self:
@@ -287,6 +299,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
 
     async def _get_role(self, role: str) -> Optional["Role"]:
         """Internal helper for DRY"""
+        raise NotImplementedError("Need rewrite for SQLModel")
         obj = await Role.query.where(Role.user == self.pk).where(Role.role == role).gino.first()
         if obj:
             return cast(Role, obj)
@@ -306,6 +319,7 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                 LOGGER.debug("{} already promoted but informing anyway".format(self.callsign))
                 TaskMaster.singleton().create_task(user_promoted(self))
             return False
+        raise NotImplementedError("Need rewrite for SQLModel")
         dbrole = Role(user=self.pk, role=role)
         async with db.acquire() as conn:
             async with conn.transaction():
@@ -349,17 +363,18 @@ class Person(ORMBaseModel):  # pylint: disable=R0903, R0904
                     yield role.role
 
 
-class Role(DBModel):  # type: ignore[misc] # pylint: disable=R0903
+class Role(SQLModel, table=True):
     """Give a person a role"""
 
     __tablename__ = "roles"
-    __table_args__ = {"schema": "raesenmaeher"}
+    __table_args__ = ORMBaseModel.__table_args__
 
-    pk = sa.Column(saUUID(), primary_key=True, default=uuid.uuid4)
-    created = sa.Column(sa.DateTime(timezone=True), default=utcnow, nullable=False)
-    updated = sa.Column(sa.DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
-    user = sa.Column(saUUID(), sa.ForeignKey(Person.pk))
-    role = sa.Column(sa.String(), nullable=False, index=True)
+    pk: uuid.UUID = Field(primary_key=True, default_factory=uuid.uuid4)
+    created: datetime.datetime = Field(sa_column_kwargs={"default": utcnow}, nullable=False)
+    updated: datetime.datetime = Field(sa_column_kwargs={"default": utcnow, "onupdate": utcnow}, nullable=False)
+    #    user: uuid.UUID = Field(foreign_key="users.pk")
+    user: uuid.UUID = Field(foreign_key=f"{ORMBaseModel.__table_args__['schema']}.users.pk")
+    role: str = Field(nullable=False, index=True)
     _idx = sa.Index("user_role_unique", "user", "role", unique=True)
 
 

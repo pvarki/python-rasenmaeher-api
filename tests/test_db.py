@@ -10,7 +10,16 @@ from multikeyjwt import Verifier
 import cryptography.x509
 import cryptography.hazmat.primitives.serialization.pkcs12
 
-from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
+from rasenmaeher_api.db import (
+    DBConfig,
+    Person,
+    Enrollment,
+    EnrollmentState,
+    EnrollmentPool,
+    SeenToken,
+    LoginCode,
+    EngineWrapper,
+)
 from rasenmaeher_api.db.errors import (
     NotFound,
     Deleted,
@@ -65,8 +74,10 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
 async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction of persons and roles"""
     _ = ginosession
-    obj = Person(callsign="DOGGO01a", certspath=str(uuid.uuid4()))
-    await obj.create()
+    with EngineWrapper.singleton().get_session() as session:
+        obj = Person(callsign="DOGGO01a", certspath=str(uuid.uuid4()))
+        session.add(obj)
+        session.commit()
     obj2 = await Person.by_callsign("DOGGO01a")
     assert obj2.callsign == "DOGGO01a"
     assert not await obj2.has_role("admin")
@@ -128,8 +139,10 @@ async def test_enrollments_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments"""
     _ = ginosession
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
-    person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
-    await person.create()
+    with EngineWrapper.singleton().get_session() as session:
+        person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
+        session.add(person)
+        session.commit()
     # refresh
     person = await Person.by_callsign("MEGAMAN00a")
 
@@ -175,11 +188,13 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments and enrollmentpools"""
     _ = ginosession
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
-    person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
-    await person.create()
-    # Done this way to test low level things, you should always use EnrollmentPool.create_for_owner
-    pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
-    await pool.create()
+    with EngineWrapper.singleton().get_session() as session:
+        person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
+        session.add(person)
+        session.commit()
+        pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
+        session.add(pool)
+        session.commit()
     # refresh
     pool = await EnrollmentPool.by_pk(pool.pk)
     assert pool.active
@@ -219,10 +234,12 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
     """Test list methods"""
     _ = ginosession
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
-    owner1 = Person(callsign="MASTER666a", certspath=str(uuid.uuid4()))
-    await owner1.create()
-    owner2 = Person(callsign="BLASTER999a", certspath=str(uuid.uuid4()))
-    await owner2.create()
+    with EngineWrapper.singleton().get_session() as session:
+        owner1 = Person(callsign="MASTER666a", certspath=str(uuid.uuid4()))
+        session.add(owner1)
+        owner2 = Person(callsign="BLASTER999a", certspath=str(uuid.uuid4()))
+        session.add(owner2)
+        session.commit()
 
     for _ in range(5):
         await EnrollmentPool.create_for_owner(owner2)
