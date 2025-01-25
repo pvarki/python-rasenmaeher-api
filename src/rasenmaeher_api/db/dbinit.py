@@ -29,6 +29,7 @@ async def init_db() -> None:
     lockpath = Path(tempfile.gettempdir()) / "dbinit.lock"
     lock = filelock.FileLock(lockpath)
     wrapper = EngineWrapper.singleton()
+    assert wrapper.engine
     engine = wrapper.engine
     try:
         await asyncio.sleep(random.random() * 2)  # nosec

@@ -1,5 +1,5 @@
 """Abstractions for enrollments"""
-from typing import Self, Dict, Any, Optional, AsyncGenerator, Union
+from typing import Dict, Any, Optional, AsyncGenerator, Union
 import string
 import secrets
 import logging
@@ -32,7 +32,7 @@ def generate_code() -> str:
     return code
 
 
-class EnrollmentPool(ORMBaseModel, table=True):  # pylint: disable=R0903
+class EnrollmentPool(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     """Enrollment pools aka links, pk is UUID and comes from basemodel"""
 
     __tablename__ = "enrollmentpools"
@@ -58,7 +58,7 @@ class EnrollmentPool(ORMBaseModel, table=True):  # pylint: disable=R0903
             raise Deleted("Can't create enrollments on deleted pools")
         return await Enrollment.create_for_callsign(callsign, self, self.extra)
 
-    async def set_active(self, state: bool) -> Self:
+    async def set_active(self, state: bool) -> "EnrollmentPool":
         """Set active and return refreshed object"""
         with EngineWrapper.get_session() as session:
             self.active = bool(state)
@@ -102,7 +102,7 @@ class EnrollmentPool(ORMBaseModel, table=True):  # pylint: disable=R0903
         return code
 
     @classmethod
-    async def create_for_owner(cls, person: Person, extra: Optional[Dict[str, Any]] = None) -> Self:
+    async def create_for_owner(cls, person: Person, extra: Optional[Dict[str, Any]] = None) -> "EnrollmentPool":
         """Creates one for given owner"""
         with EngineWrapper.get_session() as session:
             code = await cls._generate_unused_code()
@@ -127,7 +127,7 @@ class EnrollmentPool(ORMBaseModel, table=True):  # pylint: disable=R0903
             return self.invitecode
 
     @classmethod
-    async def by_invitecode(cls, invitecode: str, allow_deleted: bool = False) -> Self:
+    async def by_invitecode(cls, invitecode: str, allow_deleted: bool = False) -> "EnrollmentPool":
         """Get by invitecode"""
         with EngineWrapper.get_session() as session:
             statement = select(EnrollmentPool).where(EnrollmentPool.invitecode == invitecode)
@@ -147,7 +147,7 @@ class EnrollmentState(enum.IntEnum):
     REJECTED = 2
 
 
-class Enrollment(ORMBaseModel, table=True):  # pylint: disable=R0903
+class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     """Enrollments, pk is UUID and comes from basemodel"""
 
     __tablename__ = "enrollments"
@@ -208,7 +208,7 @@ class Enrollment(ORMBaseModel, table=True):  # pylint: disable=R0903
                 yield result
 
     @classmethod
-    async def by_callsign(cls, callsign: str) -> Self:
+    async def by_callsign(cls, callsign: str) -> "Enrollment":
         """Get by callsign"""
         with EngineWrapper.get_session() as session:
             statement = select(Enrollment).where(func.lower(Enrollment.callsign) == func.lower(callsign))
@@ -221,7 +221,7 @@ class Enrollment(ORMBaseModel, table=True):  # pylint: disable=R0903
         return obj
 
     @classmethod
-    async def by_approvecode(cls, code: str) -> Self:
+    async def by_approvecode(cls, code: str) -> "Enrollment":
         """Get by approvecode"""
         with EngineWrapper.get_session() as session:
             statement = select(Enrollment).where(Enrollment.approvecode == code)
@@ -270,7 +270,7 @@ class Enrollment(ORMBaseModel, table=True):  # pylint: disable=R0903
     @classmethod
     async def create_for_callsign(
         cls, callsign: str, pool: Optional[EnrollmentPool] = None, extra: Optional[Dict[str, Any]] = None
-    ) -> Self:
+    ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
         if callsign in RMSettings.singleton().valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")

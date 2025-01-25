@@ -1,5 +1,4 @@
 """Middleware stuff"""
-from typing import Optional
 from dataclasses import dataclass, field
 import logging
 import asyncio

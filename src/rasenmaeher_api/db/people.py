@@ -1,5 +1,5 @@
 """Abstractions for people"""
-from typing import Self, cast, Optional, AsyncGenerator, Dict, Any, Set, Union
+from typing import Self, Optional, AsyncGenerator, Dict, Any, Set, Union
 import asyncio
 import uuid
 import logging
@@ -31,7 +31,7 @@ from .engine import EngineWrapper
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-methods
+class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint: disable=too-many-public-methods
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -246,30 +246,28 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
                 )
             results = session.exec(statement)
             for result in results:
-                LOGGER.debug("result={}".format(result))
-                yield cls(**result)
+                yield result
 
     @classmethod
     async def by_role(cls, role: str) -> AsyncGenerator["Person", None]:
         """List people that have given role, if role is None list all people"""
-        raise NotImplementedError("Need rewrite for SQLModel")
+        with EngineWrapper.get_session() as session:
+            statement = select(Person, Role).join(Role).where(Role.role == role)
+            results = session.exec(statement)
+            for person, _roleobj in results:
+                yield person
 
     @classmethod
     async def by_callsign(cls, callsign: str, allow_deleted: bool = False) -> Self:
         """Get by callsign"""
         with EngineWrapper.get_session() as session:
-            LOGGER.debug("Create query")
-            # statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
-            statement = select(Person).where(Person.callsign == callsign)
-            LOGGER.debug("execute query")
-            data = session.exec(statement).first()
-            LOGGER.debug("data={}".format(data))
-            if not data:
-                raise NotFound()
-        obj = cls(**data)
+            statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
+            obj = session.exec(statement).first()
+        if not obj:
+            raise NotFound()
         if obj.deleted and not allow_deleted:
             raise Deleted()
-        return cast(Person, obj)
+        return obj
 
     # FIXME: Change the method name to be clearer about the purpose
     @classmethod
@@ -299,10 +297,11 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
 
     async def _get_role(self, role: str) -> Optional["Role"]:
         """Internal helper for DRY"""
-        raise NotImplementedError("Need rewrite for SQLModel")
-        obj = await Role.query.where(Role.user == self.pk).where(Role.role == role).gino.first()
-        if obj:
-            return cast(Role, obj)
+        with EngineWrapper.get_session() as session:
+            statement = select(Role).where(Role.role == role, Role.user == self.pk)
+            obj = session.exec(statement).first()
+            if obj:
+                return obj
         return None
 
     async def has_role(self, role: str) -> bool:
@@ -319,14 +318,12 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
                 LOGGER.debug("{} already promoted but informing anyway".format(self.callsign))
                 TaskMaster.singleton().create_task(user_promoted(self))
             return False
-        raise NotImplementedError("Need rewrite for SQLModel")
-        dbrole = Role(user=self.pk, role=role)
-        async with db.acquire() as conn:
-            async with conn.transaction():
-                # These MUST be done sequentially or asyncpg breaks
-                # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
-                await dbrole.create()
-                await self.update(updated=utcnow).apply()
+        with EngineWrapper.get_session() as session:
+            dbrole = Role(user=self.pk, role=role)
+            session.add_all([dbrole])
+            self.updated = datetime.datetime.now(datetime.UTC)
+            session.add(self)
+            session.commit()
         if role == "admin":
             LOGGER.debug("{} promoted, informing".format(self.callsign))
             TaskMaster.singleton().create_task(user_promoted(self))
@@ -340,12 +337,11 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
                 LOGGER.debug("{} already demoted but informing anyway".format(self.callsign))
                 TaskMaster.singleton().create_task(user_demoted(self))
             return False
-        async with db.acquire() as conn:
-            async with conn.transaction():
-                # These MUST be done sequentially or asyncpg breaks
-                # https://github.com/python-gino/gino/issues/313#issuecomment-427708709
-                await obj.delete()
-                await self.update(updated=utcnow).apply()
+        with EngineWrapper.get_session() as session:
+            session.delete(obj)
+            self.updated = datetime.datetime.now(datetime.UTC)
+            session.add(self)
+            session.commit()
         if role == "admin":
             LOGGER.debug("{} demoted, informing".format(self.callsign))
             TaskMaster.singleton().create_task(user_demoted(self))
@@ -357,13 +353,14 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
 
     async def roles(self) -> AsyncGenerator[str, None]:
         """Roles of this person"""
-        async with db.acquire() as conn:  # Cursors need transaction
-            async with conn.transaction():
-                async for role in Role.query.where(Role.user == self.pk).gino.iterate():
-                    yield role.role
+        with EngineWrapper.get_session() as session:
+            statement = select(Role).where(Role.user == self.pk)
+            results = session.exec(statement)
+            for result in results:
+                yield result.role
 
 
-class Role(SQLModel, table=True):
+class Role(SQLModel, table=True):  # type: ignore[call-arg,misc]
     """Give a person a role"""
 
     __tablename__ = "roles"

@@ -1,9 +1,8 @@
 """The Gino baseclass with db connection wrapping"""
-from typing import Self, cast, Union
+from typing import Self, Union
 import uuid
 import logging
 import datetime
-import warnings
 
 
 from libadvian.binpackers import b64_to_uuid, ensure_utf8, ensure_str
@@ -13,12 +12,12 @@ import sqlalchemy as sa
 from .errors import NotFound, Deleted
 from .engine import EngineWrapper
 
-utcnow = sa.func.current_timestamp
+utcnow = sa.func.current_timestamp  # pylint: disable=invalid-name
 
 LOGGER = logging.getLogger(__name__)
 
 
-class ORMBaseModel(SQLModel, table=False):
+class ORMBaseModel(SQLModel, table=False):  # type: ignore[call-arg,misc]
     """Baseclass with common fields"""
 
     __table_args__ = {"schema": "raesenmaeher"}
@@ -45,7 +44,7 @@ class ORMBaseModel(SQLModel, table=False):
             raise NotFound()
         if obj.deleted and not allow_deleted:
             raise Deleted()
-        return cast(Self, obj)
+        return obj
 
     async def delete(self) -> bool:
         """override delete method to set the deleted timestamp instead of removing the row"""

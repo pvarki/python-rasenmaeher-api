@@ -1,5 +1,5 @@
 """DB abstraction for storing nonces etc things needed to prevent re-use of certain tokens"""
-from typing import Self, Dict, cast, Any, Optional
+from typing import Dict, Any, Optional
 import logging
 import string
 import secrets
@@ -19,7 +19,7 @@ CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
 
 
-class LoginCode(ORMBaseModel, table=True):  # pylint: disable=R0903
+class LoginCode(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     """Track the login codes that can be exchanged for session JWTs"""
 
     __tablename__ = "logincodes"
@@ -49,7 +49,7 @@ class LoginCode(ORMBaseModel, table=True):  # pylint: disable=R0903
             return Issuer.singleton().issue(obj.claims)
 
     @classmethod
-    async def by_code(cls, code: str) -> Self:
+    async def by_code(cls, code: str) -> "LoginCode":
         """Get by token"""
         with EngineWrapper.get_session() as session:
             statement = select(LoginCode).where(LoginCode.code == code)
@@ -59,7 +59,7 @@ class LoginCode(ORMBaseModel, table=True):  # pylint: disable=R0903
         if obj.deleted:
             LOGGER.error("Got a deleted token {}, this should not be possible".format(obj.pk))
             raise Deleted()  # This should *not* be happening
-        return cast(LoginCode, obj)
+        return obj
 
     @classmethod
     async def create_for_claims(cls, claims: Dict[str, Any], auditmeta: Optional[Dict[str, Any]] = None) -> str:

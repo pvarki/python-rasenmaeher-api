@@ -37,13 +37,6 @@ from rasenmaeher_api.cfssl.public import get_crl
 
 LOGGER = logging.getLogger(__name__)
 
-# # pylint: disable=W0621
-# @pytest.fixture(scope="session")
-# async def ginosession() -> None:
-#     """make sure db is bound etc"""
-#     await bind_config()
-#     await init_db()
-
 
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the env loading works without import side effects"""
@@ -69,7 +62,6 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
     assert config.host == docker_ip
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction of persons and roles"""
@@ -117,8 +109,10 @@ async def test_person_crud(ginosession: None) -> None:
     assert obj4.callsign == "DOGGO01a"
     assert obj4.deleted
 
-    person = Person(callsign="DOGGO01b", certspath=str(uuid.uuid4()))
-    await person.create()
+    with EngineWrapper.singleton().get_session() as session:
+        person = Person(callsign="DOGGO01b", certspath=str(uuid.uuid4()))
+        session.add(person)
+        session.commit()
 
     callsigns = []
     async for user in Person.list(False):
