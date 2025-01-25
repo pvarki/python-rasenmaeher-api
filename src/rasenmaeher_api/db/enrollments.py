@@ -185,6 +185,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
             self.person = person.pk
             session.add(self)
             session.commit()
+            session.refresh(self)
             return person
 
     async def reject(self, decider: Person) -> None:
@@ -195,6 +196,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
             self.decided_on = datetime.datetime.now(datetime.UTC)
             session.add(self)
             session.commit()
+            session.refresh(self)
 
     @classmethod
     async def list(cls, by_pool: Optional[EnrollmentPool] = None) -> AsyncGenerator["Enrollment", None]:

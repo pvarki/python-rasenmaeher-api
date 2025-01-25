@@ -263,11 +263,11 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
         with EngineWrapper.get_session() as session:
             statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
             obj = session.exec(statement).first()
-        if not obj:
-            raise NotFound()
-        if obj.deleted and not allow_deleted:
-            raise Deleted()
-        return obj
+            if not obj:
+                raise NotFound()
+            if obj.deleted and not allow_deleted:
+                raise Deleted()
+            return obj
 
     # FIXME: Change the method name to be clearer about the purpose
     @classmethod
@@ -324,6 +324,7 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
             self.updated = datetime.datetime.now(datetime.UTC)
             session.add(self)
             session.commit()
+            session.refresh(self)
         if role == "admin":
             LOGGER.debug("{} promoted, informing".format(self.callsign))
             TaskMaster.singleton().create_task(user_promoted(self))
@@ -342,6 +343,7 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
             self.updated = datetime.datetime.now(datetime.UTC)
             session.add(self)
             session.commit()
+            session.refresh(self)
         if role == "admin":
             LOGGER.debug("{} demoted, informing".format(self.callsign))
             TaskMaster.singleton().create_task(user_demoted(self))

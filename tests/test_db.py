@@ -63,13 +63,14 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_crud(ginosession: None) -> None:
+async def test_person_crud(ginosession: None) -> None:  # pylint: disable=too-many-statements
     """Test the db abstraction of persons and roles"""
     _ = ginosession
     with EngineWrapper.singleton().get_session() as session:
         obj = Person(callsign="DOGGO01a", certspath=str(uuid.uuid4()))
         session.add(obj)
         session.commit()
+        session.refresh(obj)
     obj2 = await Person.by_callsign("DOGGO01a")
     assert obj2.callsign == "DOGGO01a"
     assert not await obj2.has_role("admin")
@@ -113,6 +114,7 @@ async def test_person_crud(ginosession: None) -> None:
         person = Person(callsign="DOGGO01b", certspath=str(uuid.uuid4()))
         session.add(person)
         session.commit()
+        session.refresh(person)
 
     callsigns = []
     async for user in Person.list(False):
@@ -137,6 +139,7 @@ async def test_enrollments_crud(ginosession: None) -> None:
         person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
         session.add(person)
         session.commit()
+        session.refresh(person)
     # refresh
     person = await Person.by_callsign("MEGAMAN00a")
 
@@ -186,9 +189,11 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
         person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
         session.add(person)
         session.commit()
+        session.refresh(person)
         pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
         session.add(pool)
         session.commit()
+        session.refresh(pool)
     # refresh
     pool = await EnrollmentPool.by_pk(pool.pk)
     assert pool.active
@@ -234,6 +239,8 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
         owner2 = Person(callsign="BLASTER999a", certspath=str(uuid.uuid4()))
         session.add(owner2)
         session.commit()
+        session.refresh(owner1)
+        session.refresh(owner2)
 
     for _ in range(5):
         await EnrollmentPool.create_for_owner(owner2)
