@@ -62,6 +62,7 @@ class EnrollmentPool(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
         """Set active and return refreshed object"""
         with EngineWrapper.get_session() as session:
             self.active = bool(state)
+            session.add(self)
             session.commit()
             session.refresh(self)
             return self

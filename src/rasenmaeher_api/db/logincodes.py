@@ -34,7 +34,7 @@ class LoginCode(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
         """Exchange the code for JWT, if it was already used raise error that is also 403, return JWT with the claims"""
         try:
             obj = await LoginCode.by_code(code)
-            if obj:
+            if obj.used_on:
                 LOGGER.error("{} was used on {}".format(obj.code, obj.used_on))
                 raise TokenReuse()
         except NotFound:

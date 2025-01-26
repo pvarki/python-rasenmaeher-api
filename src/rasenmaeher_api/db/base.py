@@ -52,4 +52,5 @@ class ORMBaseModel(SQLModel, table=False):  # type: ignore[call-arg,misc]
             self.deleted = datetime.datetime.now(datetime.UTC)
             session.add(self)
             session.commit()
+            session.refresh(self)
         return True

@@ -220,6 +220,8 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     with pytest.raises(Deleted):
         await pool.create_enrollment(str(uuid.uuid4()))
 
+    # refresh the person again (needed for some reason)
+    person = await Person.by_callsign("POOLBOYa")
     pool2 = await EnrollmentPool.create_for_owner(person)
     assert pool2.invitecode
     old_code = str(pool2.invitecode)
