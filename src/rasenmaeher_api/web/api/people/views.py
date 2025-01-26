@@ -23,15 +23,17 @@ router = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 @router.get(
     "/list", response_model=PeopleListOut, dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))]
 )
-async def request_people_list() -> PeopleListOut:
+async def request_people_list(revoked: bool = False) -> PeopleListOut:
     """
     /list
     Return people/list.
     Returns a list of dicts, callsign_list = [ {  "callsign":'x', "roles": ["str"] 'extra':'x' } ]
+
+    if revoked is given will list *also* revoked users.
     """
 
     result_list: List[CallSignPerson] = []
-    async for dbperson in Person.list():
+    async for dbperson in Person.list(include_deleted=revoked):
         if dbperson.callsign == "anon_admin":
             # Skip the "dummy" user for anon_admin
             continue
