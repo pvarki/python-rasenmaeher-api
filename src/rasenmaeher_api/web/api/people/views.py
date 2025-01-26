@@ -1,5 +1,5 @@
 """People API views."""  # pylint: disable=too-many-lines
-from typing import List
+from typing import List, Optional
 import logging
 
 
@@ -38,7 +38,12 @@ async def request_people_list(revoked: bool = False) -> PeopleListOut:
             # Skip the "dummy" user for anon_admin
             continue
         roles = await dbperson.roles_set()
-        listitem = CallSignPerson(callsign=dbperson.callsign, roles=list(roles), extra=dbperson.extra)
+        revoked_date: Optional[str] = None
+        if dbperson.deleted:
+            revoked_date = dbperson.deleted.isoformat()
+        listitem = CallSignPerson(
+            callsign=dbperson.callsign, roles=list(roles), extra=dbperson.extra, revoked=revoked_date
+        )
         result_list.append(listitem)
 
     return PeopleListOut(callsign_list=result_list)

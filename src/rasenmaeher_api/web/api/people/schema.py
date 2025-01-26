@@ -10,6 +10,7 @@ class CallSignPerson(BaseModel):
     callsign: str
     roles: List[str]
     extra: Optional[Dict[str, Any]]
+    revoked: Optional[str]
 
 
 class PeopleListOut(BaseModel, extra=Extra.forbid):
