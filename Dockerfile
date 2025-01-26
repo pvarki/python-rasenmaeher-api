@@ -68,6 +68,7 @@ RUN apt-get update && apt-get install -y \
         libxmlsec1-dev \
         libxml2-dev \
         pkg-config \
+        libpq-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     # githublab ssh
@@ -129,6 +130,7 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
         tini \
         git \
         openssh-client \
+        libpq5 \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
