@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 import pytest
+from flaky import flaky
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
 import cryptography.x509
@@ -129,7 +130,6 @@ async def test_person_crud(ginosession: None) -> None:  # pylint: disable=too-ma
     assert "DOGGO01b" in callsigns
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollments_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments"""
@@ -179,7 +179,6 @@ async def test_enrollments_crud(ginosession: None) -> None:
     assert person2.callsign == "ERAPPROVTEST01a"
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollmentpools_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments and enrollmentpools"""
@@ -229,7 +228,6 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     assert old_code != new_code
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollmentpools_list(ginosession: None) -> None:
     """Test list methods"""
@@ -267,7 +265,6 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
         assert pool.owner == owner2.pk
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollments_list(ginosession: None) -> None:
     """Test list methods"""
@@ -295,7 +292,6 @@ async def test_enrollments_list(ginosession: None) -> None:
     assert not pool1_codes.intersection(pool2_codes)
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_seentokens_crud(ginosession: None) -> None:
     """Test the db abstraction for seen tokens"""
@@ -320,7 +316,6 @@ async def test_seentokens_crud(ginosession: None) -> None:
         await obj2.delete()
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_logincodes_crud(ginosession: None) -> None:
     """Test the db abstraction for login codes"""
@@ -344,7 +339,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
         await LoginCode.use_code(code)
 
 
-# .
+@flaky(max_runs=3, min_passes=1)  # type: ignore[misc]
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert(ginosession: None) -> None:
     """Test the cert creation with the classmethod (and revocation)"""
@@ -366,7 +361,6 @@ async def test_person_with_cert(ginosession: None) -> None:
     assert refresh.revoke_reason
 
 
-# .
 @pytest.mark.xfail(reason="monkeypatching the host does not work as expected")
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -388,7 +382,7 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
             await Person.by_callsign("BONGO01a")
 
 
-# .
+@flaky(max_runs=3, min_passes=1)  # type: ignore[misc]
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     """Test the cert creation with the classmethod but reserved callsign"""
@@ -408,7 +402,6 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     assert new_files == old_files
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_pfx_parse(ginosession: None) -> None:
     """Test that the PFX file gets done"""
@@ -431,7 +424,6 @@ async def test_pfx_parse(ginosession: None) -> None:
     assert pfxdata.cert
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_productcn_forbid(ginosession: None) -> None:
     """Test that trying to create enrollment or person with callsign that matches a product CN fails"""

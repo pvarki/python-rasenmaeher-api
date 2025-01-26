@@ -872,6 +872,18 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.6.10)", "diff-cover (>=9.2.1)",
 typing = ["typing-extensions (>=4.12.2)"]
 
 [[package]]
+name = "flaky"
+version = "3.8.1"
+description = "Plugin for pytest that automatically reruns flaky tests."
+optional = false
+python-versions = ">=3.5"
+groups = ["dev"]
+files = [
+    {file = "flaky-3.8.1-py2.py3-none-any.whl", hash = "sha256:194ccf4f0d3a22b2de7130f4b62e45e977ac1b5ccad74d4d48f3005dcc38815e"},
+    {file = "flaky-3.8.1.tar.gz", hash = "sha256:47204a81ec905f3d5acfbd61daeabcada8f9d4031616d9bcb0618461729699f5"},
+]
+
+[[package]]
 name = "frozenlist"
 version = "1.5.0"
 description = "A list-like structure which implements collections.abc.MutableSequence"
@@ -3232,4 +3244,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "8b38917fb019486f401300fe73dbebadbd34280336f5874f8bcb364f9f7dc411"
+content-hash = "a00739934a61fcebd1e9a1d3a448c6410f5a95963eec8710edb7d328817228a7"

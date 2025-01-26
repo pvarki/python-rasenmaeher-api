@@ -118,6 +118,7 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
                 shutil.rmtree(certspath)
                 remaining = list(certspath.rglob("*"))
                 LOGGER.debug("Remaining files: {}".format(remaining))
+                session.rollback()
                 raise BackendError(str(exc)) from exc
             # refresh object if everything went ok
             session.refresh(newperson)

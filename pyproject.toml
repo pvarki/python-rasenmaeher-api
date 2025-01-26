@@ -112,6 +112,7 @@ types-requests = "^2.31"
 types-pyopenssl = "^23.1"
 async-asgi-testclient = "^1.4"
 pytest-docker = "^2.0"
+flaky = "^3.8"
 
 
 [build-system]
