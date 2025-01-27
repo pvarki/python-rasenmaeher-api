@@ -237,10 +237,15 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
         return Path(self.certspath) / "mtls.pub"
 
     @classmethod
-    async def list(cls, include_deleted: bool = False) -> AsyncGenerator["Person", None]:
+    async def list(cls, include_deleted: bool = False, *, only_deleted: bool = False) -> AsyncGenerator["Person", None]:
         """List people"""
         with EngineWrapper.get_session() as session:
             statement = select(cls)
+            if only_deleted:
+                include_deleted = True
+                statement = statement.where(
+                    cls.deleted != None  # pylint: disable=C0121 ; # "is not None" will create invalid query
+                )
             if not include_deleted:
                 statement = statement.where(
                     cls.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
