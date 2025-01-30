@@ -69,7 +69,6 @@ async def get_product_instructions(request: Request, product: str, language: str
     )
     response = await post_to_product(product, f"api/v1/instructions/{language}", user.dict(), InstructionData)
     if response is None:
-        # TODO: Raise a reasonable error instead
-        return None
+        raise ValueError(f"Unable to get instructions for {product}/{language}")
     response = cast(InstructionData, response)
     return response
