@@ -74,14 +74,14 @@ class KCClient:
         if self._kc_admin_role:
             return
         ret = await self.kcadmin.a_get_realm_roles(search_text="admin")
-        # If multipe roles match the search choose exact match
+        # If multiple roles match the search choose exact match
         flt = [rolerep for rolerep in ret if rolerep["name"] == "admin"]
         if not flt:
             raise ValueError("KC has no configured 'admin' role")
         self._kc_admin_role = flt[0]
 
     async def check_user_roles(self, user: KCUserData) -> bool:
-        """Chekc users roles in KC and update as needed, returns true if changes were made"""
+        """Check users roles in KC and update as needed, returns true if changes were made"""
         await self._check_admin_role()
         kc_roles = {role["name"]: role for role in await self.kcadmin.a_get_realm_roles_of_user(user.kc_id)}
         LOGGER.debug("Found KC roles: {} (user: {})".format(list(kc_roles.keys()), user.roles))

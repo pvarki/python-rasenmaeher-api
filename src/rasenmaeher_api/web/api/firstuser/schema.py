@@ -16,7 +16,7 @@ class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
                 {
                     "name": "normal",
                     "summary": "Description text",
-                    "description": "This containts **description** of values.",
+                    "description": "This contains **description** of values.",
                     "value": {"temp_admin_code": "[str] - temporary init admin users string"},
                 },
                 {
@@ -60,7 +60,7 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
                 {
                     "name": "normal",
                     "summary": "Description text",
-                    "description": "This containts **description** of values.",
+                    "description": "This contains **description** of values.",
                     "value": {
                         "callsign": "[str] - id/name for new user that is elevated to admin",
                     },

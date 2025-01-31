@@ -7,13 +7,13 @@ from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 
 
 from .schema import (
-    AllProdcutsInstructionFragments,
+    AllProductsInstructionFragments,
     ProductFileList,
-    AllProdcutsInstructionFiles,
+    AllProductsInstructionFiles,
     InstructionData,
 )
 from ..middleware.user import ValidUser
-from ....prodcutapihelpers import get_from_all_products, post_to_all_products, post_to_product
+from ....productapihelpers import get_from_all_products, post_to_all_products, post_to_product
 from ....db import Person
 
 
@@ -23,27 +23,27 @@ router = APIRouter()
 
 @router.get(
     "/admin",
-    response_model=AllProdcutsInstructionFragments,
+    response_model=AllProductsInstructionFragments,
     dependencies=[Depends(ValidUser(auto_error=True))],
     deprecated=True,
 )
-async def admin_instruction_fragment() -> AllProdcutsInstructionFragments:
+async def admin_instruction_fragment() -> AllProductsInstructionFragments:
     """Return admin instructions"""
     responses = await get_from_all_products("api/v1/admins/fragment", UserInstructionFragment)
     if responses is None:
         raise ValueError("Everything is broken")
-    return AllProdcutsInstructionFragments(
+    return AllProductsInstructionFragments(
         fragments={key: cast(UserInstructionFragment, val) for key, val in responses.items()}
     )
 
 
 @router.get(
     "/user",
-    response_model=AllProdcutsInstructionFiles,
+    response_model=AllProductsInstructionFiles,
     dependencies=[Depends(ValidUser(auto_error=True))],
     deprecated=True,
 )
-async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionFiles:
+async def user_instruction_fragment(request: Request) -> AllProductsInstructionFiles:
     """Return end-user files"""
     person = cast(Person, request.state.person)
     user = UserCRUDRequest(
@@ -53,7 +53,7 @@ async def user_instruction_fragment(request: Request) -> AllProdcutsInstructionF
     responses = await post_to_all_products("api/v1/clients/fragment", user.dict(), ProductFileList)
     if responses is None:
         raise ValueError("Everything is broken")
-    return AllProdcutsInstructionFiles(files={key: cast(ProductFileList, val) for key, val in responses.items()})
+    return AllProductsInstructionFiles(files={key: cast(ProductFileList, val) for key, val in responses.items()})
 
 
 @router.get(
