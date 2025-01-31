@@ -8,7 +8,7 @@ from pydantic_collections import BaseCollectionModel
 # pylint: disable=too-few-public-methods
 
 
-class AllProdcutsInstructionFragments(BaseModel):
+class AllProductsInstructionFragments(BaseModel):
     """DEPRECATED! Fragments for all products"""
 
     fragments: Dict[str, Optional[UserInstructionFragment]] = Field(
@@ -56,7 +56,7 @@ class ProductFileList(BaseCollectionModel[ProductFile]):  # type: ignore[misc]
         extra = Extra.forbid
 
 
-class AllProdcutsInstructionFiles(BaseModel):
+class AllProductsInstructionFiles(BaseModel):
     """DEPRECATED! user files for all products"""
 
     files: Dict[str, Optional[ProductFileList]] = Field(

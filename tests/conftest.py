@@ -23,7 +23,7 @@ import pytest_asyncio  # pylint: disable=import-error
 
 from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
-from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
+from rasenmaeher_api.productapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
 from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
 from rasenmaeher_api.db.dbinit import init_db
@@ -35,7 +35,7 @@ DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
 
-# FIXME Should tbe TaskMaster feature
+# FIXME Should the TaskMaster feature
 async def tms_wait() -> None:
     """Wait for background tasks to avoid race conditions"""
     tma = TaskMaster.singleton()

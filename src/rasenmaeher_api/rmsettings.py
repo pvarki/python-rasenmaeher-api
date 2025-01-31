@@ -71,7 +71,7 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     test_api_client_cert_header_value: str = "CN=fake.localmaeher.dev.pvarki.fi,O=N/A"
     api_healthcheck_proto: str = "http://"
     api_healthcheck_url: str = "/api/v1/healthcheck"
-    api_healthcheck_headers: str = '{"propably":"not_needed"}'
+    api_healthcheck_headers: str = '{"probably":"not_needed"}'
 
     # Sentry's configuration.
     sentry_dsn: Optional[str] = None
