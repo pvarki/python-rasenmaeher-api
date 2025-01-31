@@ -9,7 +9,7 @@ from rasenmaeher_api import __version__
 from .schema import BasicHealthCheckResponse, AllProductsHealthCheckResponse
 from ....db import Person
 from ....rmsettings import switchme_to_singleton_call
-from ....prodcutapihelpers import check_kraftwerk_manifest, get_from_all_products
+from ....productapihelpers import check_kraftwerk_manifest, get_from_all_products
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)

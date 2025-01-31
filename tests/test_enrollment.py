@@ -432,7 +432,7 @@ async def test_create_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 # INVITE CODE DEACTIVATE
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
-async def test_invitecode_dectivate(tilauspalvelu_jwt_admin_client: TestClient) -> None:
+async def test_invitecode_deactivate(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - deactivate invite code
     """

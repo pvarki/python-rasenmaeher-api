@@ -36,7 +36,7 @@ class EnrollmentPool(ORMBaseModel):  # pylint: disable=R0903
 
     __tablename__ = "enrollmentpools"
 
-    owner = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=False)  # whos mainly responsible
+    owner = sa.Column(saUUID(), sa.ForeignKey(Person.pk), nullable=False)  # who's mainly responsible
     active = sa.Column(sa.Boolean(), nullable=False, default=True)
     extra = sa.Column(JSONB, nullable=False, server_default="{}")  # Passed on to the enrollments
     invitecode = sa.Column(

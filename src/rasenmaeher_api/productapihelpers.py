@@ -23,52 +23,52 @@ def check_kraftwerk_manifest() -> bool:
 
 
 async def post_to_all_products(
-    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
+    url_suffix: str, data: Mapping[str, Any], response_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on all products in the manifest"""
-    return await _method_to_all_products("post", url_suffix, data, respose_schema, collect_responses)
+    return await _method_to_all_products("post", url_suffix, data, response_schema, collect_responses)
 
 
 async def put_to_all_products(
-    url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
+    url_suffix: str, data: Mapping[str, Any], response_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given PUT endpoint on all products in the manifest"""
-    return await _method_to_all_products("put", url_suffix, data, respose_schema, collect_responses)
+    return await _method_to_all_products("put", url_suffix, data, response_schema, collect_responses)
 
 
 async def get_from_all_products(
-    url_suffix: str, respose_schema: Type[pydantic.BaseModel], collect_responses: bool = True
+    url_suffix: str, response_schema: Type[pydantic.BaseModel], collect_responses: bool = True
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given GET endpoint on all products in the manifest"""
-    return await _method_to_all_products("get", url_suffix, None, respose_schema, collect_responses)
+    return await _method_to_all_products("get", url_suffix, None, response_schema, collect_responses)
 
 
 async def get_from_product(
-    name: str, url_suffix: str, respose_schema: Type[pydantic.BaseModel]
+    name: str, url_suffix: str, response_schema: Type[pydantic.BaseModel]
 ) -> Optional[pydantic.BaseModel]:
     """Call given GET endpoint on named product in the manifest"""
-    return await _method_to_product(name, "get", url_suffix, None, respose_schema)
+    return await _method_to_product(name, "get", url_suffix, None, response_schema)
 
 
 async def post_to_product(
-    name: str, url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    name: str, url_suffix: str, data: Mapping[str, Any], response_schema: Type[pydantic.BaseModel]
 ) -> Optional[pydantic.BaseModel]:
     """Call given POST endpoint on named product in the manifest"""
-    return await _method_to_product(name, "post", url_suffix, data, respose_schema)
+    return await _method_to_product(name, "post", url_suffix, data, response_schema)
 
 
 async def put_to_product(
-    name: str, url_suffix: str, data: Mapping[str, Any], respose_schema: Type[pydantic.BaseModel]
+    name: str, url_suffix: str, data: Mapping[str, Any], response_schema: Type[pydantic.BaseModel]
 ) -> Optional[pydantic.BaseModel]:
     """Call given PUT endpoint on named product in the manifest"""
-    return await _method_to_product(name, "put", url_suffix, data, respose_schema)
+    return await _method_to_product(name, "put", url_suffix, data, response_schema)
 
 
 async def _method_to_all_products(
     methodname: str,
     url_suffix: str,
     data: Optional[Mapping[str, Any]],
-    respose_schema: Type[pydantic.BaseModel],
+    response_schema: Type[pydantic.BaseModel],
     collect_responses: bool = True,
 ) -> Optional[Dict[str, Optional[pydantic.BaseModel]]]:
     """Call given POST endpoint on call products in the manifest"""
@@ -83,8 +83,8 @@ async def _method_to_all_products(
 
     async def handle_one(name: str) -> Tuple[str, Optional[pydantic.BaseModel]]:
         """Do one call"""
-        nonlocal url_suffix, methodname, respose_schema, data
-        return name, await _method_to_product(name, methodname, url_suffix, data, respose_schema)
+        nonlocal url_suffix, methodname, response_schema, data
+        return name, await _method_to_product(name, methodname, url_suffix, data, response_schema)
 
     if not collect_responses:
         tma = TaskMaster.singleton()
@@ -103,7 +103,7 @@ async def _method_to_product(
     methodname: str,
     url_suffix: str,
     data: Optional[Mapping[str, Any]],
-    respose_schema: Type[pydantic.BaseModel],
+    response_schema: Type[pydantic.BaseModel],
 ) -> Optional[Optional[pydantic.BaseModel]]:
     """Do a call to named product"""
 
@@ -126,7 +126,7 @@ async def _method_to_product(
             resp.raise_for_status()
             payload = await resp.json()
             LOGGER.debug("{}({}) payload={}".format(methodname, url, payload))
-            retval = respose_schema.parse_obj(payload)
+            retval = response_schema.parse_obj(payload)
             # Log a common error case here for DRY
             if isinstance(retval, OperationResultResponse):
                 if not retval.success:
