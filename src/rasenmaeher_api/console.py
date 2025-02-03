@@ -15,14 +15,11 @@ from multikeyjwt import Issuer
 from rasenmaeher_api import __version__
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.testhelpers import create_test_users
-from rasenmaeher_api.db import LoginCode
-from rasenmaeher_api.db import base as dbbase
+from rasenmaeher_api.db import LoginCode, init_db, Person
 from rasenmaeher_api.db.config import DBConfig
 from rasenmaeher_api.db.middleware import DBWrapper
-from rasenmaeher_api.web.application import get_app_no_init
-from rasenmaeher_api.db.base import init_db, bind_config
-from rasenmaeher_api.db import Person
 from rasenmaeher_api.db.errors import NotFound
+from rasenmaeher_api.web.application import get_app_no_init
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +40,7 @@ def cli_group(ctx: click.Context, loglevel: int, verbose: int) -> None:
     LOGGER.setLevel(loglevel)
     ctx.ensure_object(dict)
     ctx.obj["loop"] = asyncio.get_event_loop()
-    ctx.obj["dbwrapper"] = DBWrapper(gino=dbbase.db, config=DBConfig.singleton())
+    ctx.obj["dbwrapper"] = DBWrapper(config=DBConfig.singleton())
 
 
 @cli_group.command(name="openapi")
@@ -127,7 +124,6 @@ def get_pfx(ctx: click.Context, callsign: str, admin: bool) -> None:
     async def do_the_needful() -> int:
         """Do what is needed"""
         nonlocal callsign, admin
-        await bind_config()
         await init_db()
 
         try:
@@ -155,7 +151,6 @@ def revoke_user(ctx: click.Context, callsign: str, reason: str) -> None:
     async def do_the_needful() -> int:
         """Do what is needed"""
         nonlocal callsign, reason
-        await bind_config()
         await init_db()
 
         person = await Person.by_callsign(callsign)
@@ -225,7 +220,6 @@ def add_test_users(ctx: click.Context) -> None:
 
     async def call_testusers() -> int:
         """Start db connection, call the helper"""
-        await bind_config()
         await init_db()
         ret = await create_test_users()
         click.echo(pprint.pformat(ret))

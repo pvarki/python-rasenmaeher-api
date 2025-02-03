@@ -4,7 +4,7 @@
 #############################################
 FROM advian/tox-base:debian-bookworm as tox
 ARG PYTHON_VERSIONS="3.11 3.12"
-ARG POETRY_VERSION="1.6.1"
+ARG POETRY_VERSION="2.0.1"
 RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && echo RESOLVED_VERSIONS=$RESOLVED_VERSIONS \
     && for pyver in $RESOLVED_VERSIONS; do pyenv install -s $pyver; done \
@@ -52,7 +52,7 @@ ENV \
   PIP_DISABLE_PIP_VERSION_CHECK=on \
   PIP_DEFAULT_TIMEOUT=100 \
   # poetry:
-  POETRY_VERSION=1.6.1
+  POETRY_VERSION=2.0.1
 
 RUN apt-get update && apt-get install -y \
         curl \
@@ -68,6 +68,7 @@ RUN apt-get update && apt-get install -y \
         libxmlsec1-dev \
         libxml2-dev \
         pkg-config \
+        libpq-dev \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     # githublab ssh
@@ -86,6 +87,7 @@ WORKDIR /pysetup
 COPY ./poetry.lock ./pyproject.toml /pysetup/
 # Install basic requirements (utilizing an internal docker wheelhouse if available)
 RUN --mount=type=ssh pip3 install wheel virtualenv \
+    && poetry self add poetry-plugin-export \
     && poetry export -f requirements.txt --without-hashes -o /tmp/requirements.txt \
     && pip3 wheel --wheel-dir=/tmp/wheelhouse  -r /tmp/requirements.txt \
     && virtualenv /.venv && source /.venv/bin/activate && echo 'source /.venv/bin/activate' >>/root/.profile \
@@ -128,6 +130,7 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
         tini \
         git \
         openssh-client \
+        libpq5 \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
@@ -146,8 +149,8 @@ CMD ["rasenmaeher_api", "openapi"]
 # Base stage for development builds #
 #####################################
 FROM builder_base as devel_build
-# Install deps
-WORKDIR /pysetup
+COPY . /app
+WORKDIR /app
 COPY ./docker/container-init.sh /container-init.sh
 RUN --mount=type=ssh source /.venv/bin/activate \
     && apt-get update && apt-get install -y \

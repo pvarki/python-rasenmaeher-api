@@ -26,8 +26,7 @@ from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.prodcutapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
 from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
-from rasenmaeher_api.db.base import init_db, bind_config
-from rasenmaeher_api.db.base import db as ginoinstance
+from rasenmaeher_api.db.dbinit import init_db
 from rasenmaeher_api.db.people import Person
 
 init_logging(logging.DEBUG)
@@ -49,13 +48,12 @@ async def tms_wait() -> None:
             return
 
 
+# FIXME rename, we do not use Gino
 @pytest_asyncio.fixture(scope="function")
 async def ginosession() -> AsyncGenerator[None, None]:
     """make sure db is bound etc"""
-    await bind_config()
     await init_db()
-    async with ginoinstance.acquire():
-        yield
+    yield
 
 
 @pytest_asyncio.fixture(scope="function", autouse=True)

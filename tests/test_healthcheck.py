@@ -25,7 +25,7 @@ async def test_get_healthcheck(unauth_client_session: TestClient) -> None:
     assert resp.status_code == 200
     assert resp_dict["healthcheck"] == "success"
     assert resp_dict["dns"] != ""
-    assert resp_dict["version"] == __version__
+    assert resp_dict["rm_version"] == __version__
 
 
 @pytest.mark.asyncio(loop_scope="session")

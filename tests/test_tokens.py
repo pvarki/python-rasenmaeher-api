@@ -9,9 +9,6 @@ from multikeyjwt import Verifier
 
 LOGGER = logging.getLogger(__name__)
 
-# FIXME: Figure out WTF is asyncios problem
-pytestmark = pytest.mark.skip(reason="asyncio/asyncpg is weird under pytest")
-
 
 async def get_code(client: TestClient) -> str:
     """Get a code"""

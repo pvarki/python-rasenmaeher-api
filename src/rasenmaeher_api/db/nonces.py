@@ -1,23 +1,25 @@
 """DB abstraction for storing nonces etc things needed to prevent re-use of certain tokens"""
-from typing import Self, Dict, cast, Any, Optional
+from typing import Dict, Any, Optional
 import logging
 
 from sqlalchemy.dialects.postgresql import JSONB
-import sqlalchemy as sa
+from sqlmodel import Field, select
+
 
 from .base import ORMBaseModel
 from .errors import ForbiddenOperation, NotFound, Deleted, TokenReuse
+from .engine import EngineWrapper
 
 LOGGER = logging.getLogger(__name__)
 
 
-class SeenToken(ORMBaseModel):  # pylint: disable=R0903
+class SeenToken(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     """Store tokens we should see used only once"""
 
     __tablename__ = "seentokens"
 
-    token = sa.Column(sa.String(), nullable=False, index=True, unique=True)
-    auditmeta = sa.Column(JSONB, nullable=False, server_default="{}")
+    token: str = Field(nullable=False, index=True, unique=True)
+    auditmeta: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
 
     @classmethod
     async def use_token(cls, token: str, auditmeta: Optional[Dict[str, Any]] = None) -> None:
@@ -31,19 +33,23 @@ class SeenToken(ORMBaseModel):  # pylint: disable=R0903
             pass
         if not auditmeta:
             auditmeta = {}
-        token = SeenToken(token=token, auditmeta=auditmeta)
-        await token.create()
+        with EngineWrapper.get_session() as session:
+            dbtoken = SeenToken(token=token, auditmeta=auditmeta)
+            session.add(dbtoken)
+            session.commit()
 
     @classmethod
-    async def by_token(cls, token: str) -> Self:
+    async def by_token(cls, token: str) -> "SeenToken":
         """Get by token"""
-        obj = await SeenToken.query.where(SeenToken.token == token).gino.first()
+        with EngineWrapper.get_session() as session:
+            statement = select(SeenToken).where(SeenToken.token == token)
+            obj = session.exec(statement).first()
         if not obj:
             raise NotFound()
         if obj.deleted:
             LOGGER.error("Got a deleted token {}, this should not be possible".format(obj.pk))
             raise Deleted()  # This should *not* be happening
-        return cast(SeenToken, obj)
+        return obj
 
     async def delete(self) -> bool:
         """Deletion of enrollments is not allowed"""

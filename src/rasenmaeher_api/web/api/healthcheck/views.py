@@ -1,6 +1,7 @@
 """Healthcheck API views."""
 from typing import cast
 import logging
+import os
 
 from fastapi import APIRouter
 from libpvarki.schemas.product import ProductHealthCheckResponse
@@ -37,7 +38,11 @@ async def request_healthcheck() -> BasicHealthCheckResponse:
         else:
             my_dn = "DNS not defined in manifest"
             deployment_name = "DNS not defined in manifest"
-    return BasicHealthCheckResponse(healthcheck="success", dns=my_dn, deployment=deployment_name, version=__version__)
+    rm_version = __version__
+    deployment_version = os.environ.get("RELEASE_TAG", "undefined")
+    return BasicHealthCheckResponse(
+        healthcheck="success", dns=my_dn, deployment=deployment_name, version=deployment_version, rm_version=rm_version
+    )
 
 
 @router.get("/services")

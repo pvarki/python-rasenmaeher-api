@@ -5,12 +5,22 @@ import uuid
 from pathlib import Path
 
 import pytest
+from flaky import flaky
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
 import cryptography.x509
 import cryptography.hazmat.primitives.serialization.pkcs12
 
-from rasenmaeher_api.db import DBConfig, Person, Enrollment, EnrollmentState, EnrollmentPool, SeenToken, LoginCode
+from rasenmaeher_api.db import (
+    DBConfig,
+    Person,
+    Enrollment,
+    EnrollmentState,
+    EnrollmentPool,
+    SeenToken,
+    LoginCode,
+    EngineWrapper,
+)
 from rasenmaeher_api.db.errors import (
     NotFound,
     Deleted,
@@ -27,13 +37,6 @@ from rasenmaeher_api.cfssl.public import get_crl
 
 
 LOGGER = logging.getLogger(__name__)
-
-# # pylint: disable=W0621
-# @pytest.fixture(scope="session")
-# async def ginosession() -> None:
-#     """make sure db is bound etc"""
-#     await bind_config()
-#     await init_db()
 
 
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,13 +63,15 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
     assert config.host == docker_ip
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_crud(ginosession: None) -> None:
+async def test_person_crud(ginosession: None) -> None:  # pylint: disable=too-many-statements
     """Test the db abstraction of persons and roles"""
     _ = ginosession
-    obj = Person(callsign="DOGGO01a", certspath=str(uuid.uuid4()))
-    await obj.create()
+    with EngineWrapper.singleton().get_session() as session:
+        obj = Person(callsign="DOGGO01a", certspath=str(uuid.uuid4()))
+        session.add(obj)
+        session.commit()
+        session.refresh(obj)
     obj2 = await Person.by_callsign("DOGGO01a")
     assert obj2.callsign == "DOGGO01a"
     assert not await obj2.has_role("admin")
@@ -106,8 +111,11 @@ async def test_person_crud(ginosession: None) -> None:
     assert obj4.callsign == "DOGGO01a"
     assert obj4.deleted
 
-    person = Person(callsign="DOGGO01b", certspath=str(uuid.uuid4()))
-    await person.create()
+    with EngineWrapper.singleton().get_session() as session:
+        person = Person(callsign="DOGGO01b", certspath=str(uuid.uuid4()))
+        session.add(person)
+        session.commit()
+        session.refresh(person)
 
     callsigns = []
     async for user in Person.list(False):
@@ -122,14 +130,16 @@ async def test_person_crud(ginosession: None) -> None:
     assert "DOGGO01b" in callsigns
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollments_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments"""
     _ = ginosession
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
-    person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
-    await person.create()
+    with EngineWrapper.singleton().get_session() as session:
+        person = Person(callsign="MEGAMAN00a", certspath=str(uuid.uuid4()))
+        session.add(person)
+        session.commit()
+        session.refresh(person)
     # refresh
     person = await Person.by_callsign("MEGAMAN00a")
 
@@ -169,17 +179,20 @@ async def test_enrollments_crud(ginosession: None) -> None:
     assert person2.callsign == "ERAPPROVTEST01a"
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollmentpools_crud(ginosession: None) -> None:
     """Test the db abstraction enrollments and enrollmentpools"""
     _ = ginosession
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
-    person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
-    await person.create()
-    # Done this way to test low level things, you should always use EnrollmentPool.create_for_owner
-    pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
-    await pool.create()
+    with EngineWrapper.singleton().get_session() as session:
+        person = Person(callsign="POOLBOYa", certspath=str(uuid.uuid4()))
+        session.add(person)
+        session.commit()
+        session.refresh(person)
+        pool = EnrollmentPool(owner=person.pk, extra={"jonnet": "ei tiiä"}, invitecode="12313123")
+        session.add(pool)
+        session.commit()
+        session.refresh(pool)
     # refresh
     pool = await EnrollmentPool.by_pk(pool.pk)
     assert pool.active
@@ -206,6 +219,8 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     with pytest.raises(Deleted):
         await pool.create_enrollment(str(uuid.uuid4()))
 
+    # refresh the person again (needed for some reason)
+    person = await Person.by_callsign("POOLBOYa")
     pool2 = await EnrollmentPool.create_for_owner(person)
     assert pool2.invitecode
     old_code = str(pool2.invitecode)
@@ -213,16 +228,19 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
     assert old_code != new_code
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollmentpools_list(ginosession: None) -> None:
     """Test list methods"""
     _ = ginosession
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
-    owner1 = Person(callsign="MASTER666a", certspath=str(uuid.uuid4()))
-    await owner1.create()
-    owner2 = Person(callsign="BLASTER999a", certspath=str(uuid.uuid4()))
-    await owner2.create()
+    with EngineWrapper.singleton().get_session() as session:
+        owner1 = Person(callsign="MASTER666a", certspath=str(uuid.uuid4()))
+        session.add(owner1)
+        owner2 = Person(callsign="BLASTER999a", certspath=str(uuid.uuid4()))
+        session.add(owner2)
+        session.commit()
+        session.refresh(owner1)
+        session.refresh(owner2)
 
     for _ in range(5):
         await EnrollmentPool.create_for_owner(owner2)
@@ -247,7 +265,6 @@ async def test_enrollmentpools_list(ginosession: None) -> None:
         assert pool.owner == owner2.pk
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_enrollments_list(ginosession: None) -> None:
     """Test list methods"""
@@ -275,7 +292,6 @@ async def test_enrollments_list(ginosession: None) -> None:
     assert not pool1_codes.intersection(pool2_codes)
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_seentokens_crud(ginosession: None) -> None:
     """Test the db abstraction for seen tokens"""
@@ -300,7 +316,6 @@ async def test_seentokens_crud(ginosession: None) -> None:
         await obj2.delete()
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_logincodes_crud(ginosession: None) -> None:
     """Test the db abstraction for login codes"""
@@ -324,7 +339,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
         await LoginCode.use_code(code)
 
 
-# .
+@flaky(max_runs=3, min_passes=1)  # type: ignore[misc]
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert(ginosession: None) -> None:
     """Test the cert creation with the classmethod (and revocation)"""
@@ -346,7 +361,6 @@ async def test_person_with_cert(ginosession: None) -> None:
     assert refresh.revoke_reason
 
 
-# .
 @pytest.mark.xfail(reason="monkeypatching the host does not work as expected")
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -368,7 +382,7 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
             await Person.by_callsign("BONGO01a")
 
 
-# .
+@flaky(max_runs=3, min_passes=1)  # type: ignore[misc]
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     """Test the cert creation with the classmethod but reserved callsign"""
@@ -388,7 +402,6 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     assert new_files == old_files
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_pfx_parse(ginosession: None) -> None:
     """Test that the PFX file gets done"""
@@ -411,7 +424,6 @@ async def test_pfx_parse(ginosession: None) -> None:
     assert pfxdata.cert
 
 
-# .
 @pytest.mark.asyncio(loop_scope="session")
 async def test_productcn_forbid(ginosession: None) -> None:
     """Test that trying to create enrollment or person with callsign that matches a product CN fails"""

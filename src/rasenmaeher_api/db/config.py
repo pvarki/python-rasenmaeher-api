@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 
 
 from sqlalchemy.engine.url import URL, make_url
+from sqlalchemy import util
 from starlette.config import Config
 from starlette.datastructures import Secret
 
@@ -91,10 +92,11 @@ class DBConfig:  # pylint: disable=R0902
             self.dsn = URL(
                 drivername=self.driver,
                 username=self.user,
-                password=self.password,
+                password=self.password,  # type: ignore[arg-type]
                 host=self.host,
                 port=self.port,
                 database=self.database,
+                query=util.EMPTY_DICT,
             )
 
         LOGGER.debug("DSN={}".format(self.dsn))
