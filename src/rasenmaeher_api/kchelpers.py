@@ -199,6 +199,10 @@ class KCClient:
                 "enabled": True,
             }
         )
+        for rofieldname in ("createTimestamp", "modifyTimestamp"):
+            if rofieldname not in send_payload:
+                continue
+            del send_payload[rofieldname]
         if "attributes" not in send_payload:
             send_payload["attributes"] = {
                 "callsign": pdata.callsign,
@@ -209,6 +213,7 @@ class KCClient:
                 "altUsernames": [f"{pdata.callsign}_{productname}" for productname in manifest["products"].keys()],
             }
         )
+        LOGGER.debug("Sending payload: {}".format(send_payload))
         await self.kcadmin.a_update_user(user.kc_id, send_payload)
         return await self._refresh_user(user.kc_id, pdata)
 
