@@ -7,6 +7,7 @@ import uuid
 from libpvarki.schemas.product import UserCRUDRequest
 from pydantic import BaseModel, Extra, Field
 from keycloak.keycloak_admin import KeycloakAdmin
+from keycloak.exceptions import KeycloakError
 
 
 from .rmsettings import RMSettings
@@ -215,7 +216,10 @@ class KCClient:
             if rofieldname in send_payload["attributes"]:
                 del send_payload["attributes"][rofieldname]
         LOGGER.debug("Sending payload: {}".format(send_payload))
-        await self.kcadmin.a_update_user(user.kc_id, send_payload)
+        try:
+            await self.kcadmin.a_update_user(user.kc_id, send_payload)
+        except KeycloakError as exc:
+            LOGGER.exception("Could not update KC user: {}".format(exc))
         return await self._refresh_user(user.kc_id, pdata)
 
     async def delete_kc_user(self, user: KCUserData) -> bool:
