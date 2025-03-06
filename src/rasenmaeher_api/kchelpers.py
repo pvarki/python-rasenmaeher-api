@@ -157,8 +157,8 @@ class KCClient:
         if not conf.kc_enabled:
             return None
         if not user.kc_id:
-            LOGGER.error("No KC id defined")
-            return None
+            LOGGER.error("No KC id defined, calling create")
+            return await self.create_kc_user(user)
         await self.check_user_roles(user)
         manifest = conf.kraftwerk_manifest_dict
         pdata = user.productdata
