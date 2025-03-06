@@ -7,6 +7,7 @@ import uuid
 from libpvarki.schemas.product import UserCRUDRequest
 from pydantic import BaseModel, Extra, Field
 from keycloak.keycloak_admin import KeycloakAdmin
+from keycloak.exceptions import KeycloakError
 
 
 from .rmsettings import RMSettings
@@ -97,6 +98,26 @@ class KCClient:
                 return True
         return False
 
+    async def resolve_kc_id(self, email: str) -> Optional[str]:
+        """Find user with given email"""
+        found = await self.kcadmin.a_get_users({"email": email})
+        if not found:
+            return None
+        LOGGER.debug("found: {}".format(found))
+        if len(found) > 1:
+            LOGGER.warning("Found more than one result, using the first one")
+        item = found[0]
+        if "id" not in item:
+            LOGGER.error("Found user does not have id")
+            return None
+        return str(item["id"])
+
+    def user_kc_email(self, user: KCUserData) -> str:
+        """Return the unique email for user in KC"""
+        conf = RMSettings.singleton()
+        manifest = conf.kraftwerk_manifest_dict
+        return f"{user.productdata.uuid}@{manifest['dns']}"
+
     async def create_kc_user(self, user: KCUserData) -> Optional[KCUserData]:
         """Create a new user in KC"""
         conf = RMSettings.singleton()
@@ -106,9 +127,11 @@ class KCClient:
         if user.kc_id:
             raise ValueError("Cannot specify KC id when creating")
         pdata = user.productdata
+        user_email = self.user_kc_email(user)
+
         send_payload = {
             "username": pdata.callsign,  # NOTE: KeyCloak now forces this all lowercase
-            "email": f"{pdata.uuid}@{manifest['dns']}",
+            "email": user_email,
             "firstName": pdata.callsign,
             "lastName": manifest["deployment"],
             "enabled": True,
@@ -156,28 +179,47 @@ class KCClient:
         conf = RMSettings.singleton()
         if not conf.kc_enabled:
             return None
-        if not user.kc_id:
-            LOGGER.error("No KC id defined")
-            return None
-        await self.check_user_roles(user)
         manifest = conf.kraftwerk_manifest_dict
         pdata = user.productdata
+        user_email = self.user_kc_email(user)
+
+        if not user.kc_id:
+            LOGGER.warning("No KC id defined, trying to resolve")
+            resolved = await self.resolve_kc_id(user_email)
+            if not resolved:
+                LOGGER.error("Could not resolve KC id, trying to create the user")
+                return await self.create_kc_user(user)
+            user.kc_id = resolved
+        await self.check_user_roles(user)
         send_payload = user.kc_data
         send_payload.update(
             {
-                "email": f"{pdata.uuid}@{manifest['dns']}",
+                "email": user_email,
                 "firstName": pdata.callsign,
                 "lastName": manifest["deployment"],
                 "enabled": True,
             }
         )
+        if "attributes" not in send_payload:
+            send_payload["attributes"] = {
+                "callsign": pdata.callsign,
+            }
         send_payload["attributes"].update(
             {
                 "certpem": pdata.x509cert,
                 "altUsernames": [f"{pdata.callsign}_{productname}" for productname in manifest["products"].keys()],
             }
         )
-        await self.kcadmin.a_update_user(user.kc_id, send_payload)
+        for rofieldname in ("createTimestamp", "createdTimestamp", "modifyTimestamp"):
+            if rofieldname in send_payload:
+                del send_payload[rofieldname]
+            if rofieldname in send_payload["attributes"]:
+                del send_payload["attributes"][rofieldname]
+        LOGGER.debug("Sending payload: {}".format(send_payload))
+        try:
+            await self.kcadmin.a_update_user(user.kc_id, send_payload)
+        except KeycloakError as exc:
+            LOGGER.exception("Could not update KC user: {}".format(exc))
         return await self._refresh_user(user.kc_id, pdata)
 
     async def delete_kc_user(self, user: KCUserData) -> bool:

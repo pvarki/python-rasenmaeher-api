@@ -84,7 +84,11 @@ async def _method_to_all_products(
     async def handle_one(name: str) -> Tuple[str, Optional[pydantic.BaseModel]]:
         """Do one call"""
         nonlocal url_suffix, methodname, respose_schema, data
-        return name, await _method_to_product(name, methodname, url_suffix, data, respose_schema)
+        try:
+            return name, await _method_to_product(name, methodname, url_suffix, data, respose_schema)
+        except Exception as exc:  # pylint: disable=W0718
+            LOGGER.exception(exc)
+            return name, None
 
     if not collect_responses:
         tma = TaskMaster.singleton()
