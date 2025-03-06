@@ -199,6 +199,10 @@ class KCClient:
                 "enabled": True,
             }
         )
+        if "attributes" not in send_payload:
+            send_payload["attributes"] = {
+                "callsign": pdata.callsign,
+            }
         send_payload["attributes"].update(
             {
                 "certpem": pdata.x509cert,
