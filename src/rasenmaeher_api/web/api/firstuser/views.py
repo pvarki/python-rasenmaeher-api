@@ -43,7 +43,7 @@ async def get_check_code(
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
-    # Code alreay used err.
+    # Code already used err.
     if res.used_on is not None:
         _reason = "Code already used"
         LOGGER.error("{} : {}".format(request.url, _reason))
@@ -84,7 +84,7 @@ async def post_admin_add(
     anon_admin_user = await Person.by_callsign(callsign="anon_admin")
     new_admin = await enrollment.approve(approver=anon_admin_user)
 
-    # FIXME Should tbe TaskMaster feature
+    # FIXME Should the TaskMaster feature
     async def tms_wait() -> None:
         """Wait for background tasks to avoid race conditions"""
         tma = TaskMaster.singleton()

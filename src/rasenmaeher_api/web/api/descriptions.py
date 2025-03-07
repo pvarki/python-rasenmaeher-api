@@ -6,7 +6,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Extra, Field
 from pydantic_collections import BaseCollectionModel
 
-from ...prodcutapihelpers import get_from_all_products, get_from_product
+from ...productapihelpers import get_from_all_products, get_from_product
 
 
 LOGGER = logging.getLogger(__name__)

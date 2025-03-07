@@ -23,7 +23,7 @@ from .base import ORMBaseModel, utcnow
 from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from .errors import NotFound, Deleted, BackendError, CallsignReserved
 from ..cfssl.private import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
-from ..prodcutapihelpers import post_to_all_products
+from ..productapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
 from ..kchelpers import KCClient, KCUserData
 from .engine import EngineWrapper
