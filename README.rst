@@ -172,7 +172,7 @@ Example usage
 
   ```curl  -L -H "Content-Type: application/json" -d '{ "request": {"hosts":["harjoitus1.pvarki.fi"], "names":[{"C":"FI", "ST":"Jyvaskyla", "L":"KeskiSuomi", "O":"harjoitus1.pvarki.fi"}], "CN": "harjoitus1.pvarki.fi"}, "bundle":true, "profile":"client"}' 127.0.0.1:8000/takreg | jq```
 
-The cfssl used behind API listents this kind of stuff https://github.com/cloudflare/cfssl/blob/master/doc/api/endpoint_newcert.txt
+The cfssl used behind API listens this kind of stuff https://github.com/cloudflare/cfssl/blob/master/doc/api/endpoint_newcert.txt
 
 # Enrollment - Enroll a new work_id
 
