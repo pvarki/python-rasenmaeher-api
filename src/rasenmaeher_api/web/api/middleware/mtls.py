@@ -1,4 +1,5 @@
 """Middleware to handle mTLS or JWT auth"""
+
 from typing import Optional, Sequence
 import logging
 
@@ -16,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 class MTLSorJWT(HTTPBase):  # pylint: disable=too-few-public-methods
     """Auth either by JWT or mTLS header"""
 
-    def __init__(
+    def __init__(  # pylint: disable=R0913
         self,
         *,
         scheme: str = "header",

@@ -1,4 +1,5 @@
 """Schema for enrollment."""
+
 from typing import List, Dict, Any
 
 from pydantic import BaseModel, Extra, Field

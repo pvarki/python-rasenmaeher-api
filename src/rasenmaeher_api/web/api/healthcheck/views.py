@@ -1,4 +1,5 @@
 """Healthcheck API views."""
+
 from typing import cast
 import logging
 import os

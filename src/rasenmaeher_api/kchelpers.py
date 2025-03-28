@@ -1,4 +1,5 @@
 """Keycloak helpers"""
+
 from typing import Optional, Any, ClassVar, Dict, Set, Union
 from dataclasses import dataclass, field
 import logging

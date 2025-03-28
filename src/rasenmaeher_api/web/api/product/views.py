@@ -1,4 +1,5 @@
 """Product registration API views."""
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request

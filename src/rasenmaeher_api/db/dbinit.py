@@ -1,4 +1,5 @@
 """Ensure all models are defined and then create tables"""
+
 import logging
 from pathlib import Path
 import tempfile

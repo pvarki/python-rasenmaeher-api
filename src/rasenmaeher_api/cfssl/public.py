@@ -1,4 +1,5 @@
 """Public things, CA cert, CRL etc"""
+
 from typing import Dict, Any
 import logging
 import base64
@@ -28,7 +29,7 @@ async def get_ca() -> str:
     returns: CA certificate
     """
 
-    async with (await anon_session()) as session:
+    async with await anon_session() as session:
         url = f"{base_url()}/api/v1/cfssl/info"
         payload: Dict[str, Any] = {}
         # PONDER: Why does this need to be a POST ??
@@ -42,7 +43,7 @@ async def get_ca() -> str:
 async def get_ocsprest_crl(suffix: str) -> bytes:
     """Fetch CRL from OCSPREST"""
 
-    async with (await anon_session()) as session:
+    async with await anon_session() as session:
         url = f"{ocsprest_base()}/api/v1/crl/{suffix}"
         try:
             async with session.get(url) as response:
@@ -59,7 +60,7 @@ async def get_crl() -> bytes:
     returns: DER binary encoded Certificate Revocation List
     """
 
-    async with (await anon_session()) as session:
+    async with await anon_session() as session:
         url = f"{base_url()}/api/v1/cfssl/crl"
         try:
             async with session.get(url, params={"expiry": CRL_LIFETIME}, timeout=default_timeout()) as response:
@@ -78,7 +79,7 @@ async def get_bundle(cert: str) -> str:
     # FIXME: This is not a good way but I don't have a better one right now either
     # Force OCSP refresh before getting the bundle so we hopefully get all we need
     await refresh_ocsp()
-    async with (await anon_session()) as session:
+    async with await anon_session() as session:
         url = f"{base_url()}/api/v1/cfssl/bundle"
         payload: Dict[str, Any] = {"certificate": cert, "flavor": "optimal"}
         try:

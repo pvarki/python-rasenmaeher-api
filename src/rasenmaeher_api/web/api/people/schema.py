@@ -1,4 +1,5 @@
 """Schema for people."""
+
 from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Extra

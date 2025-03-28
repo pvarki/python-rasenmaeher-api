@@ -1,4 +1,5 @@
 """Middleware to require valid user"""
+
 from typing import Optional, Sequence
 import logging
 

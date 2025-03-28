@@ -1,4 +1,5 @@
 """Enrollment API views."""  # pylint: disable=too-many-lines
+
 from typing import Dict, List, Any, Optional
 import logging
 import uuid

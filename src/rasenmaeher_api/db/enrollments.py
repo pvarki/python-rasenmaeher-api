@@ -1,4 +1,5 @@
 """Abstractions for enrollments"""
+
 from typing import Dict, Any, Optional, AsyncGenerator, Union
 import string
 import secrets

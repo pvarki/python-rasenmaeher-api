@@ -1,4 +1,5 @@
 """Private apis"""
+
 from typing import Union, Optional, Any, Dict
 import asyncio
 import logging
@@ -26,7 +27,7 @@ async def post_ocsprest(
     """Do a POST with the mTLS client"""
     if timeout is None:
         timeout = RMSettings.singleton().cfssl_timeout
-    async with (await mtls_session()) as session:
+    async with await mtls_session() as session:
         try:
             LOGGER.debug("POSTing to {}, payload={}".format(url, send_payload))
             async with session.post(url, data=send_payload, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
@@ -54,7 +55,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     params: csr, whether to return cert of full bundle
     returns: certificate as PEM
     """
-    async with (await mtls_session()) as session:
+    async with await mtls_session() as session:
         url = f"{ocsprest_base()}/api/v1/csr/sign"
         payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:
@@ -76,7 +77,7 @@ async def sign_ocsp(cert: str, status: str = "good") -> Any:
     Call ocspsign endpoint
     """
 
-    async with (await mtls_session()) as session:
+    async with await mtls_session() as session:
         url = f"{base_url()}/api/v1/cfssl/ocspsign"
         payload = {"certificate": cert, "status": status}
         try:
@@ -129,7 +130,7 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
     Reason must be one of the enumerations of cryptography.x509.ReasonFlags or it's string values (see REASONS_BY_VALUE)
     """
     reason = validate_reason(reason)
-    async with (await mtls_session()) as session:
+    async with await mtls_session() as session:
         url = f"{base_url()}/api/v1/cfssl/revoke"
         payload = {
             "serial": serialno,
@@ -168,7 +169,7 @@ async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
     if not kid:
         raise ValueError("Cannot resolve authority_key_id from the cert")
 
-    async with (await mtls_session()) as session:
+    async with await mtls_session() as session:
         url = f"{base_url()}/api/v1/cfssl/certadd"
         payload = {
             "pem": pem,

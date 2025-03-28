@@ -1,4 +1,5 @@
 """Test healthcheck endpoint"""
+
 import logging
 from typing import Dict, Any
 

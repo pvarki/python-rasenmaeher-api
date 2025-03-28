@@ -1,4 +1,5 @@
 """Product integration API helpers"""
+
 from typing import Dict, Optional, Type, Any, Mapping, Tuple
 import asyncio
 import logging

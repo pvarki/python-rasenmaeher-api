@@ -1,4 +1,5 @@
 """Abstractions for people"""
+
 from typing import Self, Optional, AsyncGenerator, Dict, Any, Set, Union
 import asyncio
 import uuid

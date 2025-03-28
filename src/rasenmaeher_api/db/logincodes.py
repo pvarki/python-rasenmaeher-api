@@ -1,4 +1,5 @@
 """DB abstraction for storing nonces etc things needed to prevent re-use of certain tokens"""
+
 from typing import Dict, Any, Optional
 import logging
 import string

@@ -1,4 +1,5 @@
 """Test the descriptions endpoint"""
+
 import logging
 
 import pytest

@@ -1,4 +1,5 @@
 """CLI entrypoints for python-rasenmaeher-api"""
+
 from typing import Dict, Any
 import logging
 import json

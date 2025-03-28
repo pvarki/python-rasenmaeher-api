@@ -1,4 +1,5 @@
 """Test the token endpoints"""
+
 from typing import cast
 import logging
 

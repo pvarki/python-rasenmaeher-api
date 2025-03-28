@@ -1,4 +1,5 @@
 """This needs to be separated to avoid circular imports"""
+
 import logging
 
 import aiohttp
@@ -18,7 +19,7 @@ async def anon_sign_csr(csr: str, bundle: bool = True) -> str:
     params: csr
     returns: certificate
     """
-    async with (await anon_session()) as session:
+    async with await anon_session() as session:
         url = f"{ocsprest_base()}/api/v1/csr/sign"
         payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:

@@ -1,4 +1,5 @@
 """Views dealing with login tokens issues by/via TILAUSPALVELU"""
+
 import logging
 
 from fastapi import APIRouter, HTTPException, Depends

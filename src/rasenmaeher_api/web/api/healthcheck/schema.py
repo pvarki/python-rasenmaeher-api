@@ -1,4 +1,5 @@
 """Healthcheck response schemas"""
+
 from typing import Dict
 
 from pydantic import BaseModel, Field, Extra

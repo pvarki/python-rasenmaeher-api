@@ -1,4 +1,5 @@
 """Middleware stuff"""
+
 from dataclasses import dataclass, field
 import logging
 import asyncio

@@ -1,4 +1,5 @@
 """Main API entrypoint"""
+
 from typing import AsyncGenerator
 import asyncio
 import logging

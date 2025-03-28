@@ -1,4 +1,5 @@
 """Instruction response schemas"""
+
 from typing import Dict, Optional, Any
 
 from pydantic import BaseModel, Extra, Field

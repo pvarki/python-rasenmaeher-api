@@ -1,4 +1,5 @@
 """The Gino baseclass with db connection wrapping"""
+
 from typing import Self, Union
 import uuid
 import logging

@@ -1,4 +1,5 @@
 """Package level tests"""
+
 from typing import Any, Dict
 from pathlib import Path
 

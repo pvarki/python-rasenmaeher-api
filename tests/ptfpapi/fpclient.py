@@ -1,4 +1,5 @@
 """Quick client to test the fprun server"""
+
 import logging
 from os import environ
 import sys

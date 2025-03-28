@@ -1,4 +1,5 @@
 """Init JWT issuer"""
+
 from typing import Optional, Union
 import logging
 import os

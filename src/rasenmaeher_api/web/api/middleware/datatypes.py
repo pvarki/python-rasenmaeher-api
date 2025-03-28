@@ -1,4 +1,5 @@
 """Data types needed by this module"""
+
 from typing import Union, Optional
 from dataclasses import dataclass, field
 import enum
