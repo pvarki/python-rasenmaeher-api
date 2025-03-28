@@ -1,4 +1,5 @@
-""" Application settings. """
+"""Application settings."""
+
 from typing import Optional, Any, Dict, ClassVar, List
 import enum
 from pathlib import Path

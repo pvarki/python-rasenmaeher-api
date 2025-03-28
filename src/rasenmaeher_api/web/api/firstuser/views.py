@@ -1,4 +1,5 @@
 """Firstuser API views."""
+
 import asyncio
 import logging
 from fastapi import APIRouter, Request, Body, Depends, HTTPException

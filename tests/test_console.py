@@ -1,4 +1,5 @@
 """Test CLI scripts"""
+
 import asyncio
 
 import pytest

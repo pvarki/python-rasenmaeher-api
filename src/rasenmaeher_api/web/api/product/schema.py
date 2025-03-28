@@ -1,4 +1,5 @@
 """Schema for product mTLS cert signing"""
+
 from pydantic import BaseModel, Field, Extra
 
 

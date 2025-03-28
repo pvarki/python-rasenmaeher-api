@@ -1,4 +1,5 @@
-""" router.py: API router. """
+"""router.py: API router."""
+
 from fastapi.routing import APIRouter
 
 from rasenmaeher_api.web.api import (

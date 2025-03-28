@@ -1,4 +1,5 @@
 """Errors"""
+
 from typing import Sequence, Any
 
 from starlette import status

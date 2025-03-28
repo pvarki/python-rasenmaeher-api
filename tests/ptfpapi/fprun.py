@@ -1,4 +1,5 @@
 """The quickest and dirtiest way to respond something to rasenmaehers product integration requests"""
+
 import logging
 from os import environ
 import sys

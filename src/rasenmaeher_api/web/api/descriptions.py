@@ -1,4 +1,5 @@
 """product descriptions endpoints"""
+
 from typing import Optional, cast
 import logging
 

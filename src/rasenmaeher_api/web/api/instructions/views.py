@@ -1,4 +1,5 @@
 """Instruction routes"""
+
 from typing import cast, Optional
 import logging
 

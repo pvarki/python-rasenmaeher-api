@@ -1,4 +1,5 @@
 """pytest automagics"""
+
 import asyncio
 from typing import Dict, Any, AsyncGenerator, Generator, Tuple, List
 import logging

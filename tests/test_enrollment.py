@@ -1,4 +1,5 @@
 """Test enrollment endpoint"""
+
 from typing import Dict, Any
 import logging
 

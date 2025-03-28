@@ -1,4 +1,5 @@
 """Enduser API views."""
+
 import logging
 
 from fastapi import APIRouter, HTTPException, Depends

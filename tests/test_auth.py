@@ -1,4 +1,5 @@
 """Test the supported authentication methods"""
+
 import uuid
 from typing import Tuple, Dict, Any, cast
 import logging
