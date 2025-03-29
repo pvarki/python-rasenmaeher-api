@@ -63,6 +63,7 @@ async def handle_fragment(request: web.Request) -> web.Response:
     """Respond with hello_world for user"""
     check_peer_cert(request)
     user = UserCRUDRequest.parse_raw(await request.text())
+    LOGGER.info("Called with user={}".format(user))
     zip1_bytes = zip_pem(user.x509cert, f"{user.callsign}_1.pem")
     zip2_bytes = zip_pem(user.x509cert, f"{user.callsign}_2.pem")
 
@@ -85,6 +86,7 @@ async def handle_fragment(request: web.Request) -> web.Response:
 async def handle_description(request: web.Request) -> web.Response:
     """Respond with hello_world for user"""
     _lang = request.match_info.get("language", "en")
+    LOGGER.info("Called")
 
     return web.json_response(
         {
@@ -102,6 +104,7 @@ async def handle_instructions(request: web.Request) -> web.Response:
     check_peer_cert(request)
     _lang = request.match_info.get("language", "en")
     payload = await request.json()
+    LOGGER.info("Called with payload={}".format(payload))
 
     return web.json_response(
         {
