@@ -11,13 +11,14 @@ from multikeyjwt.middleware import JWTBearer
 from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
 
 
-from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest
+from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....cfssl.public import get_ca, get_bundle
 from ....cfssl.private import sign_csr, revoke_pem
 from ....cfssl.base import CFSSLError
 from ....rmsettings import RMSettings
+from ....kchelpers import KCClient
 
 
 router = APIRouter()
@@ -123,3 +124,17 @@ async def signal_ready(
     _ = meta
 
     return OperationResultResponse(success=True, extra="This was actually NO-OP")
+
+
+@router.post("/kctoken", dependencies=[Depends(MTLSHeader(auto_error=True))])
+async def get_kc_token(
+    request: Request,
+) -> KCClientToken:
+    """Get a token to self-register a client for OIDC"""
+    payload = request.state.mtlsdn
+    if payload.get("CN") not in RMSettings.singleton().valid_product_cns:
+        raise HTTPException(status_code=403)
+    if not RMSettings.singleton().kc_enabled:
+        raise HTTPException(403, detail="KC is not enabled")
+    data = await KCClient.singleton().client_access_token()
+    return KCClientToken.parse_obj(data)
