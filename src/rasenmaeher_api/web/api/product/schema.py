@@ -67,3 +67,31 @@ zPs4ufNJed0=
                 },
             ]
         }
+
+
+class KCClientToken(BaseModel):  # pylint: disable=too-few-public-methods
+    """Token for registering a KC client (for OIDC)"""
+
+    id: str = Field(description="Internal KC uuid for the token")
+    token: str = Field(description="JWT that allows to register a client to KC")
+    timestamp: int = Field(description="Unix timestamp")
+    expiration: int = Field(description="Expires in days")
+    count: int = Field(description="Number of uses total")
+    remainingCount: int = Field(description="Number of uses remaining")
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+        schema_extra = {
+            "examples": [
+                {
+                    "id": """ca27c7ee-bc2b-4a48-bd76-9f12d31758bb""",
+                    "certificate": """eyJhb...._N8GEsPw""",
+                    "timestamp": 1743207161,
+                    "expiration": 1,
+                    "count": 1,
+                    "remainingCount": 1,
+                },
+            ]
+        }
