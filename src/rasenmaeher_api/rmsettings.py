@@ -138,6 +138,17 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
         self.kraftwerk_manifest_bool = True
 
     @property
+    def deployment_name(self) -> str:
+        """Resolve the deployment name"""
+        if not self.kraftwerk_manifest_bool:
+            self.load_manifest()
+        if "dns" in self.kraftwerk_manifest_dict:
+            my_dn = str(self.kraftwerk_manifest_dict["dns"])
+            return my_dn.split(".", maxsplit=1)[0]
+        LOGGER.warning("DNS name not defined")
+        return "undefined"
+
+    @property
     def valid_product_cns(self) -> List[str]:
         """Get valid CNs for productapi certs"""
         self.load_manifest()

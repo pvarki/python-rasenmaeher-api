@@ -7,11 +7,13 @@ from fastapi.responses import FileResponse
 
 from ....db import Person
 from ..middleware.user import ValidUser
+from ....rmsettings import RMSettings
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
 
+@router.get(f"/{{callsign}}_{RMSettings.singleton().deployment_name}.pfx")
 @router.get("/{callsign}.pfx")
 @router.get("/{callsign}")
 async def get_user_pfx(
@@ -31,4 +33,8 @@ async def get_user_pfx(
     # Make sure the pfx exists, this is no-op if it does
     await person.create_pfx()
 
-    return FileResponse(path=person.pfxfile, media_type="application/x-pkcs12", filename=f"{callsign}.pfx")
+    return FileResponse(
+        path=person.pfxfile,
+        media_type="application/x-pkcs12",
+        filename=f"{callsign}_{RMSettings.singleton().deployment_name}.pfx",
+    )
