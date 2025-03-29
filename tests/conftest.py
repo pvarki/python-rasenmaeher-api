@@ -22,7 +22,6 @@ from aiohttp import web
 
 import pytest_asyncio  # pylint: disable=import-error
 
-from rasenmaeher_api.web.application import get_app
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.productapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.testhelpers import create_test_users
@@ -34,6 +33,9 @@ init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
+
+
+# pylint: disable=W0621
 
 
 # FIXME Should the TaskMaster feature
@@ -69,8 +71,12 @@ async def taskmaster() -> AsyncGenerator[None, None]:
 
 
 @pytest.fixture(scope="session")
-def app_instance() -> FastAPI:
+def app_instance(session_env_config: None) -> FastAPI:
     """Singleton app instance"""
+    _ = session_env_config
+    # We need to import this *after* messing with env or manifest based routes break
+    from rasenmaeher_api.web.application import get_app  # pylint: disable=import-outside-toplevel
+
     app = get_app()
     return app
 
