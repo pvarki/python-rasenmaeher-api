@@ -590,10 +590,16 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     assert pfxdata.cert
 
     # Fetch also with alternative URLs
-    resp = await unauth_client_session.get("/api/v1/enduserpfx/enrollenrique.pfx")
+    pfxurl = "/api/v1/enduserpfx/enrollenrique.pfx"
+    LOGGER.debug("Trying: {}".format(pfxurl))
+    unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
+    resp = await unauth_client_session.get(pfxurl)
     resp.raise_for_status()
+    pfxurl2 = f"/api/v1/enduserpfx/enrollenrique_{RMSettings.singleton().deployment_name}.pfx"
+    LOGGER.debug("Trying: {}".format(pfxurl2))
+    unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(
-        f"/api/v1/enduserpfx/enrollenrique_{RMSettings.singleton().deployment_name}.pfx"
+        pfxurl2,
     )
     resp.raise_for_status()
 

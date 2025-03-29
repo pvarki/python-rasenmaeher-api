@@ -25,6 +25,9 @@ async def get_user_pfx(
     :param callsign: OTTER1.pfx
     :returns pfx or 403 error
     """
+    deplosuffix = f"_{RMSettings.singleton().deployment_name}.pfx"
+    if callsign.endswith(deplosuffix):
+        callsign = callsign[: -len(deplosuffix)]
     if callsign.endswith(".pfx"):
         callsign = callsign[:-4]
     LOGGER.debug("Called with callsign={}".format(callsign))

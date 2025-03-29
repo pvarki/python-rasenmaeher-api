@@ -68,8 +68,10 @@ async def get_product_instructions(request: Request, product: str, language: str
     user = UserCRUDRequest(
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
-    response = await post_to_product(product, f"api/v1/instructions/{language}", user.dict(), InstructionData)
+    endpoint_url = f"api/v1/instructions/{language}"
+    response = await post_to_product(product, endpoint_url, user.dict(), InstructionData)
     if response is None:
+        LOGGER.error("post_to_product({}, {}): failed".format(product, endpoint_url))
         # TODO: Raise a reasonable error instead
         return None
     response = cast(InstructionData, response)
