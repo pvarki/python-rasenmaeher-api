@@ -2,7 +2,7 @@
 from typing import cast, Optional
 import logging
 
-from fastapi import Depends, APIRouter, Request
+from fastapi import Depends, APIRouter, Request, HTTPException
 from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 
 
@@ -69,7 +69,8 @@ async def get_product_instructions(request: Request, product: str, language: str
     )
     response = await post_to_product(product, f"api/v1/instructions/{language}", user.dict(), InstructionData)
     if response is None:
-        # TODO: Raise a reasonable error instead
-        return None
+        _reason = f"Unable to get instructions for {product}"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=404, detail=_reason)
     response = cast(InstructionData, response)
     return response
