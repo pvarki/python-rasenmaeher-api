@@ -10,6 +10,7 @@ import cryptography.hazmat.primitives.serialization.pkcs12
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 from libpvarki.mtlshelp.csr import async_create_keypair, async_create_client_csr
 from libadvian.testhelpers import nice_tmpdir  # pylint: disable=unused-import
+from cryptography import x509
 
 from rasenmaeher_api.rmsettings import RMSettings
 
@@ -660,4 +661,14 @@ async def test_enroll_with_csr(  # pylint: disable=R0915, R0914
     cert = pfxdata.additional_certs[0]
     assert cert.friendly_name
     assert cert.friendly_name.decode("utf-8") == callsign
+    # TODO: check extensions
+
+    # Fetch PEM cert
+    resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{callsign}.pem")
+    resp.raise_for_status()
+    certs = x509.load_pem_x509_certificates(resp.content)
+    assert certs
+    dn = certs[0].subject.rfc4514_string()
+    LOGGER.debug("DN={} callsign={}".format(dn, callsign))
+    assert f"CN={callsign}" in dn
     # TODO: check extensions

@@ -1,9 +1,11 @@
 """Utils for checking CSR:s etc"""
 
+import logging
+
 from cryptography import x509
 from libadvian.binpackers import ensure_utf8
 
-from rasenmaeher_api.web.api.utils.views import LOGGER
+LOGGER = logging.getLogger(__name__)
 
 
 # FIXME: This should be part of libpvarki
