@@ -1,4 +1,5 @@
 """Schema for enrollment."""
+
 from pydantic import BaseModel, Extra
 
 

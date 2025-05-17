@@ -1,4 +1,5 @@
 """Read database configuration from ENV or .env -file"""
+
 from typing import Optional, cast, Callable, ClassVar, Any
 import logging
 import functools

@@ -1,4 +1,5 @@
 """Info API views."""
+
 from typing import cast
 
 

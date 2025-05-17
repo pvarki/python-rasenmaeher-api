@@ -1,4 +1,5 @@
 """Test enrollment endpoint"""
+
 from typing import Dict, Any
 import logging
 
@@ -7,6 +8,7 @@ import pytest
 import cryptography.hazmat.primitives.serialization.pkcs12
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
+from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -586,4 +588,19 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"enrollenrique")
     assert pfxdata.key
     assert pfxdata.cert
+
+    # Fetch also with alternative URLs
+    pfxurl = "/api/v1/enduserpfx/enrollenrique.pfx"
+    LOGGER.debug("Trying: {}".format(pfxurl))
+    unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
+    resp = await unauth_client_session.get(pfxurl)
+    resp.raise_for_status()
+    pfxurl2 = f"/api/v1/enduserpfx/enrollenrique_{RMSettings.singleton().deployment_name}.pfx"
+    LOGGER.debug("Trying: {}".format(pfxurl2))
+    unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
+    resp = await unauth_client_session.get(
+        pfxurl2,
+    )
+    resp.raise_for_status()
+
     del unauth_client_session.headers["Authorization"]

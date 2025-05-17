@@ -1,4 +1,5 @@
 """Gino based database abstraction"""
+
 from .config import DBConfig
 from .people import Person, Role
 from .enrollments import Enrollment, EnrollmentPool, EnrollmentState

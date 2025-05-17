@@ -1,4 +1,5 @@
-""" Application settings. """
+"""Application settings."""
+
 from typing import Optional, Any, Dict, ClassVar, List
 import enum
 from pathlib import Path
@@ -135,6 +136,17 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
             raise ValueError(f"{self.kraftwerk_manifest_path} does not exist")
         self.kraftwerk_manifest_dict = json.loads(pth.read_text(encoding="utf-8"))
         self.kraftwerk_manifest_bool = True
+
+    @property
+    def deployment_name(self) -> str:
+        """Resolve the deployment name"""
+        if not self.kraftwerk_manifest_bool:
+            self.load_manifest()
+        if "dns" in self.kraftwerk_manifest_dict:
+            my_dn = str(self.kraftwerk_manifest_dict["dns"])
+            return my_dn.split(".", maxsplit=1)[0]
+        LOGGER.warning("DNS name not defined")
+        return "undefined"
 
     @property
     def valid_product_cns(self) -> List[str]:
