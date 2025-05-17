@@ -168,6 +168,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     )
     state: int = Field(nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
     extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    csr: Optional[str] = Field(default=None, nullable=True)
 
     @classmethod
     async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID]) -> "Enrollment":
@@ -273,11 +274,16 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
 
     @classmethod
     async def create_for_callsign(
-        cls, callsign: str, pool: Optional[EnrollmentPool] = None, extra: Optional[Dict[str, Any]] = None
+        cls,
+        callsign: str,
+        pool: Optional[EnrollmentPool] = None,
+        extra: Optional[Dict[str, Any]] = None,
+        csr: Optional[str] = None,
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
         if callsign in RMSettings.singleton().valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
+        # FIXME: Verify the CSR has the callsign as CN
         with EngineWrapper.get_session() as session:
             try:
                 await Enrollment.by_callsign(callsign)
@@ -294,6 +300,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
                 state=EnrollmentState.PENDING,
                 extra=extra,
                 pool=poolpk,
+                csr=csr,
             )
             session.add(obj)
             session.commit()

@@ -1,6 +1,6 @@
 """Schema for enrollment."""
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Extra, Field
 
@@ -105,6 +105,7 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
     callsign: str = Field(description="Callsign to create enrollment for")
+    csr: Optional[str] = Field(description="CSR for mTLS key in PEM format", default=None)
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""

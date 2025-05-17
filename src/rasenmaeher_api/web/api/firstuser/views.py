@@ -78,7 +78,9 @@ async def post_admin_add(
         await anon_user.assign_role(role="anon_admin")
 
     # Create new admin user enrollment
-    enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
+    enrollment = await Enrollment.create_for_callsign(
+        callsign=request_in.callsign, pool=None, extra={}, csr=request_in.csr
+    )
 
     # Get the anon_admin 'user' that will be used to approve the new admin user
     # and approve the user
