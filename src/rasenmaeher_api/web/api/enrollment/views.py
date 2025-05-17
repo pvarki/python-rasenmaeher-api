@@ -416,7 +416,7 @@ async def post_enroll_invite_code(
     except NotFound:
         pass
 
-    enrollment = await obj.create_enrollment(callsign=request_in.callsign)
+    enrollment = await obj.create_enrollment(callsign=request_in.callsign, csr=request_in.csr)
 
     # Create JWT token for user
     claims = {"sub": request_in.callsign}

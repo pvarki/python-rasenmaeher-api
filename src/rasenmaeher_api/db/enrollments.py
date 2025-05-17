@@ -52,13 +52,13 @@ class EnrollmentPool(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
         except ValueError:
             return await cls.by_invitecode(str(inval), allow_deleted)
 
-    async def create_enrollment(self, callsign: str) -> "Enrollment":
+    async def create_enrollment(self, callsign: str, csr: Optional[str] = None) -> "Enrollment":
         """Create enrollment from this pool"""
         if not self.active:
             raise PoolInactive()
         if self.deleted:
             raise Deleted("Can't create enrollments on deleted pools")
-        return await Enrollment.create_for_callsign(callsign, self, self.extra)
+        return await Enrollment.create_for_callsign(callsign, self, self.extra, csr)
 
     async def set_active(self, state: bool) -> "EnrollmentPool":
         """Set active and return refreshed object"""

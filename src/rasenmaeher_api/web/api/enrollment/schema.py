@@ -422,6 +422,7 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
 
     invite_code: str
     callsign: str
+    csr: Optional[str] = Field(description="CSR for mTLS key in PEM format", default=None)
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""
