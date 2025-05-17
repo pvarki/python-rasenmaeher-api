@@ -18,6 +18,7 @@ from .people import Person
 from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
 from ..rmsettings import RMSettings
 from .engine import EngineWrapper
+from ..web.api.utils.csr_utils import verify_csr
 
 LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = string.ascii_uppercase + string.digits
@@ -283,7 +284,8 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
         """Create a new one with random code for the callsign"""
         if callsign in RMSettings.singleton().valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
-        # FIXME: Verify the CSR has the callsign as CN
+        if csr and not verify_csr(csr, callsign):
+            raise CallsignReserved("CSR CN must match callsign")
         with EngineWrapper.get_session() as session:
             try:
                 await Enrollment.by_callsign(callsign)

@@ -28,6 +28,7 @@ from ..productapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
 from ..kchelpers import KCClient, KCUserData
 from .engine import EngineWrapper
+from ..web.api.utils.csr_utils import verify_csr
 
 LOGGER = logging.getLogger(__name__)
 
@@ -94,7 +95,8 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
         cls, callsign: str, extra: Optional[Dict[str, Any]] = None, csrpem: Optional[str] = None
     ) -> "Person":
         """Create the cert etc and save the person"""
-        # FIXME: Verify the CSR has the callsign as CN
+        if csrpem and not verify_csr(csrpem, callsign):
+            raise CallsignReserved("CSR CN must match callsign")
         cnf = RMSettings.singleton()
         if callsign in cnf.valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
