@@ -82,7 +82,8 @@ multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
 pyopenssl = "^23.1"
-libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.9.0"}
+# Can't update to 2.0 before pydantic migration is done
+libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.9.1"}
 openapi-readme = "^0.2"
 python-multipart = "^0.0.6"
 aiohttp = ">=3.11.10,<4.0"
