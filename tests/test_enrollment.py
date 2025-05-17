@@ -626,7 +626,7 @@ async def test_enroll_with_csr(  # pylint: disable=R0915, R0914
     assert resp.status_code == 200
     assert inv_code != ""
 
-    callsign = "csrroller"
+    callsign = "csr_roller"
     privkeyfile = Path(tempdir) / "user.key"
     pubkeyfile = Path(tempdir) / "user.pub"
     csrfile = Path(tempdir) / "user.csr"
