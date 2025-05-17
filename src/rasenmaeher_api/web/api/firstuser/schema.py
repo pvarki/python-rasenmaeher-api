@@ -1,6 +1,8 @@
 """Schema for enrollment."""
 
-from pydantic import BaseModel, Extra
+from typing import Optional
+
+from pydantic import BaseModel, Extra, Field
 
 
 class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
@@ -51,6 +53,7 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
 
     # temp_admin_code: str
     callsign: str
+    csr: Optional[str] = Field(default=None, description="CSR for mTLS key in PEM format")
 
     class Config:  # pylint: disable=too-few-public-methods
         """Example values for schema"""

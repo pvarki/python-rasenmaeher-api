@@ -188,7 +188,9 @@ async def request_enrollment_init(
 
     # TODO ADD POOL NAME CHECK
 
-    new_enrollment = await Enrollment.create_for_callsign(callsign=request_in.callsign, pool=None, extra={})
+    new_enrollment = await Enrollment.create_for_callsign(
+        callsign=request_in.callsign, pool=None, extra={}, csr=request_in.csr
+    )
     # Create JWT token for user
     claims = {"sub": request_in.callsign}
     new_jwt = Issuer.singleton().issue(claims)
@@ -414,7 +416,7 @@ async def post_enroll_invite_code(
     except NotFound:
         pass
 
-    enrollment = await obj.create_enrollment(callsign=request_in.callsign)
+    enrollment = await obj.create_enrollment(callsign=request_in.callsign, csr=request_in.csr)
 
     # Create JWT token for user
     claims = {"sub": request_in.callsign}
