@@ -181,7 +181,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     async def approve(self, approver: Person) -> Person:
         """Creates the person record, their certs etc"""
         with EngineWrapper.get_session() as session:
-            person = await Person.create_with_cert(self.callsign, extra=self.extra)
+            person = await Person.create_with_cert(self.callsign, extra=self.extra, csrpem=self.csr)
             self.state = EnrollmentState.APPROVED
             self.decided_by = approver.pk
             self.decided_on = datetime.datetime.now(datetime.UTC)
