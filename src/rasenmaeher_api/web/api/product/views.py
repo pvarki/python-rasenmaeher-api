@@ -1,5 +1,6 @@
 """Product registration API views."""
 
+from typing import cast
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -11,7 +12,7 @@ from multikeyjwt.middleware import JWTBearer
 from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
 
 
-from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken
+from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken, ProductAddRequest
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....cfssl.public import get_ca, get_bundle
@@ -19,6 +20,7 @@ from ....cfssl.private import sign_csr, revoke_pem
 from ....cfssl.base import CFSSLError
 from ....rmsettings import RMSettings
 from ....kchelpers import KCClient
+from ....productapihelpers import post_to_product
 
 
 router = APIRouter()
@@ -138,3 +140,29 @@ async def get_kc_token(
         raise HTTPException(403, detail="KC is not enabled")
     data = await KCClient.singleton().client_access_token()
     return KCClientToken.parse_obj(data)
+
+
+@router.post("/interop/{tgtproduct}", dependencies=[Depends(MTLSHeader(auto_error=True))])
+async def add_interop(
+    srcproduct: ProductAddRequest,
+    tgtproduct: str,
+    request: Request,
+) -> OperationResultResponse:
+    """Product needs interop privileges with another"""
+    payload = request.state.mtlsdn
+    if payload.get("CN") not in RMSettings.singleton().valid_product_cns:
+        raise HTTPException(status_code=403)
+
+    # TODO: Verify that srcproduct certcn and actual cert contents match
+
+    manifest = RMSettings.singleton().kraftwerk_manifest_dict
+    if "products" not in manifest:
+        LOGGER.error("Manifest does not have products key")
+        raise HTTPException(status_code=500, detail="Manifest does not have products key")
+    if not tgtproduct in manifest["products"]:
+        raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
+    resp = await post_to_product(tgtproduct, "/api/v1/interop/add", srcproduct.dict(), OperationResultResponse)
+    if resp is None:
+        return OperationResultResponse(success=False, error="post_to_product returned None")
+    resp = cast(OperationResultResponse, resp)
+    return resp

@@ -19,6 +19,10 @@ from libpvarki.schemas.product import (
     UserCRUDRequest,
 )
 
+
+from rasenmaeher_api.web.api.product.schema import ProductAddRequest
+
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -128,6 +132,13 @@ async def handle_admin_fragment(request: web.Request) -> web.Response:
     return web.json_response(resp.dict())
 
 
+async def handle_interop_add(request: web.Request) -> web.Response:
+    """Respond to additions"""
+    _req = ProductAddRequest.parse_raw(await request.text())
+    resp = OperationResultResponse(success=True, extra="Nothing was actually done, this is a fake endpoint for testing")
+    return web.json_response(resp.dict())
+
+
 def main() -> int:
     """Main entrypoint, return exit code"""
     LOGGER.debug("Called")
@@ -146,6 +157,7 @@ def main() -> int:
         [
             web.get("/", handle_get_hello),
             web.get("/{name}", handle_get_hello),
+            web.post("/api/v1/interop/add", handle_user_crud),
             web.post("/api/v1/users/created", handle_user_crud),
             web.post("/api/v1/users/revoked", handle_user_crud),
             web.post("/api/v1/users/promoted", handle_user_crud),
