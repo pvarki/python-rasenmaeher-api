@@ -28,6 +28,7 @@ from ..productapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
 from ..kchelpers import KCClient, KCUserData
 from .engine import EngineWrapper
+from ..web.api.utils.csr_utils import verify_csr
 
 LOGGER = logging.getLogger(__name__)
 
@@ -90,8 +91,12 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
             return await cls.by_callsign(str(inval), allow_deleted)
 
     @classmethod
-    async def create_with_cert(cls, callsign: str, extra: Optional[Dict[str, Any]] = None) -> "Person":
+    async def create_with_cert(
+        cls, callsign: str, extra: Optional[Dict[str, Any]] = None, csrpem: Optional[str] = None
+    ) -> "Person":
         """Create the cert etc and save the person"""
+        if csrpem and not verify_csr(csrpem, callsign):
+            raise CallsignReserved("CSR CN must match callsign")
         cnf = RMSettings.singleton()
         if callsign in cnf.valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
@@ -110,8 +115,11 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
                 newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
                 session.add(newperson)
                 session.commit()
-                ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
-                csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
+                if csrpem:
+                    newperson.csrfile.write_text(csrpem, encoding="utf-8")
+                else:
+                    ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
+                    csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                 certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                 newperson.certfile.write_text(certpem)
             except Exception as exc:
@@ -150,7 +158,10 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
         def write_pfx() -> None:
             """Do the IO"""
             nonlocal self
-            p12bytes = convert_pem_to_pkcs12(self.certfile, self.privkeyfile, self.callsign, None, self.callsign)
+            if self.privkeyfile.exists():
+                p12bytes = convert_pem_to_pkcs12(self.certfile, self.privkeyfile, self.callsign, None, self.callsign)
+            else:
+                p12bytes = convert_pem_to_pkcs12(self.certfile, None, self.callsign, None, self.callsign)
             self.pfxfile.write_bytes(p12bytes)
 
         await asyncio.get_event_loop().run_in_executor(None, write_pfx)

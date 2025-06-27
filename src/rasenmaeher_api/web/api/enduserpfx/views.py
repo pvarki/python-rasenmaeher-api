@@ -13,6 +13,31 @@ router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
 
+@router.get(f"/{{callsign}}_{RMSettings.singleton().deployment_name}.pem")
+@router.get("/{callsign}.pem")
+async def get_user_pem(
+    callsign: str,
+    person: Person = Depends(ValidUser(auto_error=True)),
+) -> FileResponse:
+    """Get the signed cert in PEM format (no keys)"""
+    deplosuffix = f"_{RMSettings.singleton().deployment_name}.pem"
+    if callsign.endswith(deplosuffix):
+        callsign = callsign[: -len(deplosuffix)]
+    if callsign.endswith(".pem"):
+        callsign = callsign[:-4]
+    LOGGER.debug("PEM: Called with callsign={}".format(callsign))
+    if person.callsign != callsign:
+        raise HTTPException(status_code=403, detail="Callsign must match authenticated user")
+    # Make sure the pfx exists, this is no-op if it does
+    await person.create_pfx()
+
+    return FileResponse(
+        path=person.certfile,
+        media_type="application/x-pem-file",
+        filename=f"{callsign}_{RMSettings.singleton().deployment_name}.pem",
+    )
+
+
 @router.get(f"/{{callsign}}_{RMSettings.singleton().deployment_name}.pfx")
 @router.get("/{callsign}.pfx")
 @router.get("/{callsign}")
@@ -30,7 +55,10 @@ async def get_user_pfx(
         callsign = callsign[: -len(deplosuffix)]
     if callsign.endswith(".pfx"):
         callsign = callsign[:-4]
-    LOGGER.debug("Called with callsign={}".format(callsign))
+    if callsign.endswith(".pem"):
+        LOGGER.debug("PFX: got .pem suffix, delegating")
+        return await get_user_pem(callsign, person)
+    LOGGER.debug("PFX: Called with callsign={}".format(callsign))
     if person.callsign != callsign:
         raise HTTPException(status_code=403, detail="Callsign must match authenticated user")
     # Make sure the pfx exists, this is no-op if it does

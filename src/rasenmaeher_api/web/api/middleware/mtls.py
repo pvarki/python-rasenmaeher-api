@@ -17,7 +17,7 @@ LOGGER = logging.getLogger(__name__)
 class MTLSorJWT(HTTPBase):  # pylint: disable=too-few-public-methods
     """Auth either by JWT or mTLS header"""
 
-    def __init__(  # pylint: disable=R0913
+    def __init__(  # pylint: disable=too-many-arguments
         self,
         *,
         scheme: str = "header",

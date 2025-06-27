@@ -18,6 +18,7 @@ from .people import Person
 from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
 from ..rmsettings import RMSettings
 from .engine import EngineWrapper
+from ..web.api.utils.csr_utils import verify_csr
 
 LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = string.ascii_uppercase + string.digits
@@ -51,13 +52,13 @@ class EnrollmentPool(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
         except ValueError:
             return await cls.by_invitecode(str(inval), allow_deleted)
 
-    async def create_enrollment(self, callsign: str) -> "Enrollment":
+    async def create_enrollment(self, callsign: str, csr: Optional[str] = None) -> "Enrollment":
         """Create enrollment from this pool"""
         if not self.active:
             raise PoolInactive()
         if self.deleted:
             raise Deleted("Can't create enrollments on deleted pools")
-        return await Enrollment.create_for_callsign(callsign, self, self.extra)
+        return await Enrollment.create_for_callsign(callsign, self, self.extra, csr)
 
     async def set_active(self, state: bool) -> "EnrollmentPool":
         """Set active and return refreshed object"""
@@ -168,6 +169,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     )
     state: int = Field(nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
     extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    csr: Optional[str] = Field(default=None, nullable=True)
 
     @classmethod
     async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID]) -> "Enrollment":
@@ -180,7 +182,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
     async def approve(self, approver: Person) -> Person:
         """Creates the person record, their certs etc"""
         with EngineWrapper.get_session() as session:
-            person = await Person.create_with_cert(self.callsign, extra=self.extra)
+            person = await Person.create_with_cert(self.callsign, extra=self.extra, csrpem=self.csr)
             self.state = EnrollmentState.APPROVED
             self.decided_by = approver.pk
             self.decided_on = datetime.datetime.now(datetime.UTC)
@@ -273,11 +275,17 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
 
     @classmethod
     async def create_for_callsign(
-        cls, callsign: str, pool: Optional[EnrollmentPool] = None, extra: Optional[Dict[str, Any]] = None
+        cls,
+        callsign: str,
+        pool: Optional[EnrollmentPool] = None,
+        extra: Optional[Dict[str, Any]] = None,
+        csr: Optional[str] = None,
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
         if callsign in RMSettings.singleton().valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
+        if csr and not verify_csr(csr, callsign):
+            raise CallsignReserved("CSR CN must match callsign")
         with EngineWrapper.get_session() as session:
             try:
                 await Enrollment.by_callsign(callsign)
@@ -294,6 +302,7 @@ class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
                 state=EnrollmentState.PENDING,
                 extra=extra,
                 pool=poolpk,
+                csr=csr,
             )
             session.add(obj)
             session.commit()

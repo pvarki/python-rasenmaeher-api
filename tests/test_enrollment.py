@@ -2,15 +2,21 @@
 
 from typing import Dict, Any
 import logging
+from pathlib import Path
 
 
 import pytest
 import cryptography.hazmat.primitives.serialization.pkcs12
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
+from libpvarki.mtlshelp.csr import async_create_keypair, async_create_client_csr
+from libadvian.testhelpers import nice_tmpdir  # pylint: disable=unused-import
+from cryptography import x509
 
 from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
+
+# pylint: disable=W0621
 
 
 # GENERATE VERIFICATEION CODE
@@ -604,3 +610,65 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
     resp.raise_for_status()
 
     del unauth_client_session.headers["Authorization"]
+
+
+# ENROLL WITH CSR (and invite-code
+@pytest.mark.asyncio(loop_scope="session")
+async def test_enroll_with_csr(  # pylint: disable=R0915, R0914
+    tilauspalvelu_jwt_admin_client: TestClient, unauth_client_session: TestClient, nice_tmpdir: str
+) -> None:
+    """test enrolling with CSR"""
+    tempdir = Path(nice_tmpdir)
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
+    resp_dict: Dict[Any, Any] = resp.json()
+    LOGGER.debug(resp_dict)
+    inv_code = resp_dict["invite_code"]
+    assert resp.status_code == 200
+    assert inv_code != ""
+
+    callsign = "csr_roller"
+    privkeyfile = Path(tempdir) / "user.key"
+    pubkeyfile = Path(tempdir) / "user.pub"
+    csrfile = Path(tempdir) / "user.csr"
+    ckp = await async_create_keypair(privkeyfile, pubkeyfile)
+    csrpem = await async_create_client_csr(ckp, csrfile, {"CN": callsign})
+
+    json_dict: Dict[Any, Any] = {"invite_code": inv_code, "callsign": callsign, "csr": csrpem}
+    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    resp_dict = resp.json()
+    LOGGER.debug(resp_dict)
+    assert resp.status_code == 200
+    assert resp_dict["jwt"] != ""
+    assert resp_dict["approvecode"] != ""
+    user_jwt = resp_dict["jwt"]
+    user_ac = resp_dict["approvecode"]
+
+    # Accept the enrollment
+    json_dict = {"callsign": callsign, "approvecode": user_ac}
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
+    resp_dict = resp.json()
+    LOGGER.debug(resp_dict)
+    assert resp.status_code == 200
+
+    # Fetch the PFX
+    unauth_client_session.headers.clear()
+    unauth_client_session.headers.update({"Authorization": f"Bearer {user_jwt}"})
+    resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{callsign}.pfx")
+    resp.raise_for_status()
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, callsign.encode("utf-8"))
+    assert not pfxdata.key
+    assert pfxdata.additional_certs[0]
+    cert = pfxdata.additional_certs[0]
+    assert cert.friendly_name
+    assert cert.friendly_name.decode("utf-8") == callsign
+    # TODO: check extensions
+
+    # Fetch PEM cert
+    resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{callsign}.pem")
+    resp.raise_for_status()
+    certs = x509.load_pem_x509_certificates(resp.content)
+    assert certs
+    dn = certs[0].subject.rfc4514_string()
+    LOGGER.debug("DN={} callsign={}".format(dn, callsign))
+    assert f"CN={callsign}" in dn
+    # TODO: check extensions
