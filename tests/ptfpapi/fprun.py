@@ -157,7 +157,7 @@ def main() -> int:
         [
             web.get("/", handle_get_hello),
             web.get("/{name}", handle_get_hello),
-            web.post("/api/v1/interop/add", handle_user_crud),
+            web.post("/api/v1/interop/add", handle_interop_add),
             web.post("/api/v1/users/created", handle_user_crud),
             web.post("/api/v1/users/revoked", handle_user_crud),
             web.post("/api/v1/users/promoted", handle_user_crud),
