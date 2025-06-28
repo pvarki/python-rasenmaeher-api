@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field, Extra
 
 
 # FIXME: Move to libpvarki
-class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods
+class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods,R0801
     """Request to add product interoperability."""
 
     certcn: str = Field(description="CN of the certificate")
