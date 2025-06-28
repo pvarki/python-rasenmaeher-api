@@ -18,9 +18,28 @@ from libpvarki.schemas.product import (
     UserInstructionFragment,
     UserCRUDRequest,
 )
+from pydantic import BaseModel, Field, Extra
 
 
-from rasenmaeher_api.web.api.product.schema import ProductAddRequest
+# FIXME: Move to libpvarki
+class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods
+    """Request to add product interoperability."""
+
+    certcn: str = Field(description="CN of the certificate")
+    x509cert: str = Field(description="Certificate encoded with CFSSL conventions (newlines escaped)")
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+        schema_extra = {
+            "examples": [
+                {
+                    "certcn": "product.deployment.tld",
+                    "x509cert": "-----BEGIN CERTIFICATE-----\\nMIIEwjCC...\\n-----END CERTIFICATE-----\\n",
+                },
+            ],
+        }
 
 
 LOGGER = logging.getLogger(__name__)
