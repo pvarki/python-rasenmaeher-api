@@ -159,7 +159,7 @@ async def add_interop(
     if "products" not in manifest:
         LOGGER.error("Manifest does not have products key")
         raise HTTPException(status_code=500, detail="Manifest does not have products key")
-    if not tgtproduct in manifest["products"]:
+    if tgtproduct not in manifest["products"]:
         raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
     resp = await post_to_product(tgtproduct, "/api/v1/interop/add", srcproduct.dict(), OperationResultResponse)
     if resp is None:
