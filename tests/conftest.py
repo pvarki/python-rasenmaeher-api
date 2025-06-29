@@ -110,6 +110,11 @@ def session_env_config(  # pylint: disable=R0915,R0914
                         "uri": "https://nonexistent.localmaeher.dev.pvarki.fi:844/",  # Not actually there
                         "certcn": "nonexistent.localmaeher.dev.pvarki.fi",
                     },
+                    "interoptest": {
+                        "api": "https://localhost:4657/",
+                        "uri": "https://interoptest.localmaeher.dev.pvarki.fi:844/",  # Not actually there
+                        "certcn": "interoptest.localmaeher.dev.pvarki.fi",
+                    },
                 },
             }
         )
