@@ -18,6 +18,29 @@ from libpvarki.schemas.product import (
     UserInstructionFragment,
     UserCRUDRequest,
 )
+from pydantic import BaseModel, Field, Extra
+
+
+# FIXME: Move to libpvarki
+class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods,R0801
+    """Request to add product interoperability."""
+
+    certcn: str = Field(description="CN of the certificate")
+    x509cert: str = Field(description="Certificate encoded with CFSSL conventions (newlines escaped)")
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
+        schema_extra = {
+            "examples": [
+                {
+                    "certcn": "product.deployment.tld",
+                    "x509cert": "-----BEGIN CERTIFICATE-----\\nMIIEwjCC...\\n-----END CERTIFICATE-----\\n",
+                },
+            ],
+        }
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -128,6 +151,13 @@ async def handle_admin_fragment(request: web.Request) -> web.Response:
     return web.json_response(resp.dict())
 
 
+async def handle_interop_add(request: web.Request) -> web.Response:
+    """Respond to additions"""
+    _req = ProductAddRequest.parse_raw(await request.text())
+    resp = OperationResultResponse(success=True, extra="Nothing was actually done, this is a fake endpoint for testing")
+    return web.json_response(resp.dict())
+
+
 def main() -> int:
     """Main entrypoint, return exit code"""
     LOGGER.debug("Called")
@@ -146,6 +176,7 @@ def main() -> int:
         [
             web.get("/", handle_get_hello),
             web.get("/{name}", handle_get_hello),
+            web.post("/api/v1/interop/add", handle_interop_add),
             web.post("/api/v1/users/created", handle_user_crud),
             web.post("/api/v1/users/revoked", handle_user_crud),
             web.post("/api/v1/users/promoted", handle_user_crud),
