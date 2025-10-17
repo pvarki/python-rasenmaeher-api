@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "1.8.0"
+version = "1.8.1"
 description = "python-rasenmaeher-api"
 authors = [
     "Aciid <703382+Aciid@users.noreply.github.com>",
@@ -94,7 +94,7 @@ cchardet = { version="^2.1", python="<=3.10"}
 filelock = "^3.12"
 python-keycloak = "^4.2.0"
 sqlmodel = ">=0.0.22,<1.0"
-psycopg2 = "^2.9"
+psycopg2-binary = "^2.9"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4"
