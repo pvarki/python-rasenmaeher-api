@@ -41,6 +41,8 @@ async def request_healthcheck() -> BasicHealthCheckResponse:
             deployment_name = "DNS not defined in manifest"
     rm_version = __version__
     deployment_version = os.environ.get("RELEASE_TAG", "undefined")
+    if release_status := os.environ.get("RELEASE_STATUS", ""):
+        deployment_version += f"-{release_status}"
     return BasicHealthCheckResponse(
         healthcheck="success", dns=my_dn, deployment=deployment_name, version=deployment_version, rm_version=rm_version
     )

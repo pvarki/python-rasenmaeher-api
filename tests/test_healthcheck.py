@@ -11,9 +11,6 @@ from rasenmaeher_api.web.api.healthcheck.schema import AllProductsHealthCheckRes
 
 LOGGER = logging.getLogger(__name__)
 
-# FIXME: Figure out WTF is asyncios problem
-pytestmark = pytest.mark.skip(reason="asyncio/asyncpg is weird under pytest")
-
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_get_healthcheck(unauth_client_session: TestClient) -> None:
@@ -27,6 +24,7 @@ async def test_get_healthcheck(unauth_client_session: TestClient) -> None:
     assert resp_dict["healthcheck"] == "success"
     assert resp_dict["dns"] != ""
     assert resp_dict["rm_version"] == __version__
+    assert resp_dict["version"] == "pytest_tag-pytest_status"
 
 
 @pytest.mark.asyncio(loop_scope="session")
