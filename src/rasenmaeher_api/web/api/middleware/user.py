@@ -1,6 +1,6 @@
 """Middleware to require valid user"""
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, cast
 import logging
 
 from fastapi import Request, HTTPException
@@ -29,16 +29,16 @@ class ValidUser(MTLSorJWT):  # pylint: disable=too-few-public-methods
         if not payload:
             if self.auto_error:
                 raise HTTPException(status_code=403, detail="Not authenticated")
-            return request.state.person
+            return cast(None, request.state.person)
         if not payload.userid:
             if self.auto_error:
                 raise HTTPException(status_code=403, detail="No userid in payload")
-            return request.state.person
+            return cast(None, request.state.person)
 
         if payload.type == MTLSorJWTPayloadType.MTLS and (payload.userid in RMSettings.singleton().valid_product_cns):
             # PONDER: Try to load the default anon_admin user ??
             LOGGER.debug("product mTLS client, allowing and skipping role checks")
-            return request.state.person
+            return cast(None, request.state.person)
 
         try:
             request.state.person = await Person.by_callsign(payload.userid)
@@ -50,7 +50,7 @@ class ValidUser(MTLSorJWT):  # pylint: disable=too-few-public-methods
                 raise HTTPException(status_code=500, detail="DB failure when looking for user") from exc
 
         if not request.state.person:
-            return request.state.person
+            return cast(None, request.state.person)
 
         roles = await request.state.person.roles_set()
         required = set(self.require_roles)
@@ -60,4 +60,4 @@ class ValidUser(MTLSorJWT):  # pylint: disable=too-few-public-methods
             if self.auto_error:
                 raise HTTPException(status_code=403, detail="Required role(s) not granted")
 
-        return request.state.person
+        return cast(Person, request.state.person)

@@ -18,7 +18,7 @@ utcnow = sa.func.current_timestamp()  # pylint: disable=invalid-name,not-callabl
 LOGGER = logging.getLogger(__name__)
 
 
-class ORMBaseModel(SQLModel, table=False):  # type: ignore[call-arg,misc]
+class ORMBaseModel(SQLModel, table=False):  # type: ignore[call-arg]
     """Baseclass with common fields"""
 
     __table_args__ = {"schema": "raesenmaeher"}

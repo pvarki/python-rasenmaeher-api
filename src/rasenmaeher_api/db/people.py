@@ -33,7 +33,7 @@ from ..web.api.utils.csr_utils import verify_csr
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint: disable=too-many-public-methods
+class Person(ORMBaseModel, table=True):  # type: ignore[call-arg] # pylint: disable=too-many-public-methods
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -380,7 +380,7 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg,misc] # pylint:
                 yield result.role
 
 
-class Role(SQLModel, table=True):  # type: ignore[call-arg,misc]
+class Role(SQLModel, table=True):  # type: ignore[call-arg]
     """Give a person a role"""
 
     __tablename__ = "roles"

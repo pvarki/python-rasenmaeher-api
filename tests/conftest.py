@@ -143,6 +143,8 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setenv("RM_DATABASE_PORT", str(docker_services.port_for("postgres", 5432)))
         mpatch.setenv("RM_DATABASE_HOST", docker_ip)
         mpatch.setenv("RM_DATABASE_PASSWORD", "raesenmaehertestpwd")
+        mpatch.setenv("RELEASE_TAG", "pytest_tag")
+        mpatch.setenv("RELEASE_STATUS", "pytest_status")
 
         # Reset the singletons
         mpatch.setattr(Issuer, "_singleton", None)

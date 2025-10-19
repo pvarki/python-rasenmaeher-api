@@ -14,7 +14,7 @@ from .engine import EngineWrapper
 LOGGER = logging.getLogger(__name__)
 
 
-class SeenToken(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
+class SeenToken(ORMBaseModel, table=True):  # type: ignore[call-arg]
     """Store tokens we should see used only once"""
 
     __tablename__ = "seentokens"

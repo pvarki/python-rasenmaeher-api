@@ -57,4 +57,4 @@ async def return_ldap_connectionstring() -> str:
     """
     # TODO: Check that the subject of the cert is one of the product integration APIs in manifest
 
-    return cast(str, "Hello World")
+    return "Hello World"
