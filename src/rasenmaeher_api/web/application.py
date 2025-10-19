@@ -47,7 +47,8 @@ def get_app_no_init() -> FastAPI:
     """Return the app without logging etc inits"""
     app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan, version=__version__)
     app.include_router(router=api_router, prefix="/api/v1")
-    app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())
+    # FIXME: figure out WTF mypy wants here, or has FastAPI changed something ?
+    app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())  # type: ignore
     return app
 
 

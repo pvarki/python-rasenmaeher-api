@@ -1,6 +1,6 @@
 """Middleware to handle mTLS or JWT auth"""
 
-from typing import Optional, Sequence
+from typing import Optional, Sequence, cast
 import logging
 
 from multikeyjwt.middleware.jwtbearer import JWTBearer
@@ -39,14 +39,14 @@ class MTLSorJWT(HTTPBase):  # pylint: disable=too-few-public-methods
             request.state.mtls_or_jwt = MTLSorJWTPayload(
                 type=MTLSorJWTPayloadType.MTLS, userid=mtlsrep.get("CN"), payload=mtlsrep
             )
-            return request.state.mtls_or_jwt
+            return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
         if jwtrep := await jwtdep(request=request):
             jwt_sub = jwtrep.get("sub")
             if jwt_sub in self.disallow_jwt_sub:
                 raise HTTPException(status_code=403, detail="Subject not allowed")
             request.state.mtls_or_jwt = MTLSorJWTPayload(type=MTLSorJWTPayloadType.JWT, userid=jwt_sub, payload=jwtrep)
-            return request.state.mtls_or_jwt
+            return cast(MTLSorJWTPayload, request.state.mtls_or_jwt)
         if self.auto_error:
             raise HTTPException(status_code=403, detail="Not authenticated")
         request.state.mtls_or_jwt = None
-        return request.state.mtls_or_jwt
+        return cast(None, request.state.mtls_or_jwt)

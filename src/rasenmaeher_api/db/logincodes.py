@@ -20,7 +20,7 @@ CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
 
 
-class LoginCode(ORMBaseModel, table=True):  # type: ignore[call-arg,misc]
+class LoginCode(ORMBaseModel, table=True):  # type: ignore[call-arg]
     """Track the login codes that can be exchanged for session JWTs"""
 
     __tablename__ = "logincodes"
