@@ -30,3 +30,6 @@ api_router.include_router(tokens.router, prefix="/token", tags=["tokens"])
 api_router.include_router(instructions.router, prefix="/instructions", tags=["instructions"])
 api_router.include_router(people.router, prefix="/people", tags=["people"])
 api_router.include_router(descriptions.router, prefix="/descriptions", tags=["descriptions"])
+
+api_router_v2 = APIRouter()
+api_router_v2.include_router(instructions.router_v2, prefix="/instructions", tags=["instructions"])

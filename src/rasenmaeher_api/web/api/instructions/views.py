@@ -1,6 +1,6 @@
 """Instruction routes"""
 
-from typing import cast, Optional
+from typing import Any, cast, Optional
 import logging
 
 from fastapi import Depends, APIRouter, Request, HTTPException
@@ -12,6 +12,7 @@ from .schema import (
     ProductFileList,
     AllProductsInstructionFiles,
     InstructionData,
+    ProductData
 )
 from ..middleware.user import ValidUser
 from ....productapihelpers import get_from_all_products, post_to_all_products, post_to_product
@@ -20,6 +21,7 @@ from ....db import Person
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
+router_v2 = APIRouter()
 
 
 @router.get(
@@ -76,3 +78,23 @@ async def get_product_instructions(request: Request, product: str, language: str
         raise HTTPException(status_code=404, detail=_reason)
     response = cast(InstructionData, response)
     return response
+
+@router_v2.get(
+    "/data/{product}",
+    dependencies=[Depends(ValidUser(auto_error=True))],
+)
+async def get_product_data(request: Request, product: str) -> Optional[ProductData]:
+    """Get component data"""
+    person = cast(Person, request.state.person)
+    user = UserCRUDRequest(
+        uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
+    )
+    endpoint_url = f"api/v2/clients/data"
+    response = await post_to_product(product, endpoint_url, user.dict(), ProductData)
+    if response is None:
+        _reason = f"Unable to get data for {product}"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=404, detail=_reason)
+    response = cast(ProductData, response)
+    return response
+    

@@ -82,3 +82,13 @@ class InstructionData(BaseModel):
         """Example values for schema"""
 
         extra = Extra.forbid
+
+class ProductData(BaseModel):
+    """Product user data for modular UI"""
+
+    data: Dict[str, Any] = Field(description="User data required for modular UI.")
+    
+    class Config:  # pylint: disable=too-few-public-methods
+        """Example values for schema"""
+
+        extra = Extra.forbid
