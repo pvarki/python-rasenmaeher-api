@@ -12,7 +12,7 @@ from .schema import (
     ProductFileList,
     AllProductsInstructionFiles,
     InstructionData,
-    ProductData
+    ProductData,
 )
 from ..middleware.user import ValidUser
 from ....productapihelpers import get_from_all_products, post_to_all_products, post_to_product
@@ -79,6 +79,7 @@ async def get_product_instructions(request: Request, product: str, language: str
     response = cast(InstructionData, response)
     return response
 
+
 @router_v2.get(
     "/data/{product}",
     dependencies=[Depends(ValidUser(auto_error=True))],
@@ -89,7 +90,7 @@ async def get_product_data(request: Request, product: str) -> Optional[ProductDa
     user = UserCRUDRequest(
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
-    endpoint_url = f"api/v2/clients/data"
+    endpoint_url = "api/v2/clients/data"
     response = await post_to_product(product, endpoint_url, user.dict(), ProductData)
     if response is None:
         _reason = f"Unable to get data for {product}"
@@ -97,4 +98,3 @@ async def get_product_data(request: Request, product: str) -> Optional[ProductDa
         raise HTTPException(status_code=404, detail=_reason)
     response = cast(ProductData, response)
     return response
-    
