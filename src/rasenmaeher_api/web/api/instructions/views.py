@@ -1,6 +1,6 @@
 """Instruction routes"""
 
-from typing import Any, cast, Optional
+from typing import cast, Optional
 import logging
 
 from fastapi import Depends, APIRouter, Request, HTTPException

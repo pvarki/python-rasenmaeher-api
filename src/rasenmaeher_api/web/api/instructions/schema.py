@@ -83,10 +83,7 @@ class InstructionData(BaseModel):
 
         extra = Extra.forbid
 
-<<<<<<< HEAD
-=======
 
->>>>>>> 9b6261a (feat(mod-ui/product-data-dev): added route to provide user data)
 class ProductData(BaseModel):
     """Product user data for modular UI"""
 
