@@ -1,6 +1,6 @@
 """product descriptions endpoints"""
 
-from typing import Optional, cast
+from typing import Literal, Optional, cast
 import logging
 
 from fastapi import APIRouter
@@ -13,6 +13,7 @@ from ...productapihelpers import get_from_all_products, get_from_product
 LOGGER = logging.getLogger(__name__)
 
 router = APIRouter()  # These endpoints are public
+router_v2 = APIRouter()
 
 
 # FIXME: Move to libpvarki
@@ -31,7 +32,40 @@ class ProductDescription(BaseModel):
         extra = Extra.forbid
 
 
+class ProductComponent(BaseModel):
+    """Product component info"""
+
+    type: Literal["link", "markdown", "component"]
+    ref: str
+
+
+class ProductDescriptionExtended(BaseModel):
+    """Description of a product"""
+
+    shortname: str = Field(description="Short name for the product, used as slug/key in dicts and urls")
+    title: str = Field(description="Fancy name for the product")
+    icon: Optional[str] = Field(description="URL for icon")
+    description: str = Field(description="Short-ish description of the product")
+    language: str = Field(description="Language of this response")
+    docs: str = Field(description="Link to documentation")
+    component: ProductComponent = Field(description="Component type and ref")
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Pydantic configs"""
+
+        extra = Extra.forbid
+
+
 class ProductDescriptionList(BaseCollectionModel[ProductDescription]):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+    """List of product descriptions"""
+
+    class Config:  # pylint: disable=too-few-public-methods
+        """Pydantic configs"""
+
+        extra = Extra.forbid
+
+
+class ProductDescriptionExtendedList(BaseCollectionModel[ProductDescriptionExtended]):  # type: ignore[misc] # pylint: disable=too-few-public-methods
     """List of product descriptions"""
 
     class Config:  # pylint: disable=too-few-public-methods
@@ -63,4 +97,31 @@ async def get_product_description(language: str, product: str) -> Optional[Produ
         # TODO: Raise a reasonable error instead
         return None
     response = cast(ProductDescription, response)
+    return response
+
+
+@router_v2.get(
+    "/{language}",
+    response_model=ProductDescriptionExtendedList,
+)
+async def list_product_descriptions_extended(language: str) -> ProductDescriptionExtendedList:
+    """Fetch description from each product in manifest"""
+    responses = await get_from_all_products(f"api/v2/description/{language}", ProductDescriptionExtended)
+    if responses is None:
+        raise ValueError("Everything is broken")
+    return ProductDescriptionExtendedList([res for res in responses.values() if res])
+
+
+@router_v2.get(
+    "/{product}/{language}",
+    response_model=ProductDescriptionExtended,
+)
+async def get_product_description_extended(language: str, product: str) -> Optional[ProductDescriptionExtended]:
+    """Fetch description from given product in manifest"""
+    response = await get_from_product(product, f"api/v2/description/{language}", ProductDescriptionExtended)
+
+    if response is None:
+        # TODO: Raise a reasonable error instead
+        return None
+    response = cast(ProductDescriptionExtended, response)
     return response
