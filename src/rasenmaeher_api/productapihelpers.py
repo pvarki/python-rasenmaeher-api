@@ -127,7 +127,9 @@ async def _method_to_product(
             if data is None:
                 resp = await getattr(client, methodname)(url, timeout=rmconf.integration_api_timeout)
             else:
-                resp = await getattr(client, methodname)(url, json=data, timeout=rmconf.integration_api_timeout)
+                resp = await getattr(client, methodname)(
+                    url, json=data, timeout=aiohttp.ClientTimeout(total=rmconf.integration_api_timeout)
+                )
             resp.raise_for_status()
             payload = await resp.json()
             LOGGER.debug("{}({}) payload={}".format(methodname, url, payload))
