@@ -297,3 +297,24 @@ TLDR:
 
 Remember to activate your virtualenv whenever working on the repo, this is needed
 because pylint and mypy pre-commit hooks use the "system" python for now (because reasons).
+
+Pipeline public-key for JWT verification
+----------------------------------------
+
+Pipeline can pass a public-key whose private key is used to sign JWTs to
+access RM API with environment variable `$EXTERNAL_JWT_PUBKEY_B64`. The public key
+should be base64-encoded to avoid issues with newlines and such when the key
+is passed through the system.
+
+Export a previously generated key to the container::
+
+    export EXTERNAL_JWT_PUBKEY_B64=$(cat ~/p/jwt-test/private_key.key | base64)
+    rmlocal up --build
+
+Generate a token and set it in the environment `TOKEN`. The JWT should have
+the claim `anon_admin_session` set to `true`. Use the token in the API call::
+
+    curl -X POST --insecure https://localmaeher.dev.pvarki.fi:4439/\
+    api/v1/token/code/generate -H 'Content-type: application/json' \
+    -H "Authorization: Bearer $TOKEN" \
+    -d '{"claims": {"anon_admin_session": true}}'
