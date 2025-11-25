@@ -3,11 +3,13 @@
 from typing import cast
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+import aiohttp
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from libadvian.binpackers import ensure_utf8, ensure_str
 from libpvarki.middleware.mtlsheader import MTLSHeader
 from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.schemas.product import ReadyRequest
+from libpvarki.schemas.product import UserCRUDRequest
 from multikeyjwt.middleware import JWTBearer
 from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
 
@@ -15,12 +17,15 @@ from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use 
 from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken, ProductAddRequest
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
+from ....db import Person
 from ....cfssl.public import get_ca, get_bundle
 from ....cfssl.private import sign_csr, revoke_pem
 from ....cfssl.base import CFSSLError
 from ....rmsettings import RMSettings
 from ....kchelpers import KCClient
 from ....productapihelpers import post_to_product
+from ....mtlsinit import get_session_winit
+from ..middleware.user import ValidUser
 
 
 router = APIRouter()
@@ -166,3 +171,32 @@ async def add_interop(
         return OperationResultResponse(success=False, error="post_to_product returned None")
     resp = cast(OperationResultResponse, resp)
     return resp
+
+
+@router.get("/proxy/{tgtproduct}/{tgtpath:path}", dependencies=[Depends(ValidUser(auto_error=True))])
+async def get_product_proxy(
+    tgtproduct: str,
+    tgtpath: str,
+    request: Request,
+) -> Response:
+    """Proxy request to the product in any path, POSTing the user context"""
+    rmconf = RMSettings.singleton()
+    manifest = rmconf.kraftwerk_manifest_dict
+    if tgtproduct not in manifest["products"]:
+        raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
+    productconf = manifest["products"][tgtproduct]
+    person = cast(Person, request.state.person)
+    # We do not read the cert for these because it takes time and is not really needed
+    user = UserCRUDRequest(uuid=str(person.pk), callsign=person.callsign, x509cert="")
+    session = await get_session_winit()
+    async with session as client:
+        url = f"{productconf['api']}{tgtpath}"
+        LOGGER.debug("calling POST({})".format(url))
+        response = await client.post(
+            url, json=user.dict(), timeout=aiohttp.ClientTimeout(total=rmconf.integration_api_timeout * 2)
+        )
+        return Response(
+            status_code=response.status,
+            headers=response.headers,
+            content=await response.read(),
+        )

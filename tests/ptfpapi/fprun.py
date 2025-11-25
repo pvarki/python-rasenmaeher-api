@@ -185,6 +185,7 @@ def main() -> int:
             web.post("/api/v1/clients/fragment", handle_fragment),
             web.get("/api/v1/admins/fragment", handle_admin_fragment),
             web.get("/api/v1/healthcheck", handle_health),
+            web.post("/api/v1/healthcheck", handle_health),
             web.get("/api/v1/description/{language}", handle_description),
             web.post("/api/v1/instructions/{language}", handle_instructions),
         ]
