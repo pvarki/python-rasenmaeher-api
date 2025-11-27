@@ -42,3 +42,12 @@ async def test_product_instructions(user_mtls_client: TestClient, lang: str) -> 
     LOGGER.debug(payload)
     assert payload
     assert payload["callsign"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.asyncio(loop_scope="session")
+async def test_proxy(user_mtls_client: TestClient) -> None:
+    """Test requesting interop with product 'fake' with product that is not valid"""
+    client = user_mtls_client
+    resp = await client.get("/api/v1/product/proxy/fake/api/v1/healthcheck")
+    assert resp.status_code == 200
