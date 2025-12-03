@@ -33,4 +33,7 @@ api_router.include_router(descriptions.router, prefix="/descriptions", tags=["de
 
 api_router_v2 = APIRouter()
 api_router_v2.include_router(descriptions.router_v2, prefix="/descriptions", tags=["descriptions"])
+api_router_v2.include_router(descriptions.router_v2_admin, prefix="/admin/descriptions", tags=["descriptions"])
+
 api_router_v2.include_router(instructions.router_v2, prefix="/instructions", tags=["instructions"])
+api_router_v2.include_router(instructions.router_v2_admin, prefix="/admin/instructions", tags=["instructions"])
