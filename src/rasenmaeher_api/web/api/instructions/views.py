@@ -5,7 +5,8 @@ import logging
 
 from fastapi import Depends, APIRouter, Request, HTTPException
 from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
-
+from libpvarki.middleware import MTLSHeader
+from rasenmaeher_api.web.api.middleware.user import ValidUser
 
 from .schema import (
     AllProductsInstructionFragments,
@@ -22,6 +23,7 @@ from ....db import Person
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
 router_v2 = APIRouter()
+router_v2_admin = APIRouter(dependencies=[Depends(MTLSHeader(auto_error=True))])
 
 
 @router.get(
@@ -91,6 +93,26 @@ async def get_product_data(request: Request, product: str) -> Optional[ProductDa
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
     endpoint_url = "api/v2/clients/data"
+    response = await post_to_product(product, endpoint_url, user.dict(), ProductData)
+    if response is None:
+        _reason = f"Unable to get data for {product}"
+        LOGGER.error("{} : {}".format(request.url, _reason))
+        raise HTTPException(status_code=404, detail=_reason)
+    response = cast(ProductData, response)
+    return response
+
+
+@router_v2_admin.get(
+    "/data/{product}",
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
+async def get_admin_product_data(request: Request, product: str) -> Optional[ProductData]:
+    """Get component data"""
+    person = cast(Person, request.state.person)
+    user = UserCRUDRequest(
+        uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
+    )
+    endpoint_url = "api/v2/admin/clients/data"
     response = await post_to_product(product, endpoint_url, user.dict(), ProductData)
     if response is None:
         _reason = f"Unable to get data for {product}"
