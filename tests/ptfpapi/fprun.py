@@ -122,6 +122,58 @@ async def handle_description(request: web.Request) -> web.Response:
     )
 
 
+async def handle_description_v2(request: web.Request) -> web.Response:
+    """Respond with extended description for v2"""
+    _lang = request.match_info.get("language", "en")
+    LOGGER.info("Called with language={}".format(_lang))
+
+    return web.json_response(
+        {
+            "shortname": "fake",
+            "title": "Test fake product",
+            "icon": None,
+            "description": "Testing things",
+            "language": _lang,
+            "docs": "https://example.com/docs",
+            "component": {
+                "type": "link",
+                "ref": "https://example.com/component"
+            }
+        }
+    )
+
+
+async def handle_clients_data_v2(request: web.Request) -> web.Response:
+    """Respond with client data for v2"""
+    check_peer_cert(request)
+    payload = await request.json()
+    LOGGER.info("Called with payload={}".format(payload))
+
+    return web.json_response(
+        {
+            "data": {
+                "tak_zips": [
+                    {
+                        "title": "atak.zip",
+                        "filename": "FAKE_atak.zip",
+                        "data": "data:application/zip;base64,iugdfibjsdfIBUSDCIBUSDAVIBUSADFIBHSDFAIBH"
+                    },
+                    {
+                        "title": "itak.zip",
+                        "filename": "FAKE_itak.zip",
+                        "data": "data:application/zip;base64,UEsxcfbngghdmhgmfjmghmghmgmgmhghfngfsvfvf"
+                    },
+                    {
+                        "title": "tak-tracker.zip",
+                        "filename": "FAKE_tak-tracker.zip",
+                        "data": "data:application/zip;base64,xbnbvnzdgdbfzdbfzdgbfdzbzdzdzggfnndgndgzdnggnzd"
+                    }
+                ]
+            }
+        }
+    )
+
+
 async def handle_instructions(request: web.Request) -> web.Response:
     """Respond with hello_world for user"""
     check_peer_cert(request)
@@ -158,6 +210,37 @@ async def handle_interop_add(request: web.Request) -> web.Response:
     return web.json_response(resp.dict())
 
 
+async def handle_admin_clients_data_v2(request: web.Request) -> web.Response:
+    """Respond with admin client data for v2"""
+    check_peer_cert(request)
+    payload = await request.json()
+    LOGGER.info("Called admin with payload={}".format(payload))
+
+    return web.json_response(
+        {
+            "data": {
+                "tak_zips": [
+                    {
+                        "title": "atak.zip",
+                        "filename": "FAKE_atak.zip",
+                        "data": "data:application/zip;base64,iugdfibjsdfIBUSDCIBUSDAVIBUSADFIBHSDFAIBH"
+                    },
+                    {
+                        "title": "itak.zip",
+                        "filename": "FAKE_itak.zip",
+                        "data": "data:application/zip;base64,UEsxcfbngghdmhgmfjmghmghmgmgmhghfngfsvfvf"
+                    },
+                    {
+                        "title": "tak-tracker.zip",
+                        "filename": "FAKE_tak-tracker.zip",
+                        "data": "data:application/zip;base64,xbnbvnzdgdbfzdbfzdgbfdzbzdzdzggfnndgndgzdnggnzd"
+                    }
+                ]
+            }
+        }
+    )
+
+
 def main() -> int:
     """Main entrypoint, return exit code"""
     LOGGER.debug("Called")
@@ -188,6 +271,10 @@ def main() -> int:
             web.post("/api/v1/healthcheck", handle_health),
             web.get("/api/v1/description/{language}", handle_description),
             web.post("/api/v1/instructions/{language}", handle_instructions),
+            # v2 routes
+            web.get("/api/v2/description/{language}", handle_description_v2),
+            web.post("/api/v2/clients/data", handle_clients_data_v2),
+            web.post("/api/v2/admin/clients/data", handle_admin_clients_data_v2),
         ]
     )
 
