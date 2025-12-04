@@ -233,6 +233,21 @@ async def user_mtls_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, 
 
 
 @pytest_asyncio.fixture(scope="session")
+async def user_mtls_admin_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
+    """Client with mocked NGinx mTLS headers and valid admin user in DB"""
+    user_uuid = str(uuid.uuid4())
+    async with TestClient(app_instance) as instance:
+        await Person.create_with_cert(user_uuid)
+        await (await Person.by_callsign(user_uuid)).assign_role("admin")
+        try:
+            await asyncio.wait_for(tms_wait(), timeout=10.0)
+        except asyncio.TimeoutError:
+            LOGGER.warning("Taskmaster wait timed out")
+        instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
+        yield instance
+
+
+@pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_client(issuer_cl: Issuer, app_instance: FastAPI) -> AsyncGenerator[TestClient, None]:
     """Client with tilauspalvely style JWT"""
     async with TestClient(app_instance) as instance:
