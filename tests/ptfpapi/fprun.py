@@ -135,10 +135,7 @@ async def handle_description_v2(request: web.Request) -> web.Response:
             "description": "Testing things",
             "language": _lang,
             "docs": "https://example.com/docs",
-            "component": {
-                "type": "link",
-                "ref": "https://example.com/component"
-            }
+            "component": {"type": "link", "ref": "https://example.com/component"},
         }
     )
 
@@ -156,18 +153,18 @@ async def handle_clients_data_v2(request: web.Request) -> web.Response:
                     {
                         "title": "atak.zip",
                         "filename": "FAKE_atak.zip",
-                        "data": "data:application/zip;base64,iugdfibjsdfIBUSDCIBUSDAVIBUSADFIBHSDFAIBH"
+                        "data": "data:application/zip;base64,iugdfibjsdfIBUSDCIBUSDAVIBUSADFIBHSDFAIBH",
                     },
                     {
                         "title": "itak.zip",
                         "filename": "FAKE_itak.zip",
-                        "data": "data:application/zip;base64,UEsxcfbngghdmhgmfjmghmghmgmgmhghfngfsvfvf"
+                        "data": "data:application/zip;base64,UEsxcfbngghdmhgmfjmghmghmgmgmhghfngfsvfvf",
                     },
                     {
                         "title": "tak-tracker.zip",
                         "filename": "FAKE_tak-tracker.zip",
-                        "data": "data:application/zip;base64,xbnbvnzdgdbfzdbfzdgbfdzbzdzdzggfnndgndgzdnggnzd"
-                    }
+                        "data": "data:application/zip;base64,xbnbvnzdgdbfzdbfzdgbfdzbzdzdzggfnndgndgzdnggnzd",
+                    },
                 ]
             }
         }
@@ -223,18 +220,18 @@ async def handle_admin_clients_data_v2(request: web.Request) -> web.Response:
                     {
                         "title": "atak.zip",
                         "filename": "FAKE_atak.zip",
-                        "data": "data:application/zip;base64,iugdfibjsdfIBUSDCIBUSDAVIBUSADFIBHSDFAIBH"
+                        "data": "data:application/zip;base64,iugdfibjsdfIBUSDCIBUSDAVIBUSADFIBHSDFAIBH",
                     },
                     {
                         "title": "itak.zip",
                         "filename": "FAKE_itak.zip",
-                        "data": "data:application/zip;base64,UEsxcfbngghdmhgmfjmghmghmgmgmhghfngfsvfvf"
+                        "data": "data:application/zip;base64,UEsxcfbngghdmhgmfjmghmghmgmgmhghfngfsvfvf",
                     },
                     {
                         "title": "tak-tracker.zip",
                         "filename": "FAKE_tak-tracker.zip",
-                        "data": "data:application/zip;base64,xbnbvnzdgdbfzdbfzdgbfdzbzdzdzggfnndgndgzdnggnzd"
-                    }
+                        "data": "data:application/zip;base64,xbnbvnzdgdbfzdbfzdgbfdzbzdzdzggfnndgndgzdnggnzd",
+                    },
                 ]
             }
         }

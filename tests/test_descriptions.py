@@ -52,6 +52,7 @@ async def test_proxy(user_mtls_client: TestClient) -> None:
     resp = await client.get("/api/v1/product/proxy/fake/api/v1/healthcheck")
     assert resp.status_code == 200
 
+
 @pytest.mark.parametrize("lang", ["fi", "en"])
 @pytest.mark.asyncio(loop_scope="session")
 async def test_description_list_v2(unauth_client: TestClient, lang: str) -> None:
@@ -153,4 +154,3 @@ async def test_product_instructions_v2_admin_unauthorized(user_mtls_client: Test
     payload = resp.json()
     LOGGER.debug(payload)
     assert "detail" in payload
-
