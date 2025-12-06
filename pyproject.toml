@@ -69,6 +69,11 @@ ignore-imports = true
 omit = ["tests/*"]
 branch = true
 
+[[tool.poetry.source]]
+name = "nexuslocal"
+url = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple"
+priority = "explicit"
+
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 libadvian = "^1.6"
@@ -83,7 +88,7 @@ uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
 pyopenssl = "^23.1"
 # Can't update to 2.0 before pydantic migration is done
-libpvarki = { git="https://github.com/pvarki/python-libpvarki.git", tag="1.9.1"}
+libpvarki = { version="^1.9", source="nexuslocal"}
 openapi-readme = "^0.2"
 python-multipart = "^0.0.6"
 aiohttp = ">=3.11.10,<4.0"
