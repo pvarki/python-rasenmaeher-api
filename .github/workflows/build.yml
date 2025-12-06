@@ -2,6 +2,18 @@ on:
     pull_request:
 
 jobs:
+  versiontag:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check version tag
+        run: |
+          curl -f https://raw.githubusercontent.com/pvarki/python-rasenmaeher-api/main/pyproject.toml -o /tmp/main_pyproject.toml || touch /tmp/main_pyproject.toml
+          grep "version = " pyproject.toml >/tmp/version.txt
+          grep "version = " /tmp/main_pyproject.toml >/tmp/main_version.txt
+          diff /tmp/main_version.txt /tmp/version.txt && exit 1 || exit 0
+
   test:
     runs-on: ubuntu-latest
     permissions:
@@ -11,6 +23,9 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"] # , "3.12"]
+    env:
+      PIP_INDEX_URL: https://nexus.dev.pvarki.fi/repository/python/simple
+      POETRY_PYPI_MIRROR_URL: https://nexus.dev.pvarki.fi/repository/python/simple
     steps:
       - uses: actions/checkout@v5
         with:
@@ -23,6 +38,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install poetry
+          poetry self add poetry-plugin-pypi-mirror
           poetry install
       - name: Do pre-commit checks (black, lint, mypy)
         run: |

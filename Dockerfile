@@ -4,7 +4,7 @@
 #############################################
 FROM advian/tox-base:debian-bookworm as tox
 ARG PYTHON_VERSIONS="3.11 3.12"
-ARG POETRY_VERSION="2.0.1"
+ARG POETRY_VERSION="2.2.1"
 RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && echo RESOLVED_VERSIONS=$RESOLVED_VERSIONS \
     && for pyver in $RESOLVED_VERSIONS; do pyenv install -s $pyver; done \
@@ -51,8 +51,10 @@ ENV \
   PIP_NO_CACHE_DIR=off \
   PIP_DISABLE_PIP_VERSION_CHECK=on \
   PIP_DEFAULT_TIMEOUT=100 \
+  PIP_INDEX_URL=https://nexus.dev.pvarki.fi/repository/python/simple \
+  POETRY_PYPI_MIRROR_URL=https://nexus.dev.pvarki.fi/repository/python/simple \
   # poetry:
-  POETRY_VERSION=2.0.1
+  POETRY_VERSION=2.2.1
 
 RUN apt-get update && apt-get install -y \
         curl \
@@ -87,6 +89,7 @@ WORKDIR /pysetup
 COPY ./poetry.lock ./pyproject.toml /pysetup/
 # Install basic requirements (utilizing an internal docker wheelhouse if available)
 RUN --mount=type=ssh pip3 install wheel virtualenv \
+    && poetry self add poetry-plugin-pypi-mirror \
     && poetry self add poetry-plugin-export \
     && poetry export -f requirements.txt --without-hashes -o /tmp/requirements.txt \
     && pip3 wheel --wheel-dir=/tmp/wheelhouse  -r /tmp/requirements.txt \
@@ -135,7 +138,7 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
     && WHEELFILE=`echo /tmp/wheelhouse/rasenmaeher_api-*.whl` \
-    && pip3 install --find-links=/tmp/wheelhouse/ "$WHEELFILE"[all] \
+    && pip3 install --index-url https://nexus.dev.pvarki.fi/repository/python/simple --find-links=/tmp/wheelhouse/ "$WHEELFILE"[all] \
     && rm -rf /tmp/wheelhouse/ \
     # Do whatever else you need to
     && true
