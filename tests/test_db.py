@@ -340,7 +340,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
         await LoginCode.use_code(code)
 
 
-@flaky(max_runs=3, min_passes=1)  # type: ignore[misc]
+@flaky(max_runs=3, min_passes=1)  # type: ignore[untyped-decorator]
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert(ginosession: None) -> None:
     """Test the cert creation with the classmethod (and revocation)"""
@@ -383,7 +383,7 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
             await Person.by_callsign("BONGO01a")
 
 
-@flaky(max_runs=3, min_passes=1)  # type: ignore[misc]
+@flaky(max_runs=3, min_passes=1)  # type: ignore[untyped-decorator]
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     """Test the cert creation with the classmethod but reserved callsign"""
