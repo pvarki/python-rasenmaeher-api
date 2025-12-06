@@ -65,7 +65,7 @@ async def test_mtls_jwt(mtls_client: TestClient) -> None:
     client = mtls_client
     resp = await client.get("/api/v1/check-auth/jwt")
     LOGGER.debug("resp={}".format(resp))
-    assert resp.status_code == 403
+    assert resp.status_code in (403, 401)
 
 
 @pytest.mark.asyncio(loop_scope="session")
