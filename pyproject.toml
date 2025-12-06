@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "1.10.2"
+version = "1.10.3"
 description = "python-rasenmaeher-api"
 authors = [
     "Aciid <703382+Aciid@users.noreply.github.com>",
