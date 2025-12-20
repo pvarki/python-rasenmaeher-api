@@ -18,9 +18,7 @@ from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KC
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....db import Person
-from ....cfssl.public import get_ca, get_bundle
-from ....cfssl.private import sign_csr, revoke_pem
-from ....cfssl.base import CFSSLError
+from ....cert import get_ca, get_bundle, sign_csr, revoke_pem, CertError
 from ....rmsettings import RMSettings
 from ....kchelpers import KCClient
 from ....productapihelpers import post_to_product
@@ -94,7 +92,7 @@ async def revoke_cert(
     try:
         await revoke_pem(cert.cert, "unspecified")
         return OperationResultResponse(success=True)
-    except CFSSLError as exc:
+    except CertError as exc:
         LOGGER.error("Revoke failed: {}".format(exc))
         return OperationResultResponse(success=False, error=str(exc))
 

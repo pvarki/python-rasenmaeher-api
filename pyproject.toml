@@ -17,7 +17,7 @@ rasenmaeher_api = "rasenmaeher_api.console:rasenmaeher_api_cli"
 
 [tool.black]
 line-length = 120
-target-version = ['py38']
+target-version = ['py311']
 exclude = '''
 (
   /(
@@ -75,7 +75,7 @@ url = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple"
 priority = "explicit"
 
 [tool.poetry.dependencies]
-python = ">=3.11,<4.0"
+python = "^3.11"
 libadvian = "^1.6"
 click = "^8.0"
 fastapi = ">=0.89,<1.0"  # caret behaviour on 0.x is to lock to 0.x.*
