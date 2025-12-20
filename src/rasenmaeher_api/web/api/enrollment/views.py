@@ -177,10 +177,7 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
 async def request_enrollment_init(
-    request_in: EnrollmentInitIn = Body(
-        None,
-        examples=[EnrollmentInitIn.Config.schema_extra["examples"]],
-    ),
+    request_in: EnrollmentInitIn = Body(),
 ) -> EnrollmentInitOut:
     """
     Add new callsign (enrollment) to environment.
@@ -204,10 +201,7 @@ async def request_enrollment_init(
 )
 async def request_enrollment_promote(
     request: Request,
-    request_in: EnrollmentPromoteIn = Body(
-        None,
-        examples=[EnrollmentPromoteIn.Config.schema_extra["examples"]],
-    ),
+    request_in: EnrollmentPromoteIn = Body(),
 ) -> OperationResultResponse:
     """
     "Promote" callsign/user/enrollment to have 'admin' rights
@@ -231,10 +225,7 @@ async def request_enrollment_promote(
 )
 async def request_enrollment_demote(
     request: Request,
-    request_in: EnrollmentDemoteIn = Body(
-        None,
-        examples=[EnrollmentDemoteIn.Config.schema_extra["examples"]],
-    ),
+    request_in: EnrollmentDemoteIn = Body(),
 ) -> OperationResultResponse:
     """
     "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
@@ -257,10 +248,7 @@ async def request_enrollment_demote(
 )
 async def request_enrollment_lock(
     request: Request,
-    request_in: EnrollmentLockIn = Body(
-        None,
-        examples=[EnrollmentLockIn.Config.schema_extra["examples"]],
-    ),
+    request_in: EnrollmentLockIn = Body(),
 ) -> OperationResultResponse:
     """
     Lock callsign/user/enrollment so it cannot be used anymore.
@@ -280,10 +268,7 @@ async def request_enrollment_lock(
 )
 async def post_enrollment_accept(
     request: Request,
-    request_in: EnrollmentAcceptIn = Body(
-        None,
-        examples=[EnrollmentAcceptIn.Config.schema_extra["examples"]],
-    ),
+    request_in: EnrollmentAcceptIn = Body(),
 ) -> OperationResultResponse:
     """
     Accept callsign_hash (callsign/enrollment)
@@ -314,10 +299,7 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
 @ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=OperationResultResponse)
 async def put_activate_invite_code(
     request: Request,
-    request_in: EnrollmentInviteCodeActivateIn = Body(
-        None,
-        examples=EnrollmentInviteCodeActivateIn.Config.schema_extra["examples"],
-    ),
+    request_in: EnrollmentInviteCodeActivateIn = Body(),
 ) -> OperationResultResponse:
     """
     Activate an invite code
@@ -336,10 +318,7 @@ async def put_activate_invite_code(
 @ENROLLMENT_ROUTER.put("/invitecode/deactivate", response_model=OperationResultResponse)
 async def put_deactivate_invite_code(
     request: Request,
-    request_in: EnrollmentInviteCodeDeactivateIn = Body(
-        None,
-        examples=EnrollmentInviteCodeDeactivateIn.Config.schema_extra["examples"],
-    ),
+    request_in: EnrollmentInviteCodeDeactivateIn = Body(),
 ) -> OperationResultResponse:
     """
     Deactivate an invite code
@@ -391,10 +370,7 @@ async def get_invite_codes(
 @NO_JWT_ENROLLMENT_ROUTER.post("/invitecode/enroll", response_model=EnrollmentInitOut)
 async def post_enroll_invite_code(
     request: Request,
-    request_in: EnrollmentInviteCodeEnrollIn = Body(
-        None,
-        examples=EnrollmentInviteCodeEnrollIn.Config.schema_extra["examples"],
-    ),
+    request_in: EnrollmentInviteCodeEnrollIn = Body(),
 ) -> EnrollmentInitOut:
     """
     Enroll with an invite code

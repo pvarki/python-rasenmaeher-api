@@ -2,19 +2,15 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 
 class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
-    temp_admin_code: str
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "examples": [
                 {
                     "name": "normal",
@@ -29,37 +25,33 @@ class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "value": {"temp_admin_code": "some_permit_hash_abba_abc"},
                 },
             ]
-        }
+        },
+    )
+
+    temp_admin_code: str
 
 
 class FirstuserCheckCodeOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
-    code_ok: bool
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "code_ok": "[bool] - True = Requested 'first use admin code' was found and can be used.",
             }
-        }
+        },
+    )
+
+    code_ok: bool
 
 
 class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment init in response schema"""
 
-    # temp_admin_code: str
-    callsign: str
-    csr: Optional[str] = Field(default=None, description="CSR for mTLS key in PEM format")
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "examples": [
                 {
                     "name": "normal",
@@ -76,22 +68,26 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
                     "value": {"callsign": "porakoira666"},
                 },
             ]
-        }
+        },
+    )
+
+    # temp_admin_code: str
+    callsign: str
+    csr: Optional[str] = Field(default=None, description="CSR for mTLS key in PEM format")
 
 
 class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
     """Enrollment config add manager schema out"""
 
-    admin_added: bool
-    jwt_exchange_code: str
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "admin_added": "[bool] - True = admin user were added",
                 "jwt_exchange_code": "[str] - Code that can be exchanged to jwt token",
             }
-        }
+        },
+    )
+
+    admin_added: bool
+    jwt_exchange_code: str

@@ -18,28 +18,27 @@ from libpvarki.schemas.product import (
     UserInstructionFragment,
     UserCRUDRequest,
 )
-from pydantic import BaseModel, Field, Extra
+from pydantic import BaseModel, Field, ConfigDict
 
 
 # FIXME: Move to libpvarki
 class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods,R0801
     """Request to add product interoperability."""
 
-    certcn: str = Field(description="CN of the certificate")
-    x509cert: str = Field(description="Certificate encoded with CFSSL conventions (newlines escaped)")
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "examples": [
                 {
                     "certcn": "product.deployment.tld",
                     "x509cert": "-----BEGIN CERTIFICATE-----\\nMIIEwjCC...\\n-----END CERTIFICATE-----\\n",
                 },
             ],
-        }
+        },
+    )
+
+    certcn: str = Field(description="CN of the certificate")
+    x509cert: str = Field(description="Certificate encoded with CFSSL conventions (newlines escaped)")
 
 
 LOGGER = logging.getLogger(__name__)
@@ -77,15 +76,15 @@ async def handle_user_crud(request: web.Request) -> web.Response:
     """Respond with success to all CRUD operations"""
     check_peer_cert(request)
     # Just to make sure the request itself uses valid schema
-    _req = UserCRUDRequest.parse_raw(await request.text())
+    _req = UserCRUDRequest.model_validate_json(await request.text())
     resp = OperationResultResponse(success=True, extra="Nothing was actually done, this is a fake endpoint for testing")
-    return web.json_response(resp.dict())
+    return web.json_response(resp.model_dump())
 
 
 async def handle_fragment(request: web.Request) -> web.Response:
     """Respond with hello_world for user"""
     check_peer_cert(request)
-    user = UserCRUDRequest.parse_raw(await request.text())
+    user = UserCRUDRequest.model_validate_json(await request.text())
     LOGGER.info("Called with user={}".format(user))
     zip1_bytes = zip_pem(user.x509cert, f"{user.callsign}_1.pem")
     zip2_bytes = zip_pem(user.x509cert, f"{user.callsign}_2.pem")
@@ -197,14 +196,14 @@ async def handle_admin_fragment(request: web.Request) -> web.Response:
     """Respond with success to all CRUD operations"""
     check_peer_cert(request)
     resp = UserInstructionFragment(html="<p>Hello admin!</p>")
-    return web.json_response(resp.dict())
+    return web.json_response(resp.model_dump())
 
 
 async def handle_interop_add(request: web.Request) -> web.Response:
     """Respond to additions"""
-    _req = ProductAddRequest.parse_raw(await request.text())
+    _req = ProductAddRequest.model_validate_json(await request.text())
     resp = OperationResultResponse(success=True, extra="Nothing was actually done, this is a fake endpoint for testing")
-    return web.json_response(resp.dict())
+    return web.json_response(resp.model_dump())
 
 
 async def handle_admin_clients_data_v2(request: web.Request) -> web.Response:
@@ -241,7 +240,7 @@ async def handle_admin_clients_data_v2(request: web.Request) -> web.Response:
 def main() -> int:
     """Main entrypoint, return exit code"""
     LOGGER.debug("Called")
-    persistentdir = Path(environ.get("PERSISTENT_DATA_PATH", "/data/persistent"))
+    persistentdir = Path(environ.get("PERSISTENT_DATA_PATH", "./persistent"))
     extra_ca_certs_path = Path(environ.get("LOCAL_CA_CERTS_PATH", "/ca_public"))
     _hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
     bind_port = int(environ.get("FPAPI_BIND_PORT", 7788))

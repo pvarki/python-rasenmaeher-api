@@ -33,7 +33,7 @@ from ..web.api.utils.csr_utils import verify_csr
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(ORMBaseModel, table=True):  # type: ignore[call-arg] # pylint: disable=too-many-public-methods
+class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-methods
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -380,7 +380,7 @@ class Person(ORMBaseModel, table=True):  # type: ignore[call-arg] # pylint: disa
                 yield result.role
 
 
-class Role(SQLModel, table=True):  # type: ignore[call-arg]
+class Role(SQLModel, table=True):
     """Give a person a role"""
 
     __tablename__ = "roles"
@@ -399,7 +399,7 @@ async def post_user_crud(userinfo: UserCRUDRequest, endpoint_suffix: str) -> Non
     """Wrapper to be more DRY in the basic CRUD things"""
     endpoint = f"api/v1/users/{endpoint_suffix}"
     # We can't do anything about any issues with the responses so don't collect them
-    await post_to_all_products(endpoint, userinfo.dict(), OperationResultResponse, collect_responses=False)
+    await post_to_all_products(endpoint, userinfo.model_dump(), OperationResultResponse, collect_responses=False)
 
 
 async def user_created(person: Person) -> None:

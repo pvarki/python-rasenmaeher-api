@@ -57,10 +57,7 @@ async def get_check_code(
 @router.post("/add-admin", response_model=FirstuserAddAdminOut)
 async def post_admin_add(
     request: Request,
-    request_in: FirstuserAddAdminIn = Body(
-        None,
-        examples=[FirstuserAddAdminIn.Config.schema_extra["examples"]],
-    ),
+    request_in: FirstuserAddAdminIn = Body(),
     jwt: JWTPayload = Depends(JWTBearer(auto_error=True)),
 ) -> FirstuserAddAdminOut:
     """
