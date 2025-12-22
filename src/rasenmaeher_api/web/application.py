@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from libpvarki.logging import init_logging
+from libpvarki.auditlogging import init_audit, AuditMiddleware
 import aiohttp
 from libadvian.tasks import TaskMaster
 
@@ -48,6 +48,13 @@ def get_app_no_init() -> FastAPI:
     app = FastAPI(docs_url="/api/docs", openapi_url="/api/openapi.json", lifespan=app_lifespan, version=__version__)
     app.include_router(router=api_router, prefix="/api/v1")
     app.include_router(router=api_router_v2, prefix="/api/v2")
+
+    # AuditMiddleware extracts user identity from nginx headers (X-ClientCert-DN,
+    # X-Real-IP, X-Request-ID) and sets ContextVars for the request duration.
+    # This enables audit logging throughout the request lifecycle.
+    # Must be added before other middleware to ensure context is available.
+    app.add_middleware(AuditMiddleware)
+
     # FIXME: figure out WTF mypy wants here, or has FastAPI changed something ?
     app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())  # type: ignore
     return app
@@ -55,11 +62,10 @@ def get_app_no_init() -> FastAPI:
 
 def get_app() -> FastAPI:
     """Returns the FastAPI application."""
-    init_logging(RMSettings.singleton().log_level_int)
+    init_audit(RMSettings.singleton().log_level_int)
     app = get_app_no_init()
     LOGGER.info("API init done, setting log verbosity to '{}'.".format(RMSettings.singleton().log_level))
     return app
-
 
 async def report_to_kraftwerk() -> None:
     """Call the KRAFTWERK announce URL if configured"""
