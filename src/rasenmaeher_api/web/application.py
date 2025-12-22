@@ -67,6 +67,7 @@ def get_app() -> FastAPI:
     LOGGER.info("API init done, setting log verbosity to '{}'.".format(RMSettings.singleton().log_level))
     return app
 
+
 async def report_to_kraftwerk() -> None:
     """Call the KRAFTWERK announce URL if configured"""
     conf = RMSettings.singleton()

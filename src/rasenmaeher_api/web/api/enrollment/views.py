@@ -9,7 +9,7 @@ from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from multikeyjwt import Issuer
 
 from libpvarki.schemas.generic import OperationResultResponse
-from libpvarki.auditlogging import audit_authentication, audit_iam
+from libpvarki.auditlogging import audit_authentication, audit_iam, AUDIT
 
 from .schema import (
     EnrollmentStatusIn,
@@ -179,7 +179,6 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
 async def request_enrollment_init(
-    request: Request,
     request_in: EnrollmentInitIn = Body(
         None,
         examples=[EnrollmentInitIn.Config.schema_extra["examples"]],
@@ -198,7 +197,8 @@ async def request_enrollment_init(
         claims = {"sub": callsign}
         new_jwt = Issuer.singleton().issue(claims)
 
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Enrollment created by admin: %s",
             callsign,
             extra=audit_iam(
@@ -212,7 +212,8 @@ async def request_enrollment_init(
         return EnrollmentInitOut(callsign=new_enrollment.callsign, jwt=new_jwt, approvecode=new_enrollment.approvecode)
 
     except Exception as exc:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Enrollment creation failed: %s",
             callsign,
             extra=audit_iam(
@@ -246,8 +247,9 @@ async def request_enrollment_promote(
 
     try:
         obj = await Person.by_callsign(callsign=target_callsign)
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "User promotion failed - user not found: %s",
             target_callsign,
             extra=audit_iam(
@@ -259,11 +261,12 @@ async def request_enrollment_promote(
                 error_message="Target user does not exist",
             ),
         )
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from exc
 
     role_added = await obj.assign_role(role="admin")
     if role_added:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "User promoted to admin: %s",
             target_callsign,
             extra=audit_iam(
@@ -278,7 +281,8 @@ async def request_enrollment_promote(
         return OperationResultResponse(success=True, extra="Promote done")
 
     # User already has admin role
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "User promotion skipped - already admin: %s",
         target_callsign,
         extra=audit_iam(
@@ -314,8 +318,9 @@ async def request_enrollment_demote(
 
     try:
         obj = await Person.by_callsign(callsign=target_callsign)
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "User demotion failed - user not found: %s",
             target_callsign,
             extra=audit_iam(
@@ -327,11 +332,12 @@ async def request_enrollment_demote(
                 error_message="Target user does not exist",
             ),
         )
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=404, detail="User not found") from exc
 
     _role_removed = await obj.remove_role(role="admin")
     if _role_removed:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "User demoted from admin: %s",
             target_callsign,
             extra=audit_iam(
@@ -345,7 +351,8 @@ async def request_enrollment_demote(
         )
         return OperationResultResponse(success=True, extra="Demote done")
 
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "User demotion skipped - not an admin: %s",
         target_callsign,
         extra=audit_iam(
@@ -384,7 +391,8 @@ async def request_enrollment_lock(
         _usr_enrollment = await Enrollment.by_callsign(callsign=target_callsign)
         await _usr_enrollment.reject(decider=_admin_person)
 
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Enrollment locked/rejected: %s",
             target_callsign,
             extra=audit_iam(
@@ -398,8 +406,9 @@ async def request_enrollment_lock(
 
         return OperationResultResponse(success=True, extra="Lock task done")
 
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "Enrollment lock failed - not found: %s",
             target_callsign,
             extra=audit_iam(
@@ -411,22 +420,7 @@ async def request_enrollment_lock(
                 error_message="Enrollment not found",
             ),
         )
-        raise HTTPException(status_code=404, detail="Enrollment not found")
-
-    except Exception as exc:
-        LOGGER.audit(
-            "Enrollment lock failed: %s",
-            target_callsign,
-            extra=audit_iam(
-                action="enrollment_lock",
-                outcome="failure",
-                target_user=target_callsign,
-                admin_action=True,
-                error_code="LOCK_FAILED",
-                error_message=str(exc),
-            ),
-        )
-        raise
+        raise HTTPException(status_code=404, detail="Enrollment not found") from exc
 
 
 @ENROLLMENT_ROUTER.post(
@@ -449,8 +443,9 @@ async def post_enrollment_accept(
     try:
         admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
         pending_enrollment = await Enrollment.by_callsign(callsign=target_callsign)
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "Enrollment approval failed - not found: %s",
             target_callsign,
             extra=audit_iam(
@@ -462,10 +457,11 @@ async def post_enrollment_accept(
                 error_message="Enrollment or admin user not found",
             ),
         )
-        raise HTTPException(status_code=404, detail="Enrollment not found")
+        raise HTTPException(status_code=404, detail="Enrollment not found") from exc
 
     if request_in.approvecode != pending_enrollment.approvecode:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Enrollment approval failed - invalid code: %s",
             target_callsign,
             extra=audit_iam(
@@ -481,7 +477,8 @@ async def post_enrollment_accept(
 
     new_approved_user = await pending_enrollment.approve(approver=admin_user)
 
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "Enrollment approved: %s",
         target_callsign,
         extra=audit_iam(
@@ -506,7 +503,8 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
     """
     pool = await EnrollmentPool.create_for_owner(request.state.person)
 
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "Invite code created",
         extra=audit_iam(
             action="invitecode_create",
@@ -535,8 +533,9 @@ async def put_activate_invite_code(
 
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "Invite code activation failed - not found: %s",
             invite_code,
             extra=audit_iam(
@@ -548,12 +547,13 @@ async def put_activate_invite_code(
                 error_message="Invite code not found",
             ),
         )
-        raise HTTPException(status_code=404, detail="Invite code not found")
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
 
     _activated_obj = await obj.set_active(state=True)
 
     if _activated_obj.active:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Invite code activated: %s",
             invite_code,
             extra=audit_iam(
@@ -565,7 +565,8 @@ async def put_activate_invite_code(
         )
         return OperationResultResponse(success=True, extra=f"Activated {invite_code}")
 
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "Invite code activation failed: %s",
         invite_code,
         extra=audit_iam(
@@ -597,8 +598,9 @@ async def put_deactivate_invite_code(
 
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "Invite code deactivation failed - not found: %s",
             invite_code,
             extra=audit_iam(
@@ -610,12 +612,13 @@ async def put_deactivate_invite_code(
                 error_message="Invite code not found",
             ),
         )
-        raise HTTPException(status_code=404, detail="Invite code not found")
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
 
     _deactivated_obj = await obj.set_active(state=False)
 
     if _deactivated_obj.active is False:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Invite code deactivated: %s",
             invite_code,
             extra=audit_iam(
@@ -627,7 +630,8 @@ async def put_deactivate_invite_code(
         )
         return OperationResultResponse(success=True, extra=f"Disabled {invite_code}")
 
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "Invite code deactivation failed: %s",
         invite_code,
         extra=audit_iam(
@@ -655,7 +659,8 @@ async def delete_invite_code(
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
         await obj.delete()
 
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Invite code deleted: %s",
             invite_code,
             extra=audit_iam(
@@ -670,7 +675,8 @@ async def delete_invite_code(
         return OperationResultResponse(success=True, extra="Invitecode was deleted")
 
     except NotFound:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "Invite code deletion failed - not found: %s",
             invite_code,
             extra=audit_iam(
@@ -720,8 +726,9 @@ async def post_enroll_invite_code(
     # CHECK IF INVITE CODE CAN BE USED
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
-    except NotFound:
-        LOGGER.audit(
+    except NotFound as exc:
+        LOGGER.log(
+            AUDIT,
             "OTP exchange failed - invalid invite code",
             extra=audit_authentication(
                 action="otp_exchange",
@@ -731,10 +738,11 @@ async def post_enroll_invite_code(
                 error_message="Invite code not found",
             ),
         )
-        raise HTTPException(status_code=404, detail="Invite code not found")
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
 
     if obj.active is False:
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "OTP exchange failed - invite code disabled",
             extra=audit_authentication(
                 action="otp_exchange",
@@ -751,7 +759,8 @@ async def post_enroll_invite_code(
     # CHECK THAT THE CALLSIGN CAN BE USED
     try:
         await Enrollment.by_callsign(callsign=callsign)
-        LOGGER.audit(
+        LOGGER.log(
+            AUDIT,
             "OTP exchange failed - callsign already taken: %s",
             callsign,
             extra=audit_authentication(
@@ -774,7 +783,8 @@ async def post_enroll_invite_code(
     claims = {"sub": callsign}
     new_jwt = Issuer.singleton().issue(claims)
 
-    LOGGER.audit(
+    LOGGER.log(
+        AUDIT,
         "OTP exchange successful - enrollment created: %s",
         callsign,
         extra=audit_authentication(
