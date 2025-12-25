@@ -389,23 +389,6 @@ async def request_enrollment_lock(
     try:
         _admin_person = await Person.by_callsign(request.state.mtls_or_jwt.userid)
         _usr_enrollment = await Enrollment.by_callsign(callsign=target_callsign)
-        await _usr_enrollment.reject(decider=_admin_person)
-
-        LOGGER.log(
-            AUDIT,
-            "Enrollment locked/rejected: %s",
-            target_callsign,
-            extra=audit_iam(
-                action="enrollment_lock",
-                outcome="success",
-                target_user=target_callsign,
-                admin_action=True,
-                lock_reason=request_in.lock_reason,
-            ),
-        )
-
-        return OperationResultResponse(success=True, extra="Lock task done")
-
     except NotFound as exc:
         LOGGER.log(
             AUDIT,
@@ -421,6 +404,38 @@ async def request_enrollment_lock(
             ),
         )
         raise HTTPException(status_code=404, detail="Enrollment not found") from exc
+
+    # Get invitecode context if enrollment was created via invite code
+    invitecode_context: Dict[str, Any] = {}
+    if _usr_enrollment.pool:
+        try:
+            pool = await EnrollmentPool.by_pk(_usr_enrollment.pool)
+            pool_owner = await Person.by_pk(pool.owner)
+            invitecode_context = {
+                "invitecode": pool.invitecode,
+                "invitecode_owner": pool_owner.callsign,
+                "invitecode_created": pool.created.isoformat(),
+            }
+        except NotFound:
+            pass  # Pool may have been deleted
+
+    await _usr_enrollment.reject(decider=_admin_person)
+
+    LOGGER.log(
+        AUDIT,
+        "Enrollment locked/rejected: %s",
+        target_callsign,
+        extra=audit_iam(
+            action="enrollment_lock",
+            outcome="success",
+            target_user=target_callsign,
+            admin_action=True,
+            lock_reason=request_in.lock_reason,
+            **invitecode_context,
+        ),
+    )
+
+    return OperationResultResponse(success=True, extra="Lock task done")
 
 
 @ENROLLMENT_ROUTER.post(
@@ -459,6 +474,20 @@ async def post_enrollment_accept(
         )
         raise HTTPException(status_code=404, detail="Enrollment not found") from exc
 
+    # Get invitecode context if enrollment was created via invite code
+    invitecode_context: Dict[str, Any] = {}
+    if pending_enrollment.pool:
+        try:
+            pool = await EnrollmentPool.by_pk(pending_enrollment.pool)
+            pool_owner = await Person.by_pk(pool.owner)
+            invitecode_context = {
+                "invitecode": pool.invitecode,
+                "invitecode_owner": pool_owner.callsign,
+                "invitecode_created": pool.created.isoformat(),
+            }
+        except NotFound:
+            pass  # Pool may have been deleted
+
     if request_in.approvecode != pending_enrollment.approvecode:
         LOGGER.log(
             AUDIT,
@@ -471,6 +500,7 @@ async def post_enrollment_accept(
                 admin_action=True,
                 error_code="INVALID_APPROVECODE",
                 error_message="Approval code does not match",
+                **invitecode_context,
             ),
         )
         raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
@@ -486,6 +516,7 @@ async def post_enrollment_accept(
             outcome="success",
             target_user=target_callsign,
             admin_action=True,
+            **invitecode_context,
         ),
     )
 
@@ -729,9 +760,9 @@ async def post_enroll_invite_code(
     except NotFound as exc:
         LOGGER.log(
             AUDIT,
-            "OTP exchange failed - invalid invite code",
+            "Enrollment initialization failed - invalid invite code",
             extra=audit_authentication(
-                action="otp_exchange",
+                action="enroll_initialize",
                 outcome="failure",
                 target_user=callsign,
                 error_code="INVALID_INVITECODE",
@@ -740,19 +771,25 @@ async def post_enroll_invite_code(
         )
         raise HTTPException(status_code=404, detail="Invite code not found") from exc
 
+    # Fetch invite code owner for audit trail
+    invitecode_owner = await Person.by_pk(obj.owner)
+
     if obj.active is False:
         LOGGER.log(
             AUDIT,
-            "OTP exchange failed - invite code disabled",
+            "Enrollment initialization failed - invite code disabled",
             extra=audit_authentication(
-                action="otp_exchange",
+                action="enroll_initialize",
                 outcome="failure",
                 target_user=callsign,
                 error_code="INVITECODE_DISABLED",
                 error_message="Invite code is disabled",
+                invitecode=invite_code,
+                invitecode_owner=invitecode_owner.callsign,
+                invitecode_created=obj.created.isoformat(),
             ),
         )
-        _reason = "Error. invitecode disabled."
+        _reason = "Error. Invitecode disabled."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
@@ -761,14 +798,17 @@ async def post_enroll_invite_code(
         await Enrollment.by_callsign(callsign=callsign)
         LOGGER.log(
             AUDIT,
-            "OTP exchange failed - callsign already taken: %s",
+            "Enrollment initialization failed - callsign already taken: %s",
             callsign,
             extra=audit_authentication(
-                action="otp_exchange",
+                action="enroll_initialize",
                 outcome="failure",
                 target_user=callsign,
                 error_code="CALLSIGN_TAKEN",
                 error_message="Callsign is already in use",
+                invitecode=invite_code,
+                invitecode_owner=invitecode_owner.callsign,
+                invitecode_created=obj.created.isoformat(),
             ),
         )
         _reason = "Error. callsign/callsign already taken."
@@ -785,13 +825,16 @@ async def post_enroll_invite_code(
 
     LOGGER.log(
         AUDIT,
-        "OTP exchange successful - enrollment created: %s",
+        "Enrollment initialization successful - enrollment created: %s",
         callsign,
         extra=audit_authentication(
-            action="otp_exchange",
+            action="enroll_initialize",
             outcome="success",
             target_user=callsign,
             enrollment_state="pending_approval",
+            invitecode=invite_code,
+            invitecode_owner=invitecode_owner.callsign,
+            invitecode_created=obj.created.isoformat(),
         ),
     )
 
