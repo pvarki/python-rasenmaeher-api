@@ -40,12 +40,14 @@ async def get_check_code(
     except NotFound:
         LOGGER.log(
             AUDIT,
-            "First user code check failed - input is not a first user otp code",
+            "First user code check - code is not a first admin otp code: %s",
+            params.temp_admin_code,
             extra=audit_authentication(
                 action="firstuser_code_check",
                 outcome="failure",
-                error_code="WRONG_CODE",
-                error_message="Input is not a first user otp code",
+                error_code="CODE_NOT_FIRST_ADMIN_OTP",
+                error_message="Code is not a first admin otp",
+                attempted_code=params.temp_admin_code,
             ),
         )
         return FirstuserCheckCodeOut(code_ok=False)
@@ -60,6 +62,7 @@ async def get_check_code(
                 outcome="failure",
                 error_code="BACKEND_ERROR",
                 error_message="Undefined backend error",
+                attempted_code=params.temp_admin_code,
             ),
         )
         _reason = "Error. Undefined backend error q_ssjsfjwe1"
@@ -70,12 +73,14 @@ async def get_check_code(
     if res.used_on is not None:
         LOGGER.log(
             AUDIT,
-            "First user code check failed - code already used",
+            "First user code check failed - code already used: %s",
+            params.temp_admin_code,
             extra=audit_authentication(
                 action="firstuser_code_check",
                 outcome="failure",
                 error_code="CODE_ALREADY_USED",
                 error_message="Temporary admin code has already been used",
+                attempted_code=params.temp_admin_code,
             ),
         )
         _reason = "Code already used"
@@ -84,10 +89,12 @@ async def get_check_code(
 
     LOGGER.log(
         AUDIT,
-        "First user otp code check successful",
+        "First user OTP code check successful: %s",
+        params.temp_admin_code,
         extra=audit_authentication(
             action="firstuser_code_check",
             outcome="success",
+            validated_code=params.temp_admin_code,
         ),
     )
 
