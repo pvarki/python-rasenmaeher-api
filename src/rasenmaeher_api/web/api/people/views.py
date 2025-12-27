@@ -6,6 +6,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.auditlogging import audit_iam, AUDIT
 
 from .schema import (
     CallSignPerson,
@@ -14,7 +15,7 @@ from .schema import (
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ....db import Person
-from ....db.errors import BackendError
+from ....db.errors import BackendError, NotFound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -108,10 +109,66 @@ async def request_people_list_byrole(role: str) -> PeopleListOut:
 )
 async def delete_person(callsign: str) -> OperationResultResponse:
     """delete==revoke a callsign"""
-    person = await Person.by_callsign(callsign)
+    try:
+        person = await Person.by_callsign(callsign)
+    except NotFound:
+        LOGGER.log(
+            AUDIT,
+            "User revocation failed - user not found: %s",
+            callsign,
+            extra=audit_iam(
+                action="user_revoke",
+                outcome="failure",
+                target_user=callsign,
+                admin_action=True,
+                error_code="USER_NOT_FOUND",
+                error_message="User does not exist",
+            ),
+        )
+        return OperationResultResponse(success=False, error="User not found")
+
     try:
         deleted = await person.delete()
+        if deleted:
+            LOGGER.log(
+                AUDIT,
+                "User revoked: %s",
+                callsign,
+                extra=audit_iam(
+                    action="user_revoke",
+                    outcome="success",
+                    target_user=callsign,
+                    admin_action=True,
+                ),
+            )
+        else:
+            LOGGER.log(
+                AUDIT,
+                "User revocation returned false: %s",
+                callsign,
+                extra=audit_iam(
+                    action="user_revoke",
+                    outcome="failure",
+                    target_user=callsign,
+                    admin_action=True,
+                    error_code="DELETE_RETURNED_FALSE",
+                    error_message="Delete operation returned false",
+                ),
+            )
         return OperationResultResponse(success=deleted)
     except BackendError as exc:
+        LOGGER.log(
+            AUDIT,
+            "User revocation failed - backend error: %s",
+            callsign,
+            extra=audit_iam(
+                action="user_revoke",
+                outcome="failure",
+                target_user=callsign,
+                admin_action=True,
+                error_code="BACKEND_ERROR",
+                error_message=str(exc),
+            ),
+        )
         LOGGER.error("Backend failure: {}".format(exc))
         return OperationResultResponse(success=False, error=str(exc))
