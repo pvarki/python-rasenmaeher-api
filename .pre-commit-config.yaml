@@ -67,7 +67,7 @@ repos:
     -   id: detect-secrets
         language: system
         exclude: "poetry\\.lock|tests/data/.*"
-        # args: ['--baseline', '.secrets.baseline']
+        args: ['--baseline', '.secrets.baseline']
 -   repo: https://github.com/rhysd/actionlint
     rev: "v1.7.8"
     hooks:

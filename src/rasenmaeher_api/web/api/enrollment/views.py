@@ -4,12 +4,11 @@ from typing import Dict, List, Any, Optional
 import logging
 import uuid
 
-
 from fastapi import APIRouter, Request, Body, Depends, HTTPException
 from multikeyjwt import Issuer
 
 from libpvarki.schemas.generic import OperationResultResponse
-from libpvarki.auditlogging import audit_authentication, audit_iam, AUDIT
+from libpvarki.auditlogging import audit_authentication, code_fingerprint, audit_iam, AUDIT
 
 from .schema import (
     EnrollmentStatusIn,
@@ -199,7 +198,7 @@ async def request_enrollment_init(
 
         LOGGER.log(
             AUDIT,
-            "Enrollment created by admin: %s",
+            "New enrollment initiated by invitecode, invitecode creator is the admin %s",
             callsign,
             extra=audit_iam(
                 action="enrollment_create",
@@ -214,7 +213,7 @@ async def request_enrollment_init(
     except Exception as exc:
         LOGGER.log(
             AUDIT,
-            "Enrollment creation failed: %s",
+            "New enrollment initiation failed, originating invitecode creator is the admin %s",
             callsign,
             extra=audit_iam(
                 action="enrollment_create",
@@ -412,7 +411,7 @@ async def request_enrollment_lock(
             pool = await EnrollmentPool.by_pk(_usr_enrollment.pool)
             pool_owner = await Person.by_pk(pool.owner)
             invitecode_context = {
-                "invitecode": pool.invitecode,
+                "invitecode_id": str(pool.pk),
                 "invitecode_owner": pool_owner.callsign,
                 "invitecode_created": pool.created.isoformat(),
             }
@@ -481,7 +480,7 @@ async def post_enrollment_accept(
             pool = await EnrollmentPool.by_pk(pending_enrollment.pool)
             pool_owner = await Person.by_pk(pool.owner)
             invitecode_context = {
-                "invitecode": pool.invitecode,
+                "invitecode_id": str(pool.pk),
                 "invitecode_owner": pool_owner.callsign,
                 "invitecode_created": pool.created.isoformat(),
             }
@@ -491,7 +490,7 @@ async def post_enrollment_accept(
     if request_in.approvecode != pending_enrollment.approvecode:
         LOGGER.log(
             AUDIT,
-            "Enrollment approval failed - invalid code: %s",
+            "Enrollment approval failed - invalid approvecode: %s",
             target_callsign,
             extra=audit_iam(
                 action="enrollment_approve",
@@ -509,7 +508,7 @@ async def post_enrollment_accept(
 
     LOGGER.log(
         AUDIT,
-        "Enrollment approved: %s",
+        "Enrollment approved for user: %s",
         target_callsign,
         extra=audit_iam(
             action="enrollment_approve",
@@ -540,7 +539,7 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
         extra=audit_iam(
             action="invitecode_create",
             outcome="success",
-            target_resource=pool.invitecode,
+            target_resource=str(pool.pk),
             target_resource_type="invitecode",
             admin_action=True,
         ),
@@ -567,13 +566,12 @@ async def put_activate_invite_code(
     except NotFound as exc:
         LOGGER.log(
             AUDIT,
-            "Invite code activation failed - not found: %s",
-            invite_code,
+            "Invite code activation failed - not found",
             extra=audit_iam(
                 action="invitecode_activate",
                 outcome="failure",
-                target_resource=invite_code,
                 target_resource_type="invitecode",
+                input_fingerprint=code_fingerprint(invite_code),
                 error_code="NOT_FOUND",
                 error_message="Invite code not found",
             ),
@@ -585,25 +583,23 @@ async def put_activate_invite_code(
     if _activated_obj.active:
         LOGGER.log(
             AUDIT,
-            "Invite code activated: %s",
-            invite_code,
+            "Invite code activated",
             extra=audit_iam(
                 action="invitecode_activate",
                 outcome="success",
-                target_resource=invite_code,
+                target_resource=str(obj.pk),
                 target_resource_type="invitecode",
             ),
         )
-        return OperationResultResponse(success=True, extra=f"Activated {invite_code}")
+        return OperationResultResponse(success=True, extra=f"Activated invitecode {obj.pk}")
 
     LOGGER.log(
         AUDIT,
-        "Invite code activation failed: %s",
-        invite_code,
+        "Invite code activation failed",
         extra=audit_iam(
             action="invitecode_activate",
             outcome="failure",
-            target_resource=invite_code,
+            target_resource=str(obj.pk),
             target_resource_type="invitecode",
             error_code="ACTIVATION_FAILED",
             error_message="Unable to activate invite code",
@@ -632,13 +628,12 @@ async def put_deactivate_invite_code(
     except NotFound as exc:
         LOGGER.log(
             AUDIT,
-            "Invite code deactivation failed - not found: %s",
-            invite_code,
+            "Invite code deactivation failed - not found",
             extra=audit_iam(
                 action="invitecode_deactivate",
                 outcome="failure",
-                target_resource=invite_code,
                 target_resource_type="invitecode",
+                input_fingerprint=code_fingerprint(invite_code),
                 error_code="NOT_FOUND",
                 error_message="Invite code not found",
             ),
@@ -650,25 +645,23 @@ async def put_deactivate_invite_code(
     if _deactivated_obj.active is False:
         LOGGER.log(
             AUDIT,
-            "Invite code deactivated: %s",
-            invite_code,
+            "Invite code deactivated",
             extra=audit_iam(
                 action="invitecode_deactivate",
                 outcome="success",
-                target_resource=invite_code,
+                target_resource=str(obj.pk),
                 target_resource_type="invitecode",
             ),
         )
-        return OperationResultResponse(success=True, extra=f"Disabled {invite_code}")
+        return OperationResultResponse(success=True, extra=f"Disabled invitecode {obj.pk}")
 
     LOGGER.log(
         AUDIT,
-        "Invite code deactivation failed: %s",
-        invite_code,
+        "Invite code deactivation failed",
         extra=audit_iam(
             action="invitecode_deactivate",
             outcome="failure",
-            target_resource=invite_code,
+            target_resource=str(obj.pk),
             target_resource_type="invitecode",
             error_code="DEACTIVATION_FAILED",
             error_message="Unable to deactivate invite code",
@@ -688,16 +681,16 @@ async def delete_invite_code(
     """
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
+        pool_pk = str(obj.pk)
         await obj.delete()
 
         LOGGER.log(
             AUDIT,
-            "Invite code deleted: %s",
-            invite_code,
+            "Invite code deleted",
             extra=audit_iam(
                 action="invitecode_delete",
                 outcome="success",
-                target_resource=invite_code,
+                target_resource=pool_pk,
                 target_resource_type="invitecode",
                 admin_action=True,
             ),
@@ -708,13 +701,12 @@ async def delete_invite_code(
     except NotFound:
         LOGGER.log(
             AUDIT,
-            "Invite code deletion failed - not found: %s",
-            invite_code,
+            "Invite code deletion failed - not found",
             extra=audit_iam(
                 action="invitecode_delete",
                 outcome="failure",
-                target_resource=invite_code,
                 target_resource_type="invitecode",
+                input_fingerprint=code_fingerprint(invite_code),
                 admin_action=True,
                 error_code="NOT_FOUND",
                 error_message="Invite code not found",
@@ -767,6 +759,7 @@ async def post_enroll_invite_code(
                 target_user=callsign,
                 error_code="INVALID_INVITECODE",
                 error_message="Invite code not found",
+                input_fingerprint=code_fingerprint(invite_code),
             ),
         )
         raise HTTPException(status_code=404, detail="Invite code not found") from exc
@@ -784,7 +777,7 @@ async def post_enroll_invite_code(
                 target_user=callsign,
                 error_code="INVITECODE_DISABLED",
                 error_message="Invite code is disabled",
-                invitecode=invite_code,
+                invitecode_id=str(obj.pk),
                 invitecode_owner=invitecode_owner.callsign,
                 invitecode_created=obj.created.isoformat(),
             ),
@@ -806,7 +799,7 @@ async def post_enroll_invite_code(
                 target_user=callsign,
                 error_code="CALLSIGN_TAKEN",
                 error_message="Callsign is already in use",
-                invitecode=invite_code,
+                invitecode_id=str(obj.pk),
                 invitecode_owner=invitecode_owner.callsign,
                 invitecode_created=obj.created.isoformat(),
             ),
@@ -825,14 +818,13 @@ async def post_enroll_invite_code(
 
     LOGGER.log(
         AUDIT,
-        "Enrollment initialization successful - enrollment created: %s",
-        callsign,
+        "Enrollment initialization successful - enrollment created",
         extra=audit_authentication(
             action="enroll_initialize",
             outcome="success",
             target_user=callsign,
             enrollment_state="pending_approval",
-            invitecode=invite_code,
+            invitecode_id=str(obj.pk),
             invitecode_owner=invitecode_owner.callsign,
             invitecode_created=obj.created.isoformat(),
         ),

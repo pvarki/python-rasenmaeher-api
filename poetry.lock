@@ -1442,7 +1442,7 @@ vector = ["http"]
 [package.source]
 type = "git"
 url = "https://gitlab.com/advian-oss/python-libadvian.git"
-reference = "log_levels"
+reference = "1002a851ba6284551132dbef075c2fa0e1ba110d"
 resolved_reference = "1002a851ba6284551132dbef075c2fa0e1ba110d"
 
 [[package]]
@@ -1450,7 +1450,7 @@ name = "libpvarki"
 version = "1.9.2"
 description = "Common helpers like standard logging init"
 optional = false
-python-versions = "^3.8"
+python-versions = "^3.9"
 groups = ["main"]
 files = []
 develop = false
@@ -1462,14 +1462,14 @@ brotli = "^1.0"
 cryptography = ">=41.0"
 ecs-logging = "^2.0"
 fastapi = ">0.89,<1.0"
-libadvian = {git = "https://gitlab.com/advian-oss/python-libadvian.git", branch = "log_levels"}
+libadvian = {git = "https://gitlab.com/advian-oss/python-libadvian.git", rev = "1002a851ba6284551132dbef075c2fa0e1ba110d"}
 pydantic = ">=1.10,<2.0"
 
 [package.source]
 type = "git"
 url = "https://github.com/pvarki/python-libpvarki.git"
 reference = "audit-logging-v1"
-resolved_reference = "e7d1fbadfd2d9aee1f479a44c367aabf84f68b57"
+resolved_reference = "55e45136ee345e38a546444db903ff2746de6441"
 
 [[package]]
 name = "librt"
@@ -3592,4 +3592,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<4.0"
-content-hash = "681e5fa478321c63d30b019ec7ba44270fde4039122498081f996034cc106a55"
+content-hash = "497118b56181c0982f56d989f4322dcd081e340856280c4537baa6948291a925"

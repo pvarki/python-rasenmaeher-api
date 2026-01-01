@@ -76,7 +76,7 @@ priority = "explicit"
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
-libadvian = { git = "https://gitlab.com/advian-oss/python-libadvian.git", branch = "log_levels" }
+libadvian = { git = "https://gitlab.com/advian-oss/python-libadvian.git", rev = "1002a851ba6284551132dbef075c2fa0e1ba110d" }
 click = "^8.0"
 fastapi = ">=0.89,<1.0"  # caret behaviour on 0.x is to lock to 0.x.*
 # FIXME: Migrate to v2, see https://docs.pydantic.dev/2.3/migration/#basesettings-has-moved-to-pydantic-settings

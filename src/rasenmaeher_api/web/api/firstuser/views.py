@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
 from multikeyjwt.middleware import JWTBearer, JWTPayload
 from libadvian.tasks import TaskMaster
-from libpvarki.auditlogging import audit_authentication, audit_iam, audit_authorization, AUDIT
+from libpvarki.auditlogging import code_fingerprint, audit_authentication, audit_iam, audit_authorization, AUDIT
 
 from rasenmaeher_api.web.api.firstuser.schema import (
     FirstuserCheckCodeIn,
@@ -25,7 +25,6 @@ router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 
 
-# /check-code
 @router.get("/check-code", response_model=FirstuserCheckCodeOut)
 async def get_check_code(
     request: Request,
@@ -35,19 +34,20 @@ async def get_check_code(
     /check-code?temp_admin_code=xxxx,
     Checks if the given code can be used or not in this /firstuser api route...
     """
+    code_fp = code_fingerprint(params.temp_admin_code)
+
     try:
         res = await LoginCode.by_code(code=params.temp_admin_code)
     except NotFound:
         LOGGER.log(
             AUDIT,
-            "First user code check - code is not a first admin otp code: %s",
-            params.temp_admin_code,
+            "First user code check - code is not a first admin otp code",
             extra=audit_authentication(
                 action="firstuser_code_check",
                 outcome="failure",
                 error_code="CODE_NOT_FIRST_ADMIN_OTP",
                 error_message="Code is not a first admin otp",
-                attempted_code=params.temp_admin_code,
+                input_fingerprint=code_fp,
             ),
         )
         return FirstuserCheckCodeOut(code_ok=False)
@@ -62,7 +62,7 @@ async def get_check_code(
                 outcome="failure",
                 error_code="BACKEND_ERROR",
                 error_message="Undefined backend error",
-                attempted_code=params.temp_admin_code,
+                input_fingerprint=code_fp,
             ),
         )
         _reason = "Error. Undefined backend error q_ssjsfjwe1"
@@ -73,14 +73,13 @@ async def get_check_code(
     if res.used_on is not None:
         LOGGER.log(
             AUDIT,
-            "First user code check failed - code already used: %s",
-            params.temp_admin_code,
+            "First user code check failed - code already used",
             extra=audit_authentication(
                 action="firstuser_code_check",
                 outcome="failure",
                 error_code="CODE_ALREADY_USED",
                 error_message="Temporary admin code has already been used",
-                attempted_code=params.temp_admin_code,
+                logincode_id=str(res.pk),
             ),
         )
         _reason = "Code already used"
@@ -89,19 +88,17 @@ async def get_check_code(
 
     LOGGER.log(
         AUDIT,
-        "First user OTP code check successful: %s",
-        params.temp_admin_code,
+        "First user OTP code check successful",
         extra=audit_authentication(
             action="firstuser_code_check",
             outcome="success",
-            validated_code=params.temp_admin_code,
+            logincode_id=str(res.pk),
         ),
     )
 
     return FirstuserCheckCodeOut(code_ok=True)
 
 
-# /add-admin
 @router.post("/add-admin", response_model=FirstuserAddAdminOut)
 async def post_admin_add(
     request: Request,
@@ -119,8 +116,7 @@ async def post_admin_add(
     if not jwt.get("anon_admin_session", False):
         LOGGER.log(
             AUDIT,
-            "First admin creation failed - unauthorized JWT: %s",
-            callsign,
+            "First admin creation failed - unauthorized JWT",
             extra=audit_authorization(
                 action="firstuser_create",
                 outcome="failure",
@@ -174,8 +170,7 @@ async def post_admin_add(
     if role_add_success is False:
         LOGGER.log(
             AUDIT,
-            "First admin creation failed - user already admin: %s. This should not happen!",
-            callsign,
+            "First admin creation failed - user already admin (this should not happen)",
             extra=audit_iam(
                 action="firstuser_create",
                 outcome="failure",
@@ -193,8 +188,7 @@ async def post_admin_add(
 
     LOGGER.log(
         AUDIT,
-        "First admin user created successfully: %s",
-        callsign,
+        "First admin user created successfully",
         extra=audit_iam(
             action="firstuser_create",
             outcome="success",
