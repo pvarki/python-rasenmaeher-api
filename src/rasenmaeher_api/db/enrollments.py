@@ -34,7 +34,7 @@ def generate_code() -> str:
     return code
 
 
-class EnrollmentPool(ORMBaseModel, table=True):  # type: ignore[call-arg]
+class EnrollmentPool(ORMBaseModel, table=True):
     """Enrollment pools aka links, pk is UUID and comes from basemodel"""
 
     __tablename__ = "enrollmentpools"
@@ -150,7 +150,7 @@ class EnrollmentState(enum.IntEnum):
     REJECTED = 2
 
 
-class Enrollment(ORMBaseModel, table=True):  # type: ignore[call-arg]
+class Enrollment(ORMBaseModel, table=True):
     """Enrollments, pk is UUID and comes from basemodel"""
 
     __tablename__ = "enrollments"

@@ -7,7 +7,7 @@ import uuid
 import json
 
 from libpvarki.schemas.product import UserCRUDRequest
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, Field, ConfigDict
 from keycloak.keycloak_admin import KeycloakAdmin
 from keycloak.exceptions import KeycloakError
 
@@ -20,15 +20,12 @@ LOGGER = logging.getLogger(__name__)
 class KCUserData(BaseModel):
     """Represent KC user object manipulations"""
 
+    model_config = ConfigDict(extra="forbid")
+
     productdata: UserCRUDRequest = Field(description="Data that would be sent to productAPIs")
     roles: Set[str] = Field(default_factory=set, description="Local roles")
     kc_id: Optional[str] = Field(description="KC id (uuid)", default=None)
     kc_data: Dict[str, Any] = Field(description="Full KC data", default_factory=dict)
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
 
 
 # PONDER: Maybe switch to https://python-keycloak.readthedocs.io/en/latest/modules/async.html

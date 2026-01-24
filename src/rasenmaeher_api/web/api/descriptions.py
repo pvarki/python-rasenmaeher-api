@@ -1,11 +1,10 @@
 """product descriptions endpoints"""
 
-from typing import Literal, Optional, cast
+from typing import Literal, Optional, List, cast
 import logging
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Extra, Field
-from pydantic_collections import BaseCollectionModel
+from pydantic import BaseModel, Field, ConfigDict, RootModel
 from libpvarki.middleware import MTLSHeader
 from rasenmaeher_api.web.api.middleware.user import ValidUser
 from ...productapihelpers import get_from_all_products, get_from_product
@@ -23,16 +22,13 @@ router_v2_admin = APIRouter(dependencies=[Depends(MTLSHeader(auto_error=True))])
 class ProductDescription(BaseModel):
     """Description of a product"""
 
+    model_config = ConfigDict(extra="forbid")
+
     shortname: str = Field(description="Short name for the product, used as slug/key in dicts and urls")
     title: str = Field(description="Fancy name for the product")
     icon: Optional[str] = Field(description="URL for icon")
     description: str = Field(description="Short-ish description of the product")
     language: str = Field(description="Language of this response")
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
-
-        extra = Extra.forbid
 
 
 class ProductComponent(BaseModel):
@@ -45,6 +41,8 @@ class ProductComponent(BaseModel):
 class ProductDescriptionExtended(BaseModel):
     """Description of a product"""
 
+    model_config = ConfigDict(extra="forbid")
+
     shortname: str = Field(description="Short name for the product, used as slug/key in dicts and urls")
     title: str = Field(description="Fancy name for the product")
     icon: Optional[str] = Field(description="URL for icon")
@@ -53,28 +51,15 @@ class ProductDescriptionExtended(BaseModel):
     docs: Optional[str] = Field(description="Link to documentation")
     component: ProductComponent = Field(description="Component type and ref")
 
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
 
-        extra = Extra.forbid
-
-
-class ProductDescriptionList(BaseCollectionModel[ProductDescription]):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class ProductDescriptionList(RootModel[List[ProductDescription]]):  # pylint: disable=too-few-public-methods
     """List of product descriptions"""
 
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
 
-        extra = Extra.forbid
-
-
-class ProductDescriptionExtendedList(BaseCollectionModel[ProductDescriptionExtended]):  # type: ignore[misc] # pylint: disable=too-few-public-methods
+class ProductDescriptionExtendedList(
+    RootModel[List[ProductDescriptionExtended]]
+):  # pylint: disable=too-few-public-methods
     """List of product descriptions"""
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
-
-        extra = Extra.forbid
 
 
 @router.get(
@@ -86,7 +71,7 @@ async def list_product_descriptions(language: str) -> ProductDescriptionList:
     responses = await get_from_all_products(f"api/v1/description/{language}", ProductDescription)
     if responses is None:
         raise ValueError("Everything is broken")
-    return ProductDescriptionList([res for res in responses.values() if res])
+    return ProductDescriptionList([cast(ProductDescription, res) for res in responses.values() if res])
 
 
 @router.get(
@@ -112,7 +97,7 @@ async def list_product_descriptions_extended(language: str) -> ProductDescriptio
     responses = await get_from_all_products(f"api/v2/description/{language}", ProductDescriptionExtended)
     if responses is None:
         raise ValueError("Everything is broken")
-    return ProductDescriptionExtendedList([res for res in responses.values() if res])
+    return ProductDescriptionExtendedList([cast(ProductDescriptionExtended, res) for res in responses.values() if res])
 
 
 @router_v2.get(
@@ -140,7 +125,7 @@ async def list_admin_product_descriptions_extended(language: str) -> ProductDesc
     responses = await get_from_all_products(f"api/v2/admin/description/{language}", ProductDescriptionExtended)
     if responses is None:
         raise ValueError("Everything is broken")
-    return ProductDescriptionExtendedList([res for res in responses.values() if res])
+    return ProductDescriptionExtendedList([cast(ProductDescriptionExtended, res) for res in responses.values() if res])
 
 
 @router_v2_admin.get(

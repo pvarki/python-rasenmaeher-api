@@ -164,7 +164,7 @@ async def add_interop(
         raise HTTPException(status_code=500, detail="Manifest does not have products key")
     if tgtproduct not in manifest["products"]:
         raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
-    resp = await post_to_product(tgtproduct, "/api/v1/interop/add", srcproduct.dict(), OperationResultResponse)
+    resp = await post_to_product(tgtproduct, "/api/v1/interop/add", srcproduct.model_dump(), OperationResultResponse)
     if resp is None:
         return OperationResultResponse(success=False, error="post_to_product returned None")
     resp = cast(OperationResultResponse, resp)
@@ -191,7 +191,7 @@ async def get_product_proxy(
         url = f"{productconf['api']}{tgtpath}"
         LOGGER.debug("calling POST({})".format(url))
         response = await client.post(
-            url, json=user.dict(), timeout=aiohttp.ClientTimeout(total=rmconf.integration_api_timeout * 2)
+            url, json=user.model_dump(), timeout=aiohttp.ClientTimeout(total=rmconf.integration_api_timeout * 2)
         )
         return Response(
             status_code=response.status,

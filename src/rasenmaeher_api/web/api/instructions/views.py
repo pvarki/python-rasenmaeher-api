@@ -55,7 +55,7 @@ async def user_instruction_fragment(request: Request) -> AllProductsInstructionF
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
     LOGGER.debug("person={}, user={}".format(person, user))
-    responses = await post_to_all_products("api/v1/clients/fragment", user.dict(), ProductFileList)
+    responses = await post_to_all_products("api/v1/clients/fragment", user.model_dump(), ProductFileList)
     if responses is None:
         raise ValueError("Everything is broken")
     return AllProductsInstructionFiles(files={key: cast(ProductFileList, val) for key, val in responses.items()})
@@ -73,7 +73,7 @@ async def get_product_instructions(request: Request, product: str, language: str
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
     endpoint_url = f"api/v1/instructions/{language}"
-    response = await post_to_product(product, endpoint_url, user.dict(), InstructionData)
+    response = await post_to_product(product, endpoint_url, user.model_dump(), InstructionData)
     if response is None:
         _reason = f"Unable to get instructions for {product}"
         LOGGER.error("{} : {}".format(request.url, _reason))
@@ -93,7 +93,7 @@ async def get_product_data(request: Request, product: str) -> Optional[ProductDa
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
     endpoint_url = "api/v2/clients/data"
-    response = await post_to_product(product, endpoint_url, user.dict(), ProductData)
+    response = await post_to_product(product, endpoint_url, user.model_dump(), ProductData)
     if response is None:
         _reason = f"Unable to get data for {product}"
         LOGGER.error("{} : {}".format(request.url, _reason))
@@ -113,7 +113,7 @@ async def get_admin_product_data(request: Request, product: str) -> Optional[Pro
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
     endpoint_url = "api/v2/admin/clients/data"
-    response = await post_to_product(product, endpoint_url, user.dict(), ProductData)
+    response = await post_to_product(product, endpoint_url, user.model_dump(), ProductData)
     if response is None:
         _reason = f"Unable to get data for {product}"
         LOGGER.error("{} : {}".format(request.url, _reason))

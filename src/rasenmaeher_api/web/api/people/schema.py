@@ -2,7 +2,7 @@
 
 from typing import List, Dict, Any, Optional
 
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel
 
 
 class CallSignPerson(BaseModel):
@@ -14,7 +14,7 @@ class CallSignPerson(BaseModel):
     revoked: Optional[str]
 
 
-class PeopleListOut(BaseModel, extra=Extra.forbid):
+class PeopleListOut(BaseModel, extra="forbid"):
     """People list out response schema"""
 
     callsign_list: List[CallSignPerson]

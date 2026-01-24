@@ -6,7 +6,7 @@ from pathlib import Path
 import logging
 import json
 
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,12 +37,11 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     with environment variables.
     """
 
-    class Config:  # pylint: disable=too-few-public-methods
-        """Configuration of settings."""
-
-        env_file = ".env"
-        env_prefix = "RM_"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_prefix="RM_",
+        env_file_encoding="utf-8",
+    )
 
     host: str = "127.0.0.1"
     port: int = 8000
@@ -54,18 +53,21 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Current environment
     environment: str = "dev"
 
-    # Set log_level (str) and log_level_int (int) for later use
-    # if log_level is not set, then log level will be DEBUG
+    # Set log_level - default is DEBUG
     log_level: LogLevel = LogLevel.DEBUG
-    log_level_int: int = logging.DEBUG
-    if log_level == "INFO":
-        log_level_int = logging.INFO
-    elif log_level == "WARNING":
-        log_level_int = logging.WARNING
-    elif log_level == "ERROR":
-        log_level_int = logging.ERROR
-    elif log_level == "FATAL":
-        log_level_int = logging.FATAL
+
+    @property
+    def log_level_int(self) -> int:
+        """Return the integer log level based on the LogLevel enum"""
+        level_map = {
+            LogLevel.NOTSET: logging.NOTSET,
+            LogLevel.DEBUG: logging.DEBUG,
+            LogLevel.INFO: logging.INFO,
+            LogLevel.WARNING: logging.WARNING,
+            LogLevel.ERROR: logging.ERROR,
+            LogLevel.FATAL: logging.FATAL,
+        }
+        return level_map.get(self.log_level, logging.DEBUG)
 
     # Manifest file from kraftwerk
     integration_api_port: int = 4625
@@ -95,12 +97,12 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     ocsprest_port: str = "8887"
     cfssl_timeout: float = 2.5
 
-    persistent_data_dir = "/data/persistent"
+    persistent_data_dir: str = "/data/persistent"
 
     # mtls
     mtls_client_cert_path: Optional[str] = None
     mtls_client_key_path: Optional[str] = None
-    mtls_client_cert_cn = "rasenmaeher"
+    mtls_client_cert_cn: str = "rasenmaeher"
 
     # LDAP configuration
     ldap_conn_string: Optional[str] = None

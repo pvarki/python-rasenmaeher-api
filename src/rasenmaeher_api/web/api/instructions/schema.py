@@ -1,10 +1,9 @@
 """Instruction response schemas"""
 
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import BaseModel, Field, ConfigDict, RootModel
 from libpvarki.schemas.product import UserInstructionFragment
-from pydantic_collections import BaseCollectionModel
 
 # pylint: disable=too-few-public-methods
 
@@ -12,15 +11,9 @@ from pydantic_collections import BaseCollectionModel
 class AllProductsInstructionFragments(BaseModel):
     """DEPRECATED! Fragments for all products"""
 
-    fragments: Dict[str, Optional[UserInstructionFragment]] = Field(
-        description="Instructions keyed by product short name, if fetching of fragment failed value for that product is null"  # pylint: disable=C0301
-    )
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
-        schema_extra = {
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
             "examples": [
                 {
                     "fragments": {
@@ -32,64 +25,52 @@ class AllProductsInstructionFragments(BaseModel):
                     }
                 },
             ],
-        }
+        },
+    )
+
+    fragments: Dict[str, Optional[UserInstructionFragment]] = Field(
+        description="Instructions keyed by product short name, if fetching of fragment failed value for that product is null"  # pylint: disable=C0301
+    )
 
 
 class ProductFile(BaseModel):  # pylint: disable=too-few-public-methods
     """File description"""
 
+    model_config = ConfigDict(extra="forbid")
+
     title: str = Field(description="Title for the file")
     filename: str = Field(description="file name")
     data: str = Field(description="data-url for the file")
 
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
 
-        extra = Extra.forbid
-
-
-class ProductFileList(BaseCollectionModel[ProductFile]):  # type: ignore[misc]
+class ProductFileList(RootModel[List[ProductFile]]):
     """List of files"""
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Pydantic configs"""
-
-        extra = Extra.forbid
 
 
 class AllProductsInstructionFiles(BaseModel):
     """DEPRECATED! user files for all products"""
 
+    model_config = ConfigDict(extra="forbid")
+
     files: Dict[str, Optional[ProductFileList]] = Field(
         description="files keyed by product short name, if fetching failed value for that product is null"
     )
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
 
 
 # FIXME: Move to libpvarki
 class InstructionData(BaseModel):
     """Instruction data response"""
 
+    model_config = ConfigDict(extra="forbid")
+
     callsign: str = Field(description="Which callsign this was created for (can be used for sanity-checking)")
     language: str = Field(description="Language that was resolved, might not be same as requested")
     instructions: Any = Field(description="The actual instruction data, in whatever format the React UI wants it")
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
 
 
 class ProductData(BaseModel):
     """Product user data for modular UI"""
 
+    model_config = ConfigDict(extra="forbid")
+
     data: Dict[str, Any] = Field(description="User data required for modular UI.")
-
-    class Config:  # pylint: disable=too-few-public-methods
-        """Example values for schema"""
-
-        extra = Extra.forbid
