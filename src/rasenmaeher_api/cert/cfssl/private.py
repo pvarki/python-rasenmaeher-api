@@ -12,7 +12,7 @@ from libadvian.tasks import TaskMaster
 
 from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, ocsprest_base, DBLocked, default_timeout
 from .mtls import mtls_session
-from ..rmsettings import RMSettings
+from ...rmsettings import RMSettings
 
 
 LOGGER = logging.getLogger(__name__)

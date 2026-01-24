@@ -12,7 +12,7 @@ from libadvian.tasks import TaskMaster
 
 from .rmsettings import RMSettings
 from .mtlsinit import get_session_winit
-from .cfssl.private import refresh_ocsp
+from .cert import refresh_ocsp
 
 LOGGER = logging.getLogger(__name__)
 

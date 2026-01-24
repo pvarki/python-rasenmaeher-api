@@ -22,6 +22,13 @@ class LogLevel(str, enum.Enum):  # noqa: WPS600
     FATAL = "FATAL"
 
 
+class CertBackend(str, enum.Enum):  # noqa: WPS600
+    """Available certificate backend implementations."""
+
+    CFSSL = "cfssl"
+    CERT_MANAGER = "cert_manager"
+
+
 class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     """
     Application settings.
@@ -77,6 +84,9 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Sentry's configuration.
     sentry_dsn: Optional[str] = None
     sentry_sample_rate: float = 1.0
+
+    # Certificate backend selection
+    cert_backend: CertBackend = CertBackend.CFSSL
 
     # Cfssl configuration
     cfssl_host: str = "http://127.0.0.1"

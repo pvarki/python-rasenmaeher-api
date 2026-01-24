@@ -11,10 +11,28 @@ import aiohttp
 import filelock
 
 
-from .cfssl.anoncsr import anon_sign_csr
-from .rmsettings import switchme_to_singleton_call
+from .rmsettings import switchme_to_singleton_call, RMSettings, CertBackend
 
 LOGGER = logging.getLogger(__name__)
+
+
+async def _anon_sign_csr(csr: str) -> str:
+    """Lazy import wrapper to avoid circular imports.
+
+    The circular import chain is:
+    productapihelpers -> mtlsinit -> cert.cfssl.anoncsr (at module load)
+    productapihelpers -> cert/__init__ -> cfssl/__init__ -> private -> mtls -> mtlsinit.get_session_winit
+    """
+    backend = RMSettings.singleton().cert_backend
+    if backend == CertBackend.CERT_MANAGER:
+        from .cert.cert_manager.anoncsr import anon_sign_csr  # pylint: disable=import-outside-toplevel
+    elif backend == CertBackend.CFSSL:
+        from .cert.cfssl.anoncsr import anon_sign_csr  # pylint: disable=import-outside-toplevel
+    else:
+        raise ValueError(f"Unknown cert backend: {backend}")
+    return await anon_sign_csr(csr)
+
+
 CERT_NAME_PREFIX = "rm_mtls_client"
 
 
@@ -75,7 +93,7 @@ async def mtls_init() -> None:
         LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
         keypair = await async_create_keypair(privkeypath, pubkeypath)
         csrpem = await async_create_client_csr(keypair, csrpath, {"CN": switchme_to_singleton_call.mtls_client_cert_cn})
-        certpem = (await anon_sign_csr(csrpem)).replace("\\n", "\n")
+        certpem = (await _anon_sign_csr(csrpem)).replace("\\n", "\n")
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")

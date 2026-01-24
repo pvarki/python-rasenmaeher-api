@@ -7,34 +7,33 @@ import ssl
 import aiohttp
 from libpvarki.mtlshelp.context import get_ca_context
 
-from ..rmsettings import RMSettings
+from ...rmsettings import RMSettings
+from ..errors import CertError, NoResult, ErrorResult, DBLocked, NoValue
 
 LOGGER = logging.getLogger(__name__)
+
+__all__ = [
+    "CFSSLError",
+    "NoResult",
+    "ErrorResult",
+    "DBLocked",
+    "NoValue",
+    "default_timeout",
+    "get_result",
+    "get_result_cert",
+    "get_result_bundle",
+    "base_url",
+    "ocsprest_base",
+    "anon_session",
+]
+
+# Backward compatibility alias
+CFSSLError = CertError
 
 
 def default_timeout() -> aiohttp.ClientTimeout:
     """Return configured timeout wrapped in the new aiohttp way"""
     return aiohttp.ClientTimeout(total=RMSettings.singleton().cfssl_timeout)
-
-
-class CFSSLError(RuntimeError):
-    """CFSSL errors"""
-
-
-class NoResult(CFSSLError, ValueError):
-    """Did not get any result"""
-
-
-class ErrorResult(CFSSLError, ValueError):
-    """Did not get any result"""
-
-
-class DBLocked(CFSSLError):
-    """Database is locked, we should probably retry"""
-
-
-class NoValue(CFSSLError, ValueError):
-    """Did not get expected values"""
 
 
 async def get_result(response: aiohttp.ClientResponse) -> Any:
