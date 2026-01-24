@@ -27,6 +27,11 @@ jobs:
       PIP_INDEX_URL: https://nexus.dev.pvarki.fi/repository/python/simple
       POETRY_PYPI_MIRROR_URL: https://nexus.dev.pvarki.fi/repository/python/simple
     steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: actions/checkout@v5
         with:
           submodules: recursive
@@ -66,6 +71,11 @@ jobs:
   docker_builds:
     runs-on: arc-runner-set
     steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - uses: actions/checkout@v5
         with:
           submodules: recursive
