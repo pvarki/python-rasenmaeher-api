@@ -26,7 +26,7 @@ x-cfssl_env: &cfssl_env
 
 services:
   cfssl:
-    image: pvarki/cfssl:api-latest
+    image: ${PVARKI_DOCKER_REPO:-group.docker.nexus.dev.pvarki.fi/}pvarki/cfssl:api-1.2.0-d2.3.0-local
     build:
       context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
       dockerfile: Dockerfile
@@ -48,7 +48,7 @@ services:
       start_period: 5s
 
   ocsprest:
-    image: pvarki/cfssl:ocsprest-latest
+    image: ${PVARKI_DOCKER_REPO:-group.docker.nexus.dev.pvarki.fi/}pvarki/cfssl:ocsprest-1.0.6-d2.3.0-local
     build:
       context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
       dockerfile: Dockerfile
@@ -147,7 +147,7 @@ services:
         condition: service_healthy
 
   postgres:
-    image: postgres:12
+    image: ${HUB_DOCKER_REPO:-group.docker.nexus.dev.pvarki.fi/}postgres:12
     volumes:
       - ./pg_init:/docker-entrypoint-initdb.d
       - pg_data:/var/lib/postgresql/data
