@@ -3,7 +3,6 @@
 from typing import List, Optional
 import logging
 
-
 from fastapi import APIRouter, Depends
 from libpvarki.schemas.generic import OperationResultResponse
 
@@ -14,7 +13,7 @@ from .schema import (
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ....db import Person
-from ....db.errors import BackendError
+from ....db.errors import BackendError, NotFound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -108,10 +107,33 @@ async def request_people_list_byrole(role: str) -> PeopleListOut:
 )
 async def delete_person(callsign: str) -> OperationResultResponse:
     """delete==revoke a callsign"""
-    person = await Person.by_callsign(callsign)
+    try:
+        person = await Person.by_callsign(callsign)
+    except NotFound:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User revocation failed - user not found: %s",
+            callsign,
+        )
+        return OperationResultResponse(success=False, error="User not found")
+
     try:
         deleted = await person.delete()
+        if deleted:
+            LOGGER.audit(  # type: ignore[attr-defined]
+                "User revoked: %s",
+                callsign,
+            )
+        else:
+            LOGGER.audit(  # type: ignore[attr-defined]
+                "User revocation returned false: %s",
+                callsign,
+            )
         return OperationResultResponse(success=deleted)
     except BackendError as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User revocation failed - backend error for %s: %s",
+            callsign,
+            exc,
+        )
         LOGGER.error("Backend failure: {}".format(exc))
         return OperationResultResponse(success=False, error=str(exc))
