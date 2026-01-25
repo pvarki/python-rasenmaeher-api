@@ -36,19 +36,26 @@ async def get_check_code(
     try:
         res = await LoginCode.by_code(code=params.temp_admin_code)
     except NotFound:
+        # Note: This also triggers when UI checks if an invitecode is a firstuser code
+        # which is normal flow - not logging at audit level to avoid noise
+        LOGGER.debug("First user code check - code not found")
         return FirstuserCheckCodeOut(code_ok=False)
 
     # This error should already be raised in LoginCode
     if not res:
+        LOGGER.audit("First user code check failed - backend error")  # type: ignore[attr-defined]
         _reason = "Error. Undefined backend error q_ssjsfjwe1"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=500, detail=_reason)
 
     # Code already used err.
     if res.used_on is not None:
+        LOGGER.audit("First user code check failed - code already used")  # type: ignore[attr-defined]
         _reason = "Code already used"
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=403, detail=_reason)
+
+    LOGGER.audit("First user code check successful")
 
     return FirstuserCheckCodeOut(code_ok=True)
 
@@ -63,7 +70,13 @@ async def post_admin_add(
     """
     Add callsign aka username/identity. This callsign is also elevated to have managing permissions.
     """
+    callsign = request_in.callsign
+
     if not jwt.get("anon_admin_session", False):
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "First admin creation rejected - JWT missing anon_admin_session claim for: %s",
+            callsign,
+        )
         LOGGER.error("Requesting JWT must have admin session claim")
         raise HTTPException(status_code=403, detail="Forbidden")
 
@@ -73,11 +86,10 @@ async def post_admin_add(
     if not anon_admin_added:
         anon_user = await Person.create_with_cert(callsign="anon_admin", extra={})
         await anon_user.assign_role(role="anon_admin")
+        LOGGER.audit("Bootstrap anon_admin user created")  # type: ignore[attr-defined]
 
     # Create new admin user enrollment
-    enrollment = await Enrollment.create_for_callsign(
-        callsign=request_in.callsign, pool=None, extra={}, csr=request_in.csr
-    )
+    enrollment = await Enrollment.create_for_callsign(callsign=callsign, pool=None, extra={}, csr=request_in.csr)
 
     # Get the anon_admin 'user' that will be used to approve the new admin user
     # and approve the user
@@ -98,11 +110,20 @@ async def post_admin_add(
     role_add_success = await new_admin.assign_role(role="admin")
 
     if role_add_success is False:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "First admin creation failed - user already admin: %s",
+            callsign,
+        )
         reason = "Error. User already admin. This shouldn't happen..."
         LOGGER.error("{} : {}".format(request.url, reason))
         raise HTTPException(status_code=400, detail=reason)
 
     # Create JWT token for new admin user
     code = await LoginCode.create_for_claims(claims={"sub": request_in.callsign})
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "First admin user created successfully: %s",
+        callsign,
+    )
 
     return FirstuserAddAdminOut(admin_added=True, jwt_exchange_code=code)
