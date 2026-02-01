@@ -7,8 +7,9 @@ Assumes nginx overwrites the relevant headers:
 - X-Real-IP
 - X-Forwarded-For
 - X-Request-ID
-- X-SSL-Client-Verify
 - X-SSL-Client-Fingerprint
+- X-ClientCert-DN
+- X-ClientCert-Serial
 """
 
 from __future__ import annotations
@@ -16,7 +17,6 @@ from __future__ import annotations
 from typing import Any, Dict, Optional
 
 from fastapi import Request
-
 
 _MAX_HEADER_LEN = 256
 _MAX_FINGERPRINT_LEN = 128
@@ -27,6 +27,8 @@ def _clean_header(value: Optional[str], *, max_len: int = _MAX_HEADER_LEN) -> st
     if not value:
         return ""
     cleaned = value.strip().replace("\n", "").replace("\r", "")
+    if not cleaned:
+        return ""
     return cleaned[:max_len]
 
 
@@ -40,8 +42,17 @@ def get_audit_request_context(
     *,
     trust_proxy_headers: bool = True,
 ) -> Dict[str, str]:
-    """Extract request context for audit logging."""
-    peer_ip = _clean_header(request.client.host) if request.client and request.client.host else "unknown"
+    """Extract request context for audit logging.
+
+    Returns the following ECS 1.6.0 compliant keys:
+      - source.ip
+      - client.ip
+      - transaction.id
+      - tls.client.hash.sha256 from X-SSL-Client-Fingerprint
+      - tls.client.x509.subject.distinguished_name from X-ClientCert-DN
+      - tls.client.x509.serial_number from X-ClientCert-Serial
+    """
+    client_ip = _clean_header(request.client.host) if request.client and request.client.host else "unknown"
 
     source_ip = "unknown"
     if trust_proxy_headers:
@@ -53,47 +64,51 @@ def get_audit_request_context(
             source_ip = _first_xff_ip(xff)
 
     if source_ip == "unknown":
-        source_ip = peer_ip
+        source_ip = client_ip
 
     ctx: Dict[str, str] = {
-        "source_ip": source_ip,
-        "peer_ip": peer_ip,
+        "source.ip": source_ip,
+        "client.ip": client_ip,
     }
 
     request_id = _clean_header(request.headers.get("X-Request-ID"))
     if request_id:
-        ctx["request_id"] = request_id
-
-    cert_verify = _clean_header(request.headers.get("X-SSL-Client-Verify"))
-    if cert_verify:
-        ctx["cert_verify"] = cert_verify
+        ctx["transaction.id"] = request_id
 
     cert_fp = _clean_header(
         request.headers.get("X-SSL-Client-Fingerprint"),
         max_len=_MAX_FINGERPRINT_LEN,
     )
     if cert_fp:
-        ctx["cert_fp"] = cert_fp
+        ctx["tls.client.hash.sha256"] = cert_fp
 
     cert_dn = _clean_header(request.headers.get("X-ClientCert-DN"))
     if cert_dn:
-        ctx["cert_dn"] = cert_dn
+        ctx["tls.client.x509.subject.distinguished_name"] = cert_dn
 
     cert_serial = _clean_header(request.headers.get("X-ClientCert-Serial"))
     if cert_serial:
-        ctx["cert_serial"] = cert_serial
+        ctx["tls.client.x509.serial_number"] = cert_serial
 
     return ctx
 
 
 def format_audit_request_context(ctx: Dict[str, str]) -> str:
-    """Format request context as a stable, log-friendly string."""
+    """Format request context as a stable, log-friendly string.
+
+    Useful when extra fields aren't ingested into JSON by the log pipeline.
+    """
     parts = [
-        f"source_ip={ctx.get('source_ip', 'unknown')}",
-        f"peer_ip={ctx.get('peer_ip', 'unknown')}",
+        f"source.ip={ctx.get('source.ip', 'unknown')}",
+        f"client.ip={ctx.get('client.ip', 'unknown')}",
     ]
 
-    for key in ("request_id", "cert_verify", "cert_fp", "cert_dn", "cert_serial"):
+    for key in (
+        "transaction.id",
+        "tls.client.hash.sha256",
+        "tls.client.x509.serial_number",
+        "tls.client.x509.subject.distinguished_name",
+    ):
         value = ctx.get(key)
         if value:
             parts.append(f"{key}={value}")
@@ -107,42 +122,42 @@ def build_audit_extra(  # pylint: disable=too-many-arguments
     outcome: str,
     actor: Optional[str] = None,
     target: Optional[str] = None,
-    target_type: str = "user",
     request: Optional[Request] = None,
+    trust_proxy_headers: bool = True,
     **extra_fields: Any,
 ) -> Dict[str, Any]:
-    """Build structured extra dict for audit logging.
+    """Build ECS 1.6.0 compliant extra dict for audit logging.
 
-    Args:
-        action: The action being performed (e.g., "enrollment_approve", "user_promote").
-        outcome: "success" or "failure".
-        actor: The user performing the action (callsign).
-        target: The target of the action (callsign, invitecode_id, etc.).
-        target_type: Type of target ("user", "enrollment", "invitecode").
-        request: FastAPI Request for extracting context headers.
-        **extra_fields: Additional fields to include (e.g., error_code, invitecode_id).
-
-    Returns:
-        Dict suitable for passing to LOGGER.audit(..., extra=).
+    Produces:
+      - event.action
+      - event.outcome
+      - user.name                 (actor)
+      - destination.user.name     (target user)
+      - + request context fields (source.ip, client.ip, transaction.id, tls.client.*)
+      - + extra_fields
     """
     normalized_outcome = outcome.strip().lower()
-    if normalized_outcome not in ("success", "failure"):
+    if normalized_outcome not in ("success", "failure", "unknown"):
         normalized_outcome = "unknown"
 
     extra: Dict[str, Any] = {
-        "rm_audit_action": action,
-        "rm_audit_outcome": normalized_outcome,
+        "event.action": action,
+        "event.outcome": normalized_outcome,
     }
 
     if actor:
-        extra["rm_audit_actor"] = actor
+        extra["user.name"] = actor
 
     if target:
-        extra["rm_audit_target"] = target
-        extra["rm_audit_target_type"] = target_type
+        extra["destination.user.name"] = target
 
     if request:
-        extra.update(get_audit_request_context(request))
+        extra.update(
+            get_audit_request_context(
+                request,
+                trust_proxy_headers=trust_proxy_headers,
+            )
+        )
 
     extra.update(extra_fields)
     return extra
