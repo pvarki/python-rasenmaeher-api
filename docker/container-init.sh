@@ -8,6 +8,8 @@ echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') tak.localmaeh
 echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') kc.localmaeher.dev.pvarki.fi" >>/etc/hosts
 echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') bl.localmaeher.dev.pvarki.fi" >>/etc/hosts
 echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') mtx.localmaeher.dev.pvarki.fi" >>/etc/hosts
+echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') airmarine.localmaeher.dev.pvarki.fi" >>/etc/hosts
+
 
 # Make sure the persistent directories exist
 test -d /data/persistent/private || ( mkdir -p /data/persistent/private && chmod og-rwx /data/persistent/private )
