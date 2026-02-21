@@ -3,7 +3,7 @@
 from typing import List, Optional
 import logging
 
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from libpvarki.schemas.generic import OperationResultResponse
 
 from .schema import (
@@ -111,7 +111,7 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
 
     try:
         person = await Person.by_callsign(callsign)
-    except NotFound:
+    except NotFound as exc:
         LOGGER.audit(  # type: ignore[attr-defined]
             "User revocation failed - user not found",
             extra=build_audit_extra(
@@ -122,8 +122,7 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
                 error_code="USER_NOT_FOUND",
             ),
         )
-        return OperationResultResponse(success=False, error="User not found")
-
+        raise HTTPException(status_code=404, detail="User not found") from exc
     try:
         deleted = await person.delete()
         if deleted:
