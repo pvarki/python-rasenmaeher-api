@@ -3,6 +3,7 @@
 from typing import Dict, Any
 import logging
 from pathlib import Path
+import uuid
 
 
 import pytest
@@ -13,6 +14,12 @@ from libadvian.testhelpers import nice_tmpdir  # pylint: disable=unused-import
 from cryptography import x509
 
 from rasenmaeher_api.rmsettings import RMSettings
+from rasenmaeher_api.db import (
+    Person,
+    EnrollmentPool,
+    EngineWrapper,
+)
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -672,3 +679,27 @@ async def test_enroll_with_csr(  # pylint: disable=R0915, R0914
     LOGGER.debug("DN={} callsign={}".format(dn, callsign))
     assert f"CN={callsign}" in dn
     # TODO: check extensions
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_enrollmentpools_revoked_creator(ginosession: None, tilauspalvelu_jwt_admin_client: TestClient) -> None:
+    """Test that pools list does not die if creator is revoked"""
+    _ = ginosession
+    invitecode = str(uuid.uuid4())
+    person = await Person.create_with_cert("toberevoked")
+    with EngineWrapper.singleton().get_session() as session:
+        pool = EnrollmentPool(owner=person.pk, invitecode=invitecode)
+        session.add(pool)
+        session.commit()
+        session.refresh(pool)
+    await person.revoke("key_compromise")
+    resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/pools")
+    resp.raise_for_status()
+    resp_dict = resp.json()
+    assert "pools" in resp_dict
+    found = False
+    for pool in resp_dict["pools"]:
+        if pool["invitecode"] == invitecode:
+            found = True
+            break
+    assert found
