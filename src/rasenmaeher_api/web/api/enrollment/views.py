@@ -199,7 +199,6 @@ async def request_enrollment_init(
     Add new callsign (enrollment) to environment.
     """
     callsign = request_in.callsign
-    actor = request.state.mtls_or_jwt.userid
 
     # TODO ADD POOL NAME CHECK
 
@@ -213,7 +212,6 @@ async def request_enrollment_init(
         extra=build_audit_extra(
             action="enrollment_init",
             outcome="success",
-            actor=actor,
             target=callsign,
             request=request,
         ),
@@ -235,7 +233,6 @@ async def request_enrollment_promote(
     "Promote" callsign/user/enrollment to have 'admin' rights
     """
     target_callsign = request_in.callsign
-    actor = request.state.mtls_or_jwt.userid
 
     try:
         obj = await Person.by_callsign(callsign=target_callsign)
@@ -245,7 +242,6 @@ async def request_enrollment_promote(
             extra=build_audit_extra(
                 action="user_promote",
                 outcome="failure",
-                actor=actor,
                 target=target_callsign,
                 request=request,
                 error_code="USER_NOT_FOUND",
@@ -260,7 +256,6 @@ async def request_enrollment_promote(
             extra=build_audit_extra(
                 action="user_promote",
                 outcome="success",
-                actor=actor,
                 target=target_callsign,
                 request=request,
             ),
@@ -272,7 +267,6 @@ async def request_enrollment_promote(
         extra=build_audit_extra(
             action="user_promote",
             outcome="failure",
-            actor=actor,
             target=target_callsign,
             request=request,
             error_code="ALREADY_ADMIN",
@@ -296,7 +290,6 @@ async def request_enrollment_demote(
     "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
     """
     target_callsign = request_in.callsign
-    actor = request.state.mtls_or_jwt.userid
 
     try:
         obj = await Person.by_callsign(callsign=target_callsign)
@@ -306,7 +299,6 @@ async def request_enrollment_demote(
             extra=build_audit_extra(
                 action="user_demote",
                 outcome="failure",
-                actor=actor,
                 target=target_callsign,
                 request=request,
                 error_code="USER_NOT_FOUND",
@@ -321,7 +313,6 @@ async def request_enrollment_demote(
             extra=build_audit_extra(
                 action="user_demote",
                 outcome="success",
-                actor=actor,
                 target=target_callsign,
                 request=request,
             ),
@@ -333,7 +324,6 @@ async def request_enrollment_demote(
         extra=build_audit_extra(
             action="user_demote",
             outcome="failure",
-            actor=actor,
             target=target_callsign,
             request=request,
             error_code="NOT_ADMIN",
@@ -368,7 +358,6 @@ async def request_enrollment_lock(
             extra=build_audit_extra(
                 action="enrollment_lock",
                 outcome="failure",
-                actor=actor,
                 target=target_callsign,
                 request=request,
                 error_code="NOT_FOUND",
@@ -383,7 +372,6 @@ async def request_enrollment_lock(
         extra=build_audit_extra(
             action="enrollment_lock",
             outcome="success",
-            actor=actor,
             target=target_callsign,
             request=request,
         ),
@@ -416,7 +404,6 @@ async def post_enrollment_accept(
             extra=build_audit_extra(
                 action="enrollment_approve",
                 outcome="failure",
-                actor=actor,
                 target=target_callsign,
                 request=request,
                 error_code="NOT_FOUND",
@@ -430,7 +417,6 @@ async def post_enrollment_accept(
             extra=build_audit_extra(
                 action="enrollment_approve",
                 outcome="failure",
-                actor=actor,
                 target=target_callsign,
                 request=request,
                 error_code="INVALID_APPROVECODE",
@@ -445,7 +431,6 @@ async def post_enrollment_accept(
         extra=build_audit_extra(
             action="enrollment_approve",
             outcome="success",
-            actor=actor,
             target=target_callsign,
             request=request,
         ),
@@ -463,7 +448,6 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
     """
     Create a new invite code
     """
-    actor = request.state.mtls_or_jwt.userid
 
     pool = await EnrollmentPool.create_for_owner(request.state.person)
 
@@ -472,7 +456,6 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
         extra=build_audit_extra(
             action="invitecode_create",
             outcome="success",
-            actor=actor,
             request=request,
             invitecode_id=str(pool.pk),
         ),
@@ -489,7 +472,6 @@ async def put_activate_invite_code(
     """
     Activate an invite code
     """
-    actor = request.state.mtls_or_jwt.userid
 
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
@@ -499,7 +481,6 @@ async def put_activate_invite_code(
             extra=build_audit_extra(
                 action="invitecode_activate",
                 outcome="failure",
-                actor=actor,
                 request=request,
                 error_code="NOT_FOUND",
             ),
@@ -514,7 +495,6 @@ async def put_activate_invite_code(
             extra=build_audit_extra(
                 action="invitecode_activate",
                 outcome="success",
-                actor=actor,
                 request=request,
                 invitecode_id=str(obj.pk),
             ),
@@ -526,7 +506,6 @@ async def put_activate_invite_code(
         extra=build_audit_extra(
             action="invitecode_activate",
             outcome="failure",
-            actor=actor,
             request=request,
             invitecode_id=str(obj.pk),
             error_code="ACTIVATION_FAILED",
@@ -545,7 +524,6 @@ async def put_deactivate_invite_code(
     """
     Deactivate an invite code
     """
-    actor = request.state.mtls_or_jwt.userid
 
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
@@ -555,7 +533,6 @@ async def put_deactivate_invite_code(
             extra=build_audit_extra(
                 action="invitecode_deactivate",
                 outcome="failure",
-                actor=actor,
                 request=request,
                 error_code="NOT_FOUND",
             ),
@@ -570,7 +547,6 @@ async def put_deactivate_invite_code(
             extra=build_audit_extra(
                 action="invitecode_deactivate",
                 outcome="success",
-                actor=actor,
                 request=request,
                 invitecode_id=str(obj.pk),
             ),
@@ -582,7 +558,6 @@ async def put_deactivate_invite_code(
         extra=build_audit_extra(
             action="invitecode_deactivate",
             outcome="failure",
-            actor=actor,
             request=request,
             invitecode_id=str(obj.pk),
             error_code="DEACTIVATION_FAILED",
@@ -601,7 +576,6 @@ async def delete_invite_code(
     """
     Delete an invite code
     """
-    actor = request.state.mtls_or_jwt.userid
 
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
@@ -613,7 +587,6 @@ async def delete_invite_code(
             extra=build_audit_extra(
                 action="invitecode_delete",
                 outcome="success",
-                actor=actor,
                 request=request,
                 invitecode_id=pool_pk,
             ),
@@ -626,7 +599,6 @@ async def delete_invite_code(
             extra=build_audit_extra(
                 action="invitecode_delete",
                 outcome="failure",
-                actor=actor,
                 request=request,
                 error_code="NOT_FOUND",
             ),

@@ -45,8 +45,8 @@ def _resolve_actor_from_request(
     """Resolve the actor (caller identity) from request headers.
 
     Resolution order:
-      1) X-ClientCert-DN (subject DN) -- best "who presented this cert"
-      2) X-SSL-Client-Fingerprint     -- stable identifier if DN missing
+      1) Extract CN value from X-ClientCert-DN (e.g. "CN=ffdf" -> "ffdf")
+      2) X-SSL-Client-Fingerprint (fallback stable identifier)
       3) "unknown"
 
     :param request: Incoming FastAPI request.
@@ -58,7 +58,12 @@ def _resolve_actor_from_request(
 
     cert_dn = _clean_header(request.headers.get("X-ClientCert-DN"))
     if cert_dn:
-        return cert_dn
+        # Expected modern nginx format: RFC2253 style
+        # Example: "CN=ffdf" or "CN=ffdf,O=Org,C=FI"
+        for rdn in cert_dn.split(","):
+            key, _, value = rdn.strip().partition("=")
+            if key.upper() == "CN" and value:
+                return value.strip()
 
     cert_fp = _clean_header(
         request.headers.get("X-SSL-Client-Fingerprint"),
