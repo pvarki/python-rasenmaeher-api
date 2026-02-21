@@ -1,5 +1,3 @@
-version: '3.4'
-
 x-raesenmaeher_dbconfig_env: &rmdbconfig_env
   RM_DATABASE_NAME: &rmdbname raesenmaeher
   RM_DATABASE_HOST: postgres
