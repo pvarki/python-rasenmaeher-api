@@ -78,6 +78,7 @@ priority = "explicit"
 python = "^3.11"
 libadvian = "^1.6"
 click = "^8.0"
+cryptography = ">=46.0.5"
 fastapi = ">=0.89,<1.0"  # caret behaviour on 0.x is to lock to 0.x.*
 pydantic = ">=2.0,<3.0"
 pydantic-settings = ">=2.0,<3.0"
@@ -85,7 +86,7 @@ requests = "^2.31"
 multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
-pyopenssl = "^23.1"
+pyopenssl = ">=25.3"
 libpvarki = { version="^2.0", source="nexuslocal"}
 openapi-readme = "^0.2"
 python-multipart = ">=0.0.21,<1.0.0"
