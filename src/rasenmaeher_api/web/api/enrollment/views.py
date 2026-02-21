@@ -698,6 +698,7 @@ async def post_enroll_invite_code(
         extra=build_audit_extra(
             action="enrollment_invitecode",
             outcome="success",
+            actor=callsign,
             target=callsign,
             request=request,
             invitecode_id=str(obj.pk),
