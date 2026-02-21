@@ -1,5 +1,6 @@
 """Init mTLS client cert for RASENMAEHER itself"""
 
+from typing import Optional
 import asyncio
 from pathlib import Path
 import logging
@@ -10,7 +11,7 @@ from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair
 import aiohttp
 import filelock
 
-
+from .cert.cfssl import CFSSLError
 from .rmsettings import switchme_to_singleton_call, RMSettings, CertBackend
 
 LOGGER = logging.getLogger(__name__)
@@ -85,15 +86,28 @@ async def mtls_init() -> None:
     # Random sleep to avoid race conditions on these file accesses
     await asyncio.sleep(random.random() * 3.0)  # nosec
     lock = filelock.FileLock(lockpath)
+    csrpem: Optional[str] = None
     try:
         lock.acquire(timeout=0.0)
         # Check the privkey again to avoid overwriting.
-        if privkeypath.exists():
-            return None
-        LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
-        keypair = await async_create_keypair(privkeypath, pubkeypath)
-        csrpem = await async_create_client_csr(keypair, csrpath, {"CN": switchme_to_singleton_call.mtls_client_cert_cn})
-        certpem = (await _anon_sign_csr(csrpem)).replace("\\n", "\n")
+        if not privkeypath.exists():
+            LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
+            keypair = await async_create_keypair(privkeypath, pubkeypath)
+            LOGGER.debug("Creating mTLS client CSR")
+            csrpem = await async_create_client_csr(
+                keypair, csrpath, {"CN": switchme_to_singleton_call.mtls_client_cert_cn}
+            )
+        if not certpath.exists():
+            if not csrpem:
+                LOGGER.debug("Loading mTLS client CSR from {}".format(csrpath))
+                csrpem = csrpath.read_text()
+            try:
+                LOGGER.debug("Getting CSR signed")
+                certpem = (await _anon_sign_csr(csrpem)).replace("\\n", "\n")
+                LOGGER.debug("Saving mTLS cert to {}".format(certpath))
+                certpath.write_text(certpem, encoding="ascii")
+            except CFSSLError as exc:
+                LOGGER.exception("Signing failed: {}".format(exc))
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")
@@ -101,7 +115,6 @@ async def mtls_init() -> None:
         return await mtls_init()
     finally:
         lock.release()
-    certpath.write_text(certpem, encoding="ascii")
 
 
 async def get_session_winit() -> aiohttp.ClientSession:
