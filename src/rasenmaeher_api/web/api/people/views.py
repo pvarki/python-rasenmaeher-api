@@ -108,7 +108,6 @@ async def request_people_list_byrole(role: str) -> PeopleListOut:
 )
 async def delete_person(request: Request, callsign: str) -> OperationResultResponse:
     """delete==revoke a callsign"""
-    actor = request.state.mtls_or_jwt.userid
 
     try:
         person = await Person.by_callsign(callsign)
@@ -118,7 +117,6 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
             extra=build_audit_extra(
                 action="user_revoke",
                 outcome="failure",
-                actor=actor,
                 target=callsign,
                 request=request,
                 error_code="USER_NOT_FOUND",
@@ -134,7 +132,6 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
                 extra=build_audit_extra(
                     action="user_revoke",
                     outcome="success",
-                    actor=actor,
                     target=callsign,
                     request=request,
                 ),
@@ -145,7 +142,6 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
                 extra=build_audit_extra(
                     action="user_revoke",
                     outcome="failure",
-                    actor=actor,
                     target=callsign,
                     request=request,
                     error_code="DELETE_RETURNED_FALSE",
@@ -158,7 +154,6 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
             extra=build_audit_extra(
                 action="user_revoke",
                 outcome="failure",
-                actor=actor,
                 target=callsign,
                 request=request,
                 error_code="BACKEND_ERROR",
