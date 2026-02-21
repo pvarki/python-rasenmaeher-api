@@ -37,6 +37,39 @@ def _first_xff_ip(xff: str) -> str:
     return xff.split(",", maxsplit=1)[0].strip()
 
 
+def _resolve_actor_from_request(
+    request: Request,
+    *,
+    trust_proxy_headers: bool = True,
+) -> str:
+    """Resolve the actor (caller identity) from request headers.
+
+    Resolution order:
+      1) X-ClientCert-DN (subject DN) -- best "who presented this cert"
+      2) X-SSL-Client-Fingerprint     -- stable identifier if DN missing
+      3) "unknown"
+
+    :param request: Incoming FastAPI request.
+    :param trust_proxy_headers: Whether to trust proxy-set headers.
+    :returns: A best-effort actor string.
+    """
+    if not trust_proxy_headers:
+        return "unknown"
+
+    cert_dn = _clean_header(request.headers.get("X-ClientCert-DN"))
+    if cert_dn:
+        return cert_dn
+
+    cert_fp = _clean_header(
+        request.headers.get("X-SSL-Client-Fingerprint"),
+        max_len=_MAX_FINGERPRINT_LEN,
+    )
+    if cert_fp:
+        return cert_fp
+
+    return "unknown"
+
+
 def get_audit_request_context(
     request: Request,
     *,
@@ -131,10 +164,15 @@ def build_audit_extra(  # pylint: disable=too-many-arguments
     Produces:
       - event.action
       - event.outcome
-      - user.name                 (actor)
-      - destination.user.name     (target user)
+      - user.name                 (actor; defaults from request headers if request provided)
+      - destination.user.name     (target user / subject)
       - + request context fields (source.ip, client.ip, transaction.id, tls.client.*)
       - + extra_fields
+
+    Actor defaulting policy:
+      - If actor is explicitly provided -> use it.
+      - Else if request is provided -> derive from certificate / fingerprint headers.
+      - Else -> omit user.name.
     """
     normalized_outcome = outcome.strip().lower()
     if normalized_outcome not in ("success", "failure", "unknown"):
@@ -145,8 +183,15 @@ def build_audit_extra(  # pylint: disable=too-many-arguments
         "event.outcome": normalized_outcome,
     }
 
-    if actor:
-        extra["user.name"] = actor
+    resolved_actor = actor
+    if not resolved_actor and request is not None:
+        resolved_actor = _resolve_actor_from_request(
+            request,
+            trust_proxy_headers=trust_proxy_headers,
+        )
+
+    if resolved_actor:
+        extra["user.name"] = resolved_actor
 
     if target:
         extra["destination.user.name"] = target
