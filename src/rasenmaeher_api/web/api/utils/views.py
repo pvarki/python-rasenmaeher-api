@@ -9,7 +9,7 @@ from libpvarki.middleware.mtlsheader import MTLSHeader
 
 from .schema import LdapConnString
 from ....rmsettings import RMSettings
-from ....cert import get_ocsprest_crl
+from ....cert.backend import get_ocsprest_crl
 from ....jwtinit import resolve_rm_jwt_pubkey_path
 
 

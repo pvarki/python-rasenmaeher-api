@@ -11,7 +11,7 @@ from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair
 import aiohttp
 import filelock
 
-from .cert.cfssl import CFSSLError
+from .cert.errors import CertError
 from .rmsettings import RMSettings, CertBackend
 
 LOGGER = logging.getLogger(__name__)
@@ -103,7 +103,7 @@ async def mtls_init() -> None:
                 certpem = (await _anon_sign_csr(csrpem)).replace("\\n", "\n")
                 LOGGER.debug("Saving mTLS cert to {}".format(certpath))
                 certpath.write_text(certpem, encoding="ascii")
-            except CFSSLError as exc:
+            except CertError as exc:
                 LOGGER.exception("Signing failed: {}".format(exc))
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
