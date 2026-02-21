@@ -85,8 +85,8 @@ requests = "^2.31"
 multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
-pyopenssl = "^25.3.0"
-libpvarki = { version="^2.2.0", source="nexuslocal"}
+pyopenssl = "^25.3"
+libpvarki = { version="^2.2", source="nexuslocal"}
 openapi-readme = "^0.2"
 python-multipart = ">=0.0.21,<1.0.0"
 aiohttp = ">=3.11.10,<4.0"
