@@ -15,11 +15,14 @@ Assumes nginx overwrites the relevant headers:
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
+import logging
 
+from cryptography import x509
 from fastapi import Request
 
 _MAX_HEADER_LEN = 256
 _MAX_FINGERPRINT_LEN = 128
+LOGGER = logging.getLogger(__name__)
 
 
 def _clean_header(value: Optional[str], *, max_len: int = _MAX_HEADER_LEN) -> str:
@@ -58,12 +61,13 @@ def _resolve_actor_from_request(
 
     cert_dn = _clean_header(request.headers.get("X-ClientCert-DN"))
     if cert_dn:
-        # Expected modern nginx format: RFC2253 style
-        # Example: "CN=ffdf" or "CN=ffdf,O=Org,C=FI"
-        for rdn in cert_dn.split(","):
-            key, _, value = rdn.strip().partition("=")
-            if key.upper() == "CN" and value:
-                return value.strip()
+        try:
+            name = x509.Name.from_rfc4514_string(cert_dn)
+            cn_attrs = name.get_attributes_for_oid(x509.oid.NameOID.COMMON_NAME)
+            if cn_attrs and isinstance(cn_attrs[0].value, str):
+                return cn_attrs[0].value
+        except ValueError:
+            LOGGER.debug("Failed to parse X-ClientCert-DN as RFC 4514: %s", cert_dn)
 
     cert_fp = _clean_header(
         request.headers.get("X-SSL-Client-Fingerprint"),
