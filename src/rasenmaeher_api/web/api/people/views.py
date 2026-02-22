@@ -3,8 +3,7 @@
 from typing import List, Optional
 import logging
 
-
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Request, Depends, HTTPException
 from libpvarki.schemas.generic import OperationResultResponse
 
 from .schema import (
@@ -13,8 +12,9 @@ from .schema import (
 )
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
+from ..utils.auditcontext import build_audit_extra
 from ....db import Person
-from ....db.errors import BackendError
+from ....db.errors import BackendError, NotFound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -106,12 +106,58 @@ async def request_people_list_byrole(role: str) -> PeopleListOut:
     response_model=OperationResultResponse,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def delete_person(callsign: str) -> OperationResultResponse:
+async def delete_person(request: Request, callsign: str) -> OperationResultResponse:
     """delete==revoke a callsign"""
-    person = await Person.by_callsign(callsign)
+
+    try:
+        person = await Person.by_callsign(callsign)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User revocation failed - user not found",
+            extra=build_audit_extra(
+                action="user_revoke",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="USER_NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="User not found") from exc
     try:
         deleted = await person.delete()
+        if deleted:
+            LOGGER.audit(  # type: ignore[attr-defined]
+                "User revoked",
+                extra=build_audit_extra(
+                    action="user_revoke",
+                    outcome="success",
+                    target=callsign,
+                    request=request,
+                ),
+            )
+        else:
+            LOGGER.audit(  # type: ignore[attr-defined]
+                "User revocation returned false",
+                extra=build_audit_extra(
+                    action="user_revoke",
+                    outcome="failure",
+                    target=callsign,
+                    request=request,
+                    error_code="DELETE_RETURNED_FALSE",
+                ),
+            )
         return OperationResultResponse(success=deleted)
     except BackendError as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User revocation failed - backend error",
+            extra=build_audit_extra(
+                action="user_revoke",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="BACKEND_ERROR",
+                error_message=str(exc),
+            ),
+        )
         LOGGER.error("Backend failure: {}".format(exc))
         return OperationResultResponse(success=False, error=str(exc))

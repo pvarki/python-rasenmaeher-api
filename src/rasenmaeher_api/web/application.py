@@ -6,7 +6,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from libpvarki.logging import init_logging
+from libpvarki.logging import init_logging, add_trace_and_audit
 import aiohttp
 from libadvian.tasks import TaskMaster
 
@@ -55,6 +55,7 @@ def get_app_no_init() -> FastAPI:
 
 def get_app() -> FastAPI:
     """Returns the FastAPI application."""
+    add_trace_and_audit()  # Register AUDIT and TRACE log levels
     init_logging(RMSettings.singleton().log_level_int)
     app = get_app_no_init()
     LOGGER.info("API init done, setting log verbosity to '{}'.".format(RMSettings.singleton().log_level))

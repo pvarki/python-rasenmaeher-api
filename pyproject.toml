@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "1.12.2"
+version = "1.13.0"
 description = "python-rasenmaeher-api"
 authors = [
     "Aciid <703382+Aciid@users.noreply.github.com>",
@@ -86,8 +86,8 @@ requests = "^2.31"
 multikeyjwt = "^1.0"
 uvicorn = {version = "^0.20", extras = ["standard"]}
 gunicorn = "^20.1"
-pyopenssl = ">=25.3"
-libpvarki = { version="^2.0", source="nexuslocal"}
+pyopenssl = "^25.3"
+libpvarki = { version="^2.2", source="nexuslocal"}
 openapi-readme = "^0.2"
 python-multipart = ">=0.0.21,<1.0.0"
 aiohttp = ">=3.11.10,<4.0"
@@ -114,7 +114,6 @@ bump2version = "^1.0"
 detect-secrets = "^1.2"
 httpx = ">=0.23,<1.0" # caret behaviour on 0.x is to lock to 0.x.*
 types-requests = "^2.31"
-types-pyopenssl = "^23.1"
 async-asgi-testclient = "^1.4"
 pytest-docker = "^2.0"
 flaky = "^3.8"

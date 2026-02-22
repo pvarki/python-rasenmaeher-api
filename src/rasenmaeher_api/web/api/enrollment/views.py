@@ -34,6 +34,7 @@ from .schema import (
 )
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
+from ..utils.auditcontext import build_audit_extra
 from ....db import Person
 from ....db import Enrollment, EnrollmentPool
 from ....db.errors import NotFound
@@ -77,7 +78,21 @@ async def post_generate_verification_code(
     """
     Update/Generate verification_code to database for given jwt/mtls
     """
-    _verification_code = await Enrollment.reset_approvecode4callsign(callsign=request.state.mtls_or_jwt.userid)
+    callsign = request.state.mtls_or_jwt.userid
+
+    _verification_code = await Enrollment.reset_approvecode4callsign(callsign=callsign)
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Verification code generated",
+        extra=build_audit_extra(
+            action="verification_code_generate",
+            outcome="success",
+            actor=callsign,
+            target=callsign,
+            request=request,
+        ),
+    )
+
     return EnrollmentGenVerifiOut(verification_code=f"{_verification_code}")
 
 
@@ -177,20 +192,31 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
 async def request_enrollment_init(
+    request: Request,
     request_in: EnrollmentInitIn = Body(),
 ) -> EnrollmentInitOut:
     """
     Add new callsign (enrollment) to environment.
     """
+    callsign = request_in.callsign
 
     # TODO ADD POOL NAME CHECK
 
-    new_enrollment = await Enrollment.create_for_callsign(
-        callsign=request_in.callsign, pool=None, extra={}, csr=request_in.csr
-    )
+    new_enrollment = await Enrollment.create_for_callsign(callsign=callsign, pool=None, extra={}, csr=request_in.csr)
     # Create JWT token for user
-    claims = {"sub": request_in.callsign}
+    claims = {"sub": callsign}
     new_jwt = Issuer.singleton().issue(claims)
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Enrollment initiated by admin",
+        extra=build_audit_extra(
+            action="enrollment_init",
+            outcome="success",
+            target=callsign,
+            request=request,
+        ),
+    )
+
     return EnrollmentInitOut(callsign=new_enrollment.callsign, jwt=new_jwt, approvecode=new_enrollment.approvecode)
 
 
@@ -206,13 +232,46 @@ async def request_enrollment_promote(
     """
     "Promote" callsign/user/enrollment to have 'admin' rights
     """
+    target_callsign = request_in.callsign
 
-    obj = await Person.by_callsign(callsign=request_in.callsign)
+    try:
+        obj = await Person.by_callsign(callsign=target_callsign)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User promotion failed - user not found",
+            extra=build_audit_extra(
+                action="user_promote",
+                outcome="failure",
+                target=target_callsign,
+                request=request,
+                error_code="USER_NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="User not found") from exc
 
     role_added = await obj.assign_role(role="admin")
     if role_added:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User promoted to admin",
+            extra=build_audit_extra(
+                action="user_promote",
+                outcome="success",
+                target=target_callsign,
+                request=request,
+            ),
+        )
         return OperationResultResponse(success=True, extra="Promote done")
 
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "User promotion failed - already admin",
+        extra=build_audit_extra(
+            action="user_promote",
+            outcome="failure",
+            target=target_callsign,
+            request=request,
+            error_code="ALREADY_ADMIN",
+        ),
+    )
     reason = "Given callsign/callsign already has elevated permissions."
     LOGGER.error("{} : {}".format(request.url, reason))
     raise HTTPException(status_code=400, detail=reason)
@@ -230,12 +289,46 @@ async def request_enrollment_demote(
     """
     "Demote" callsign/user/enrollment from having 'admin' rights. callsign_hash can be used too.
     """
+    target_callsign = request_in.callsign
 
-    obj = await Person.by_callsign(callsign=request_in.callsign)
+    try:
+        obj = await Person.by_callsign(callsign=target_callsign)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User demotion failed - user not found",
+            extra=build_audit_extra(
+                action="user_demote",
+                outcome="failure",
+                target=target_callsign,
+                request=request,
+                error_code="USER_NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="User not found") from exc
+
     _role_removed = await obj.remove_role(role="admin")
     if _role_removed:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User demoted from admin",
+            extra=build_audit_extra(
+                action="user_demote",
+                outcome="success",
+                target=target_callsign,
+                request=request,
+            ),
+        )
         return OperationResultResponse(success=True, extra="Demote done")
 
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "User demotion failed - not an admin",
+        extra=build_audit_extra(
+            action="user_demote",
+            outcome="failure",
+            target=target_callsign,
+            request=request,
+            error_code="NOT_ADMIN",
+        ),
+    )
     _reason = "Given callsign/callsign_hash doesn't have 'admin' privileges to take away."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=400, detail=_reason)
@@ -253,10 +346,36 @@ async def request_enrollment_lock(
     """
     Lock callsign/user/enrollment so it cannot be used anymore.
     """
+    target_callsign = request_in.callsign
+    actor = request.state.mtls_or_jwt.userid
 
-    _admin_person = await Person.by_callsign(request.state.mtls_or_jwt.userid)
-    _usr_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
+    try:
+        _admin_person = await Person.by_callsign(actor)
+        _usr_enrollment = await Enrollment.by_callsign(callsign=target_callsign)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment lock failed - not found",
+            extra=build_audit_extra(
+                action="enrollment_lock",
+                outcome="failure",
+                target=target_callsign,
+                request=request,
+                error_code="NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="Enrollment not found") from exc
+
     await _usr_enrollment.reject(decider=_admin_person)
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Enrollment locked/rejected",
+        extra=build_audit_extra(
+            action="enrollment_lock",
+            outcome="success",
+            target=target_callsign,
+            request=request,
+        ),
+    )
 
     return OperationResultResponse(success=True, extra="Lock task done")
 
@@ -273,12 +392,49 @@ async def post_enrollment_accept(
     """
     Accept callsign_hash (callsign/enrollment)
     """
+    target_callsign = request_in.callsign
+    actor = request.state.mtls_or_jwt.userid
 
-    admin_user = await Person.by_callsign(callsign=request.state.mtls_or_jwt.userid)
-    pending_enrollment = await Enrollment.by_callsign(callsign=request_in.callsign)
+    try:
+        admin_user = await Person.by_callsign(callsign=actor)
+        pending_enrollment = await Enrollment.by_callsign(callsign=target_callsign)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment approval failed - not found",
+            extra=build_audit_extra(
+                action="enrollment_approve",
+                outcome="failure",
+                target=target_callsign,
+                request=request,
+                error_code="NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="Enrollment not found") from exc
+
     if request_in.approvecode != pending_enrollment.approvecode:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment approval failed - invalid approvecode",
+            extra=build_audit_extra(
+                action="enrollment_approve",
+                outcome="failure",
+                target=target_callsign,
+                request=request,
+                error_code="INVALID_APPROVECODE",
+            ),
+        )
         raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
+
     new_approved_user = await pending_enrollment.approve(approver=admin_user)
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Enrollment approved",
+        extra=build_audit_extra(
+            action="enrollment_approve",
+            outcome="success",
+            target=target_callsign,
+            request=request,
+        ),
+    )
 
     return OperationResultResponse(success=True, extra=f"Approved {new_approved_user.callsign}")
 
@@ -292,7 +448,19 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
     """
     Create a new invite code
     """
+
     pool = await EnrollmentPool.create_for_owner(request.state.person)
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Invite code created",
+        extra=build_audit_extra(
+            action="invitecode_create",
+            outcome="success",
+            request=request,
+            invitecode_id=str(pool.pk),
+        ),
+    )
+
     return EnrollmentInviteCodeCreateOut(invite_code=pool.invitecode)
 
 
@@ -304,12 +472,45 @@ async def put_activate_invite_code(
     """
     Activate an invite code
     """
-    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+
+    try:
+        obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Invite code activation failed - not found",
+            extra=build_audit_extra(
+                action="invitecode_activate",
+                outcome="failure",
+                request=request,
+                error_code="NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
+
     _activated_obj = await obj.set_active(state=True)
 
     if _activated_obj.active:
-        return OperationResultResponse(success=True, extra=f"Activated {request_in.invite_code}")
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Invite code activated",
+            extra=build_audit_extra(
+                action="invitecode_activate",
+                outcome="success",
+                request=request,
+                invitecode_id=str(obj.pk),
+            ),
+        )
+        return OperationResultResponse(success=True, extra=f"Activated invite code {obj.pk}")
 
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Invite code activation failed",
+        extra=build_audit_extra(
+            action="invitecode_activate",
+            outcome="failure",
+            request=request,
+            invitecode_id=str(obj.pk),
+            error_code="ACTIVATION_FAILED",
+        ),
+    )
     _reason = "Error. Unable to activate given invitecode."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=500, detail=_reason)
@@ -323,12 +524,45 @@ async def put_deactivate_invite_code(
     """
     Deactivate an invite code
     """
-    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+
+    try:
+        obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Invite code deactivation failed - not found",
+            extra=build_audit_extra(
+                action="invitecode_deactivate",
+                outcome="failure",
+                request=request,
+                error_code="NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
+
     _deactivated_obj = await obj.set_active(state=False)
 
     if _deactivated_obj.active is False:
-        return OperationResultResponse(success=True, extra=f"Disabled {request_in.invite_code}")
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Invite code deactivated",
+            extra=build_audit_extra(
+                action="invitecode_deactivate",
+                outcome="success",
+                request=request,
+                invitecode_id=str(obj.pk),
+            ),
+        )
+        return OperationResultResponse(success=True, extra=f"Disabled invite code {obj.pk}")
 
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Invite code deactivation failed",
+        extra=build_audit_extra(
+            action="invitecode_deactivate",
+            outcome="failure",
+            request=request,
+            invitecode_id=str(obj.pk),
+            error_code="DEACTIVATION_FAILED",
+        ),
+    )
     _reason = "Error. Unable to deactivate given invitecode."
     LOGGER.error("{} : {}".format(request.url, _reason))
     raise HTTPException(status_code=500, detail=_reason)
@@ -336,18 +570,40 @@ async def put_deactivate_invite_code(
 
 @ENROLLMENT_ROUTER.delete("/invitecode/{invite_code}", response_model=OperationResultResponse)
 async def delete_invite_code(
-    # request: Request,
+    request: Request,
     invite_code: str,
 ) -> OperationResultResponse:
     """
     Delete an invite code
     """
+
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=invite_code)
+        pool_pk = str(obj.pk)
         await obj.delete()
+
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Invite code deleted",
+            extra=build_audit_extra(
+                action="invitecode_delete",
+                outcome="success",
+                request=request,
+                invitecode_id=pool_pk,
+            ),
+        )
+
         return OperationResultResponse(success=True, extra="Invitecode was deleted")
-    except NotFound:
-        return OperationResultResponse(success=False, extra="No such invitecode found")
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Invite code deletion failed - not found",
+            extra=build_audit_extra(
+                action="invitecode_delete",
+                outcome="failure",
+                request=request,
+                error_code="NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
 
 
 @NO_JWT_ENROLLMENT_ROUTER.get("/invitecode", response_model=EnrollmentIsInvitecodeActiveOut)
@@ -358,6 +614,8 @@ async def get_invite_codes(
     /invitecode?invitecode=xxx
     Returns true/false if the code is usable or not
     """
+    # Note: This is a check endpoint similar to firstuser/check-code
+    # Not logging at audit level to avoid noise from normal UI flow
     try:
         obj = await EnrollmentPool.by_invitecode(invitecode=params.invitecode)
         if obj.active:
@@ -375,27 +633,76 @@ async def post_enroll_invite_code(
     """
     Enroll with an invite code
     """
+    callsign = request_in.callsign
 
     # CHECK IF INVITE CODE CAN BE USED
-    obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    try:
+        obj = await EnrollmentPool.by_invitecode(invitecode=request_in.invite_code)
+    except NotFound as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment via invitecode failed - code not found",
+            extra=build_audit_extra(
+                action="enrollment_invitecode",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="INVITECODE_NOT_FOUND",
+            ),
+        )
+        raise HTTPException(status_code=404, detail="Invite code not found") from exc
+
     if obj.active is False:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment via invitecode failed - code disabled",
+            extra=build_audit_extra(
+                action="enrollment_invitecode",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="INVITECODE_DISABLED",
+                invitecode_id=str(obj.pk),
+            ),
+        )
         _reason = "Error. invitecode disabled."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
 
     # CHECK THAT THE CALLSIGN CAN BE USED
     try:
-        await Enrollment.by_callsign(callsign=request_in.callsign)
+        await Enrollment.by_callsign(callsign=callsign)
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment via invitecode failed - callsign taken",
+            extra=build_audit_extra(
+                action="enrollment_invitecode",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="CALLSIGN_TAKEN",
+                invitecode_id=str(obj.pk),
+            ),
+        )
         _reason = "Error. callsign/callsign already taken."
         LOGGER.error("{} : {}".format(request.url, _reason))
         raise HTTPException(status_code=400, detail=_reason)
     except NotFound:
         pass
 
-    enrollment = await obj.create_enrollment(callsign=request_in.callsign, csr=request_in.csr)
+    enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr)
 
     # Create JWT token for user
-    claims = {"sub": request_in.callsign}
+    claims = {"sub": callsign}
     new_jwt = Issuer.singleton().issue(claims)
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Enrollment via invitecode successful",
+        extra=build_audit_extra(
+            action="enrollment_invitecode",
+            outcome="success",
+            actor=callsign,
+            target=callsign,
+            request=request,
+            invitecode_id=str(obj.pk),
+        ),
+    )
 
     return EnrollmentInitOut(callsign=enrollment.callsign, jwt=new_jwt, approvecode=enrollment.approvecode)
