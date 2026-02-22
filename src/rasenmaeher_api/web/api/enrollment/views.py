@@ -59,7 +59,7 @@ async def list_pools(owner_cs: Optional[str] = None) -> EnrollmentPoolListOut:
     owner_cache: Dict[uuid.UUID, Person] = {}
     async for pool in EnrollmentPool.list(owner):
         if pool.owner not in owner_cache:
-            owner_cache[pool.owner] = await Person.by_pk(pool.owner)
+            owner_cache[pool.owner] = await Person.by_pk(pool.owner, allow_deleted=True)
         pools.append(
             EnrollmentPoolListItem(
                 invitecode=pool.invitecode,

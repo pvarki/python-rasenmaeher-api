@@ -8,7 +8,7 @@ import cryptography.x509
 import pytest_asyncio
 from async_asgi_testclient import TestClient  # pylint: disable=import-error
 
-from rasenmaeher_api.cert import get_ca, get_crl, validate_reason
+from rasenmaeher_api.cert.backend import get_ca, get_crl, validate_reason
 from rasenmaeher_api.db import Person
 
 

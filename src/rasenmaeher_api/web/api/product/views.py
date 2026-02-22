@@ -18,7 +18,7 @@ from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KC
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....db import Person
-from ....cert import get_ca, get_bundle, sign_csr, revoke_pem, CertError
+from ....cert.backend import get_ca, get_bundle, sign_csr, revoke_pem, CertError
 from ....rmsettings import RMSettings
 from ....kchelpers import KCClient
 from ....productapihelpers import post_to_product
