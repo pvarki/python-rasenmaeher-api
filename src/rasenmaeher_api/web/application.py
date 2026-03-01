@@ -1,11 +1,13 @@
 """Main API entrypoint"""
 
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Dict, Any
 import asyncio
+import datetime
 import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.openapi.utils import get_openapi
 from libpvarki.logging import init_logging, add_trace_and_audit
 import aiohttp
 from libadvian.tasks import TaskMaster
@@ -50,6 +52,22 @@ def get_app_no_init() -> FastAPI:
     app.include_router(router=api_router_v2, prefix="/api/v2")
     # FIXME: figure out WTF mypy wants here, or has FastAPI changed something ?
     app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())  # type: ignore
+
+    def custom_openapi() -> Dict[str, Any]:
+        """Return OpenAPI schema enriched with a generation timestamp."""
+        if app.openapi_schema:
+            return app.openapi_schema
+        openapi_schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            description=app.description,
+            routes=app.routes,
+        )
+        openapi_schema["x-generated-date"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        app.openapi_schema = openapi_schema
+        return app.openapi_schema
+
+    app.openapi = custom_openapi  # type: ignore[method-assign]
     return app
 
 
