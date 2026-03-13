@@ -4,7 +4,6 @@ from typing import Optional, Any, ClassVar, Dict, Set, Union, cast
 from dataclasses import dataclass, field
 import logging
 import uuid
-import json
 
 from libpvarki.schemas.product import UserCRUDRequest
 from pydantic import BaseModel, Field, ConfigDict
