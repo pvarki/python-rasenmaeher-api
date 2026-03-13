@@ -4,7 +4,6 @@ from typing import Optional, Any, ClassVar, Dict, Set, Union, cast
 from dataclasses import dataclass, field
 import logging
 import uuid
-import json
 
 from libpvarki.schemas.product import UserCRUDRequest
 from pydantic import BaseModel, Field, ConfigDict
@@ -234,7 +233,7 @@ class KCClient:
 
     async def client_access_token(self) -> Dict[str, Union[str, int]]:
         """Create initial access token for a client to register for OIDC"""
-        return cast(Dict[str, Union[str, int]], json.loads(await self.kcadmin.a_create_initial_access_token()))
+        return cast(Dict[str, Union[str, int]], await self.kcadmin.a_create_initial_access_token())
 
     async def ensure_product_groups(self) -> Optional[bool]:
         """Make sure each product in manifest has a root level group and initial child-group"""
