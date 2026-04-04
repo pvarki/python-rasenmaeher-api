@@ -154,3 +154,18 @@ async def test_product_instructions_v2_admin_unauthorized(user_mtls_client: Test
     payload = resp.json()
     LOGGER.debug(payload)
     assert "detail" in payload
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_product_proxy_crud_forbidden(user_mtls_client: TestClient) -> None:
+    """Make sure proxy access to CRUD endpoints is forbidden"""
+    resp = await user_mtls_client.get("/api/v1/product/proxy/fake/api/v1/users/promoted")
+    assert resp.status_code == 403
+    resp = await user_mtls_client.get("/api/v1/product/proxy/fake/api/v1/users/demoted")
+    assert resp.status_code == 403
+    resp = await user_mtls_client.get("/api/v1/product/proxy/fake/api/v1/users/created")
+    assert resp.status_code == 403
+    resp = await user_mtls_client.get("/api/v1/product/proxy/fake/api/v1/users/updated")
+    assert resp.status_code == 403
+    resp = await user_mtls_client.get("/api/v1/product/proxy/fake/api/v1/users/revoked")
+    assert resp.status_code == 403
