@@ -190,6 +190,12 @@ async def get_product_proxy(
     # We do not read the cert for these because it takes time and is not really needed
     user = UserCRUDRequest(uuid=str(person.pk), callsign=person.callsign, x509cert="")
     session = await get_session_winit()
+    session.headers.update(
+        {
+            "X-Rasenmaeher-Proxy": "productproxy",
+            "X-Proxy-Callsign": person.callsign,
+        }
+    )
     async with session as client:
         url = f"{productconf['api']}{tgtpath}"
         LOGGER.debug("calling POST({})".format(url))
