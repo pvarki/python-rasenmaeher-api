@@ -1847,14 +1847,14 @@ files = [
 
 [[package]]
 name = "multikeyjwt"
-version = "1.4.3"
+version = "1.5.0"
 description = "Verify JWTs with multiple public keys, FastAPI middleware for auth"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = "<4.0,>=3.10"
 groups = ["main"]
 files = [
-    {file = "multikeyjwt-1.4.3-py3-none-any.whl", hash = "sha256:14bb69567ba77ac646eb434a482d4accc575c1be2652e4adb4802cb16cab59b4"},
-    {file = "multikeyjwt-1.4.3.tar.gz", hash = "sha256:943d1b395001149af41f30efb71db44cf3cda8ea11160f7a757681faa8e5f38b"},
+    {file = "multikeyjwt-1.5.0-py3-none-any.whl", hash = "sha256:f14d52ed00fccd3ce42536ca68a5489c3af3210e1c29e5e8262d6edeb26b26f7"},
+    {file = "multikeyjwt-1.5.0.tar.gz", hash = "sha256:302da40091226dfa5a851895d053a69213ed8102c77b47bc5483d2ca4cc93552"},
 ]
 
 [package.dependencies]
@@ -1862,7 +1862,7 @@ click = ">=8.0,<9.0"
 cryptography = ">=41.0"
 libadvian = ">=1.0,<2.0"
 pendulum = ">=3.0,<4.0"
-pyjwt = {version = ">=2.6,<3.0", extras = ["crypto"]}
+pyjwt = {version = ">=2.12,<3.0", extras = ["crypto"]}
 
 [package.extras]
 all = ["fastapi (>0.89,<1.0)"]
@@ -3853,4 +3853,4 @@ propcache = ">=0.2.1"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "fb30f6ef926f07ad4240a59963e4b5f0b5bbd23f2a37e90f2d8a54da582d2b85"
+content-hash = "b5b5f91ac297b19d20e6e6b7870ed51475f9ab10d20fb64e69959eb2d308d26d"
