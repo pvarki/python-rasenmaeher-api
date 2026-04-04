@@ -180,13 +180,22 @@ async def get_product_proxy(
     """Proxy request to the product in any path, POSTing the user context"""
     rmconf = RMSettings.singleton()
     manifest = rmconf.kraftwerk_manifest_dict
+    person = cast(Person, request.state.person)
     if tgtproduct not in manifest["products"]:
         raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
+    if "api/v1/users" in tgtpath:
+        LOGGER.audit("User {} (pk: {}) tried to access CRUD integration endpoint".format(person.callsign, person.pk))  # type: ignore[attr-defined] # pylint: disable=C0301
+        raise HTTPException(status_code=403, detail="Accessing CRUD integration endpoints via proxy is forbidden")
     productconf = manifest["products"][tgtproduct]
-    person = cast(Person, request.state.person)
     # We do not read the cert for these because it takes time and is not really needed
     user = UserCRUDRequest(uuid=str(person.pk), callsign=person.callsign, x509cert="")
     session = await get_session_winit()
+    session.headers.update(
+        {
+            "X-Rasenmaeher-Proxy": "productproxy",
+            "X-Proxy-Callsign": person.callsign,
+        }
+    )
     async with session as client:
         url = f"{productconf['api']}{tgtpath}"
         LOGGER.debug("calling POST({})".format(url))
