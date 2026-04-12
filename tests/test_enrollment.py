@@ -20,7 +20,6 @@ from rasenmaeher_api.db import (
     EngineWrapper,
 )
 
-
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621

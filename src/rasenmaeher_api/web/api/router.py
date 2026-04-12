@@ -16,7 +16,6 @@ from rasenmaeher_api.web.api import (
     descriptions,
 )
 
-
 api_router = APIRouter()
 api_router.include_router(healthcheck.router, prefix="/healthcheck", tags=["healthcheck"])
 api_router.include_router(product.router, prefix="/product", tags=["product"])

@@ -12,7 +12,6 @@ from ....rmsettings import RMSettings
 from ....cert.backend import get_ocsprest_crl
 from ....jwtinit import resolve_rm_jwt_pubkey_path
 
-
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
 

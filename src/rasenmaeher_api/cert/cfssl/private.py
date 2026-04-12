@@ -14,7 +14,6 @@ from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, o
 from .mtls import mtls_session
 from ...rmsettings import RMSettings
 
-
 LOGGER = logging.getLogger(__name__)
 
 
