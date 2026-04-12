@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rasenmaeher_api"
-version = "1.15.0"
+version = "1.15.1"
 description = "python-rasenmaeher-api"
 authors = [
     "Aciid <703382+Aciid@users.noreply.github.com>",
@@ -104,7 +104,7 @@ pytest = "^7.4"
 coverage = "^7.3"
 pytest-cov = "^4.1"
 pylint = "^4.0"
-black = "^25.9"
+black = "^26.3"
 bandit = "^1.8"
 mypy = "^1.18"
 pre-commit = "^3.3"

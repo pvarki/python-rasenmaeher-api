@@ -36,7 +36,6 @@ from rasenmaeher_api.mtlsinit import mtls_init
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call, RMSettings
 from rasenmaeher_api.cert.backend import get_crl
 
-
 LOGGER = logging.getLogger(__name__)
 
 

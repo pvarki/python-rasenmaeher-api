@@ -5,8 +5,9 @@ import logging
 import uuid
 
 
-from fastapi import APIRouter, Request, Body, Depends, HTTPException
+from fastapi import APIRouter, Request, Body, Depends, HTTPException, Response
 from multikeyjwt import Issuer
+from multikeyjwt import config as jwtconfig
 
 from libpvarki.schemas.generic import OperationResultResponse
 from .schema import (
@@ -38,6 +39,7 @@ from ..utils.auditcontext import build_audit_extra
 from ....db import Person
 from ....db import Enrollment, EnrollmentPool
 from ....db.errors import NotFound
+from ....rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -186,6 +188,22 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
     return EnrollmentListOut(callsign_list=result_list)
 
 
+def issue_enrollment_jwt(response: Response, claims: Dict[str, Any]) -> str:
+    """Issue longer lived JWT and set persistent cookie"""
+    enroll_issuer = Issuer()
+    enroll_issuer.config.lifetime = RMSettings.singleton().enrollment_lifetime
+    new_jwt = enroll_issuer.issue(claims)
+    response.set_cookie(
+        key=jwtconfig.ENVCONFIG("JWT_COOKIE_NAME"),
+        value=new_jwt,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=enroll_issuer.config.lifetime,
+    )
+    return new_jwt
+
+
 @ENROLLMENT_ROUTER.post(
     "/init",
     response_model=EnrollmentInitOut,
@@ -193,6 +211,7 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
 )
 async def request_enrollment_init(
     request: Request,
+    response: Response,
     request_in: EnrollmentInitIn = Body(),
 ) -> EnrollmentInitOut:
     """
@@ -205,7 +224,7 @@ async def request_enrollment_init(
     new_enrollment = await Enrollment.create_for_callsign(callsign=callsign, pool=None, extra={}, csr=request_in.csr)
     # Create JWT token for user
     claims = {"sub": callsign}
-    new_jwt = Issuer.singleton().issue(claims)
+    new_jwt = issue_enrollment_jwt(response, claims)
 
     LOGGER.audit(  # type: ignore[attr-defined]
         "Enrollment initiated by admin",
@@ -628,6 +647,7 @@ async def get_invite_codes(
 @NO_JWT_ENROLLMENT_ROUTER.post("/invitecode/enroll", response_model=EnrollmentInitOut)
 async def post_enroll_invite_code(
     request: Request,
+    response: Response,
     request_in: EnrollmentInviteCodeEnrollIn = Body(),
 ) -> EnrollmentInitOut:
     """
@@ -691,7 +711,7 @@ async def post_enroll_invite_code(
 
     # Create JWT token for user
     claims = {"sub": callsign}
-    new_jwt = Issuer.singleton().issue(claims)
+    new_jwt = issue_enrollment_jwt(response, claims)
 
     LOGGER.audit(  # type: ignore[attr-defined]
         "Enrollment via invitecode successful",

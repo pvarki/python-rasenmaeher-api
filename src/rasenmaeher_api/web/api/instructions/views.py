@@ -19,7 +19,6 @@ from ..middleware.user import ValidUser
 from ....productapihelpers import get_from_all_products, post_to_all_products, post_to_product
 from ....db import Person
 
-
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
 router_v2 = APIRouter()
