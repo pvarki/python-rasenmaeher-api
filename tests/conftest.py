@@ -151,6 +151,7 @@ def session_env_config(  # pylint: disable=R0915,R0914
         mpatch.setattr(Verifier, "_singleton", None)
         mpatch.setenv("JWT_PUBKEY_PATH", str(pubkeydir))
         mpatch.setenv("JWT_PRIVKEY_PATH", str(privkeypath))
+        mpatch.setenv("JWT_COOKIE_NAME", "rm_jwt_cookie")
         # Apparently we are too late in setting the env for settings to take effect
         mpatch.setattr(switchme_to_singleton_call, "integration_api_timeout", 6.0)
         mpatch.setenv("RM_INTEGRATION_API_TIMEOUT", str(switchme_to_singleton_call.integration_api_timeout))
