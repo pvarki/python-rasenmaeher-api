@@ -39,6 +39,7 @@ from ..utils.auditcontext import build_audit_extra
 from ....db import Person
 from ....db import Enrollment, EnrollmentPool
 from ....db.errors import NotFound
+from ....rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -190,12 +191,13 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
 def issue_enrollment_jwt(response: Response, claims: Dict[str, Any]) -> str:
     """Issue longer lived JWT and set persistent cookie"""
     enroll_issuer = Issuer()
-    enroll_issuer.config.lifetime = 60 * 60 * 4  # 4 hours
+    enroll_issuer.config.lifetime = RMSettings.singleton().enrollment_lifetime
     new_jwt = enroll_issuer.issue(claims)
     response.set_cookie(
         key=jwtconfig.ENVCONFIG("JWT_COOKIE_NAME"),
         value=new_jwt,
-        httponly=False,
+        httponly=True,
+        secure=True,
         samesite="strict",
         max_age=enroll_issuer.config.lifetime,
     )
