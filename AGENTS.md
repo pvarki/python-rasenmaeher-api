@@ -29,9 +29,8 @@ docker create --name rasenmaeher_api_devel -v $(pwd):/app -p 8000:8000 \
   -it $(echo $DOCKER_SSHAGENT) rasenmaeher_api:devel_shell
 docker start -i rasenmaeher_api_devel
 
-# Native (Python 3.11 virtualenv)
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+# Native (uv — installs Python 3.11 + deps into .venv automatically)
+uv sync
 
 # Required env vars (set in .env or export):
 # RM_CFSSL_HOST, RM_KEYCLOAK_SERVER_URL, RM_KEYCLOAK_CLIENT_ID,
