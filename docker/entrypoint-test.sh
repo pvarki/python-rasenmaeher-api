@@ -7,7 +7,7 @@ if [ "$#" -eq 0 ]; then
   # Make sure the service itself is installed
   uv sync --frozen
   # Make sure pre-commit checks were not missed because reasons
-  pre-commit run --all-files
+  prek run --all-files
   # Then run the tests
   pytest --junitxml=pytest.xml tests/
   # If pre-commit does not run these, enable them
