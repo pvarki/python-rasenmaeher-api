@@ -14,7 +14,7 @@ services (TAK, Matrix, BattleLog, etc.) must implement to participate in the Dep
 - **PKI:** httpx calls to cfssl service
 - **Key libs:** libpvarki (internal pvarki library), cryptography, pydantic v2
 - **Testing:** pytest, pytest-cov (65% minimum coverage), tox
-- **Linting:** pre-commit, pylint (shared `pylintrc`)
+- **Linting:** prek (pre-commit-compatible), pylint (shared `pylintrc`)
 - **Container:** Docker multi-target (devel_shell, tox, production)
 
 ## Development Setup
@@ -47,15 +47,15 @@ docker run --rm -it -v $(pwd):/app $(echo $DOCKER_SSHAGENT) rasenmaeher_api:tox
 # Directly inside devel_shell container
 pytest tests/ -v --cov=rasenmaeher_api --cov-fail-under=65
 
-# Pre-commit
-pre-commit install --install-hooks
-pre-commit run --all-files
+# Pre-commit hooks (via prek)
+prek install --install-hooks
+prek run --all-files
 ```
 
 ## Code Conventions
 - Router modules go in `src/rasenmaeher_api/routers/` named by domain (e.g., `enroll.py`).
 - SQLModel models in `src/rasenmaeher_api/models/`.
-- Follow pylint rules in `pylintrc` at root; pre-commit enforces this.
+- Follow pylint rules in `pylintrc` at root; prek enforces this.
 
 ## Architecture Notes
 **Key API endpoints:**
