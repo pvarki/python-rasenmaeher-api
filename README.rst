@@ -322,3 +322,12 @@ the claim `anon_admin_session` set to `true`. Use the token in the API call::
     api/v1/token/code/generate -H 'Content-type: application/json' \
     -H "Authorization: Bearer $TOKEN" \
     -d '{"claims": {"anon_admin_session": true}}'
+
+Versioning
+----------
+
+Versioning is handled with bump-my-version_. To increment, use ``bump-my-version bump <patch/minor/major>``.
+
+You can use ``bump-my-version show-bump`` to see how each option would affect the version.
+
+.. _bump-my-version: https://github.com/callowayproject/bump-my-version
