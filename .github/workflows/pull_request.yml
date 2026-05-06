@@ -3,12 +3,34 @@ on:
 
 jobs:
   versiontag:
+    name: Validate version bump
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: pvarki/config-ci-library/.github/actions/validate-bumpversion@main
 
+  pre_commit:
+    name: Run pre-commit checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"] # , "3.12"]
+    env:
+      PIP_INDEX_URL: https://nexus.dev.pvarki.fi/repository/python/simple
+      UV_DEFAULT_INDEX: https://nexus.dev.pvarki.fi/repository/python/simple
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: pvarki/config-ci-library/.github/actions/setup-python@main
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run pre-commit checks
+        run: |
+          uv run docker/pre_commit_init.sh
+
   test:
+    name: Run tests
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -32,9 +54,6 @@ jobs:
       - uses: pvarki/config-ci-library/.github/actions/setup-python@main
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Do pre-commit checks (ruff, mypy, etc.)
-        run: |
-          uv run docker/pre_commit_init.sh
       - name: Prep docker
         run: |
           rm -rf api/tests/data/cfssl/*
@@ -56,6 +75,7 @@ jobs:
           check_name: "JUnit report (local)"
 
   docker_builds:
+    name: Build Docker images
     runs-on: ubuntu-latest
     steps:
       - name: Log in to Docker Hub
@@ -72,7 +92,8 @@ jobs:
         run: docker build --target production -t rmapi:production .
 
   publish:
-    needs: [versiontag, test, docker_builds]
+    name: Publish Docker image
+    needs: [versiontag, pre_commit, test, docker_builds]
     runs-on: ubuntu-latest
     permissions:
       contents: read
