@@ -232,4 +232,4 @@ def add_test_users(ctx: click.Context) -> None:
 def rasenmaeher_api_cli() -> None:
     """python-rasenmaeher-api"""
     init_logging(logging.WARNING)
-    cli_group()  # pylint: disable=no-value-for-parameter
+    cli_group()

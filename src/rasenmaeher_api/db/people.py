@@ -33,7 +33,7 @@ from ..web.api.utils.csr_utils import verify_csr
 LOGGER = logging.getLogger(__name__)
 
 
-class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-methods
+class Person(ORMBaseModel, table=True):
     """People, pk is UUID and comes from basemodel
 
     NOTE: at some point we want to stop keeping track of people in our own db
@@ -132,7 +132,7 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
             # refresh object if everything went ok
             session.refresh(newperson)
         # Drop the DB transaction for rest of the actions
-        return await newperson._post_create()  # pylint: disable=W0212
+        return await newperson._post_create()
 
     async def _post_create(self) -> "Person":
         """Post creation actions, in separate method for readability"""
@@ -256,11 +256,11 @@ class Person(ORMBaseModel, table=True):  # pylint: disable=too-many-public-metho
             if only_deleted:
                 include_deleted = True
                 statement = statement.where(
-                    cls.deleted != None  # pylint: disable=C0121 ; # "is not None" will create invalid query
+                    cls.deleted != None  # noqa: E711
                 )
             if not include_deleted:
                 statement = statement.where(
-                    cls.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
+                    cls.deleted == None  # noqa: E711
                 )
             results = session.exec(statement)
             for result in results:

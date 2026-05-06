@@ -1,4 +1,4 @@
-"""Enrollment API views."""  # pylint: disable=too-many-lines
+"""Enrollment API views."""
 
 from typing import Dict, List, Any, Optional
 import logging

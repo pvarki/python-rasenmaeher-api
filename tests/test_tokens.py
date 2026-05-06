@@ -4,7 +4,7 @@ from typing import cast
 import logging
 
 import pytest
-from async_asgi_testclient import TestClient  # pylint: disable=import-error
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from requests.exceptions import HTTPError
 from multikeyjwt import Verifier
 

@@ -5,7 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
+class FirstuserCheckCodeIn(BaseModel):
     """Enrollment init in response schema"""
 
     model_config = ConfigDict(
@@ -31,7 +31,7 @@ class FirstuserCheckCodeIn(BaseModel):  # pylint: disable=too-few-public-methods
     temp_admin_code: str
 
 
-class FirstuserCheckCodeOut(BaseModel):  # pylint: disable=too-few-public-methods
+class FirstuserCheckCodeOut(BaseModel):
     """Enrollment config add manager schema out"""
 
     model_config = ConfigDict(
@@ -46,7 +46,7 @@ class FirstuserCheckCodeOut(BaseModel):  # pylint: disable=too-few-public-method
     code_ok: bool
 
 
-class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
+class FirstuserAddAdminIn(BaseModel):
     """Enrollment init in response schema"""
 
     model_config = ConfigDict(
@@ -76,7 +76,7 @@ class FirstuserAddAdminIn(BaseModel):  # pylint: disable=too-few-public-methods
     csr: Optional[str] = Field(default=None, description="CSR for mTLS key in PEM format")
 
 
-class FirstuserAddAdminOut(BaseModel):  # pylint: disable=too-few-public-methods
+class FirstuserAddAdminOut(BaseModel):
     """Enrollment config add manager schema out"""
 
     model_config = ConfigDict(

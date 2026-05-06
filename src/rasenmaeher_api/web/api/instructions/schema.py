@@ -5,8 +5,6 @@ from typing import Dict, Optional, Any, List
 from pydantic import BaseModel, Field, ConfigDict, RootModel
 from libpvarki.schemas.product import UserInstructionFragment
 
-# pylint: disable=too-few-public-methods
-
 
 class AllProductsInstructionFragments(BaseModel):
     """DEPRECATED! Fragments for all products"""
@@ -29,11 +27,11 @@ class AllProductsInstructionFragments(BaseModel):
     )
 
     fragments: Dict[str, Optional[UserInstructionFragment]] = Field(
-        description="Instructions keyed by product short name, if fetching of fragment failed value for that product is null"  # pylint: disable=C0301
+        description="Instructions keyed by product short name, if fetching of fragment failed value for that product is null"
     )
 
 
-class ProductFile(BaseModel):  # pylint: disable=too-few-public-methods
+class ProductFile(BaseModel):
     """File description"""
 
     model_config = ConfigDict(extra="forbid")

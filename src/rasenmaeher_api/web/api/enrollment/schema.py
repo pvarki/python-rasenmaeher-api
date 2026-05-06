@@ -5,7 +5,7 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentGenVerifiOut(BaseModel):
     """Enrollment gen verification code out"""
 
     model_config = ConfigDict(
@@ -16,7 +16,7 @@ class EnrollmentGenVerifiOut(BaseModel):  # pylint: disable=too-few-public-metho
     verification_code: str
 
 
-class EnrollmentConfigTaskDone(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentConfigTaskDone(BaseModel):
     """Enrollment config add manager schema out"""
 
     model_config = ConfigDict(
@@ -31,13 +31,13 @@ class EnrollmentConfigTaskDone(BaseModel):  # pylint: disable=too-few-public-met
     success_message: str
 
 
-class EnrollmentStatusIn(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentStatusIn(BaseModel, extra="forbid"):
     """Enrollment status in schema"""
 
     callsign: str
 
 
-class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentStatusOut(BaseModel):
     """Enrollment status check schema"""
 
     model_config = ConfigDict(
@@ -54,13 +54,13 @@ class EnrollmentStatusOut(BaseModel):  # pylint: disable=too-few-public-methods
     callsign: str
 
 
-class EnrollmentShowVerificationCodeIn(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentShowVerificationCodeIn(BaseModel, extra="forbid"):
     """Enrollment status in schema"""
 
     verification_code: str
 
 
-class EnrollmentShowVerificationCodeOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentShowVerificationCodeOut(BaseModel):
     """Enrollment status check schema"""
 
     model_config = ConfigDict(
@@ -81,7 +81,7 @@ class EnrollmentShowVerificationCodeOut(BaseModel):  # pylint: disable=too-few-p
     locked: str
 
 
-class EnrollmentHaveIBeenAcceptedOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentHaveIBeenAcceptedOut(BaseModel):
     """Enrollment status check schema"""
 
     model_config = ConfigDict(
@@ -96,7 +96,7 @@ class EnrollmentHaveIBeenAcceptedOut(BaseModel):  # pylint: disable=too-few-publ
     have_i_been_accepted: bool
 
 
-class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentInitIn(BaseModel):
     """Enrollment init in response schema"""
 
     model_config = ConfigDict(
@@ -119,7 +119,7 @@ class EnrollmentInitIn(BaseModel):  # pylint: disable=too-few-public-methods
     csr: Optional[str] = Field(description="CSR for mTLS key in PEM format", default=None)
 
 
-class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentInitOut(BaseModel):
     """Enrollment init out response schema"""
 
     model_config = ConfigDict(
@@ -140,13 +140,13 @@ class EnrollmentInitOut(BaseModel):  # pylint: disable=too-few-public-methods
     )
 
 
-class EnrollmentDeliverIn(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentDeliverIn(BaseModel, extra="forbid"):
     """Enrollment promote in schema"""
 
     callsign_hash: str
 
 
-class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentDeliverOut(BaseModel):
     """Enrollment init out response schema"""
 
     model_config = ConfigDict(
@@ -169,7 +169,7 @@ class EnrollmentDeliverOut(BaseModel):  # pylint: disable=too-few-public-methods
     mtls_test_link: str
 
 
-class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentAcceptIn(BaseModel):
     """Enrollment init out response schema"""
 
     model_config = ConfigDict(
@@ -195,7 +195,7 @@ class EnrollmentAcceptIn(BaseModel):  # pylint: disable=too-few-public-methods
     )
 
 
-class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentAcceptOut(BaseModel):
     """Enrollment init out response schema"""
 
     model_config = ConfigDict(
@@ -210,7 +210,7 @@ class EnrollmentAcceptOut(BaseModel):  # pylint: disable=too-few-public-methods
     callsign: str
 
 
-class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentPromoteIn(BaseModel):
     """Enrollment promote in schema"""
 
     model_config = ConfigDict(
@@ -240,7 +240,7 @@ class EnrollmentPromoteIn(BaseModel):  # pylint: disable=too-few-public-methods
     callsign: str
 
 
-class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentDemoteIn(BaseModel):
     """Enrollment demote in schema"""
 
     model_config = ConfigDict(
@@ -270,7 +270,7 @@ class EnrollmentDemoteIn(BaseModel):  # pylint: disable=too-few-public-methods
     callsign: str
 
 
-class EnrollmentLockIn(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentLockIn(BaseModel):
     """Enrollment lock in schema"""
 
     model_config = ConfigDict(
@@ -316,7 +316,7 @@ class EnrollmentIsInvitecodeActiveIn(BaseModel):
     invitecode: str
 
 
-class EnrollmentIsInvitecodeActiveOut(BaseModel):  # pylint: disable=too-few-public-methods
+class EnrollmentIsInvitecodeActiveOut(BaseModel):
     """Enrollment config add manager schema out"""
 
     model_config = ConfigDict(
@@ -331,13 +331,13 @@ class EnrollmentIsInvitecodeActiveOut(BaseModel):  # pylint: disable=too-few-pub
     invitecode_is_active: bool
 
 
-class EnrollmentListOut(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentListOut(BaseModel, extra="forbid"):
     """Enrollment list out response schema"""
 
     callsign_list: List[Dict[Any, Any]]
 
 
-class EnrollmentPoolListItem(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentPoolListItem(BaseModel, extra="forbid"):
     """Items for EnrollmentPoolListOut"""
 
     invitecode: str = Field(description="The invitation code")
@@ -346,13 +346,13 @@ class EnrollmentPoolListItem(BaseModel, extra="forbid"):  # pylint: disable=too-
     created: str = Field(description="ISO datetime of when this pool was created")
 
 
-class EnrollmentPoolListOut(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentPoolListOut(BaseModel, extra="forbid"):
     """Enrollment pools list out response schema"""
 
     pools: List[EnrollmentPoolListItem] = Field(description="The pools")
 
 
-class EnrollmentInviteCodeCreateOut(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentInviteCodeCreateOut(BaseModel, extra="forbid"):
     """Enrollment Invite code response schema"""
 
     invite_code: str
@@ -373,7 +373,7 @@ class EnrollmentInviteCodeDeactivateIn(BaseModel):
     invite_code: str
 
 
-class EnrollmentInviteCodeDeactivateOut(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentInviteCodeDeactivateOut(BaseModel, extra="forbid"):
     """Enrollment Invite code deactivate response schema"""
 
     invite_code: str
@@ -394,7 +394,7 @@ class EnrollmentInviteCodeActivateIn(BaseModel):
     invite_code: str
 
 
-class EnrollmentInviteCodeActivateOut(BaseModel, extra="forbid"):  # pylint: disable=too-few-public-methods
+class EnrollmentInviteCodeActivateOut(BaseModel, extra="forbid"):
     """Enrollment Invite code activate response schema"""
 
     invite_code: str

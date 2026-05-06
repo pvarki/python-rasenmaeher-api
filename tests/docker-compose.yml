@@ -5,22 +5,20 @@ x-raesenmaeher_dbconfig_env: &rmdbconfig_env
   # FIXME: take from env (which should be set to random)
   RM_DATABASE_PASSWORD: &rmdbpass raesenmaehertestpwd # pragma: allowlist secret
 
-
 x-postgres_env: &postgres_env
   POSTGRES_PASSWORD: "FIXME: change to long random" # pragma: allowlist secret
   RAESENMAEHER_PASSWORD: *rmdbpass # pragma: allowlist secret
 
 x-cfssl_env: &cfssl_env
-    INT_SHARED_CERT_FOLDER: /ca_public
-    CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
-    CFSSL_BIND_PORT: &cfsslport ${CFSSL_BIND_PORT:-7777}  # different from default on purpose
-    CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-7778}  # different from default on purpose
-    CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
-    OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.dev.pvarki.fi}
-    OCSP_PORT: ${NGINX_HTTPS_PORT:-4440}
-    CFSSL_PERSISTENT_FOLDER: /data/persistent
-    OR_BIND: &or_port 7776  # different from default on purpose
-
+  INT_SHARED_CERT_FOLDER: /ca_public
+  CFSSL_BIND_ADDRESS: ${CFSSL_BIND_ADDRESS:-0.0.0.0}
+  CFSSL_BIND_PORT: &cfsslport ${CFSSL_BIND_PORT:-7777} # different from default on purpose
+  CFSSL_OCSP_BIND_PORT: ${CFSSL_OCSP_BIND_PORT:-7778} # different from default on purpose
+  CFSSL_CA_NAME: ${CFSSL_CA_NAME:-localmaeher}
+  OCSP_HOST: ${SERVER_DOMAIN:-localmaeher.dev.pvarki.fi}
+  OCSP_PORT: ${NGINX_HTTPS_PORT:-4440}
+  CFSSL_PERSISTENT_FOLDER: /data/persistent
+  OR_BIND: &or_port 7776 # different from default on purpose
 
 services:
   cfssl:
@@ -32,14 +30,14 @@ services:
     environment:
       <<: *cfssl_env
     ports:
-      - '7777:7777'
+      - "7777:7777"
     networks:
       - canet
     volumes:
       - ./data/cfssl:/data/persistent
       - ./data/ca_public:/ca_public
     healthcheck:
-      test: 'cfssl info -remote http://127.0.0.1:7777 || exit 1'
+      test: "cfssl info -remote http://127.0.0.1:7777 || exit 1"
       interval: 5s
       timeout: 5s
       retries: 5
@@ -57,12 +55,12 @@ services:
       <<: *cfssl_env
       OR_PORT: *or_port
     ports:
-      - '7776:7776'
+      - "7776:7776"
     volumes:
       - ./data/cfssl:/data/persistent
       - ./data/ca_public:/ca_public
     healthcheck:
-      test: 'ocsprest healthcheck --port=7776 || exit 1'
+      test: "ocsprest healthcheck --port=7776 || exit 1"
       interval: 5s
       timeout: 5s
       retries: 3
@@ -103,9 +101,9 @@ services:
       LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_BIND_ADDRESS: ${FPAPI_BIND_ADDRESS:-0.0.0.0}
       FPAPI_BIND_PORT: ${FPAPI_BIND_PORT:-7788}
-      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi"  # must match above
+      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi" # must match above
     ports:
-      - '7788:7788'
+      - "7788:7788"
     volumes:
       - fpinit_data:/data/persistent
       - ./data/ca_public:/ca_public
@@ -116,7 +114,7 @@ services:
       fpapi_init:
         condition: service_completed_successfully
     healthcheck:
-      test: 'true'  # FIXME
+      test: "true" # FIXME
       interval: 5s
       timeout: 5s
       retries: 3
@@ -132,7 +130,7 @@ services:
       PERSISTENT_DATA_PATH: /data/persistent
       LOCAL_CA_CERTS_PATH: /ca_public
       FPAPI_PORT: ${FPAPI_BIND_PORT:-7788}
-      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi"  # must match above
+      FPAPI_HOST_NAME: "fake.localmaeher.dev.pvarki.fi" # must match above
     networks:
       - intranet
     volumes:
@@ -152,7 +150,7 @@ services:
     networks:
       - intranet
     ports:
-      - '5542:5432'
+      - "5542:5432"
     environment:
       <<: *postgres_env
     healthcheck:
@@ -161,7 +159,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 5s
-
 
 networks:
   canet:

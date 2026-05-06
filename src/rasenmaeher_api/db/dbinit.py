@@ -30,10 +30,10 @@ async def init_db() -> None:
     lockpath = Path(tempfile.gettempdir()) / "dbinit.lock"
     lock = filelock.FileLock(lockpath)
     wrapper = EngineWrapper.singleton()
-    assert wrapper.engine
+    assert wrapper.engine  # nosec B101
     engine = wrapper.engine
     try:
-        await asyncio.sleep(random.random() * 2)  # nosec
+        await asyncio.sleep(random.random() * 2)  # nosec B311
         lock.acquire(timeout=0.0)
         LOGGER.debug("Acquiring session")
         with engine.connect() as connection:
@@ -46,7 +46,7 @@ async def init_db() -> None:
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")
-        await asyncio.sleep(5.0 + random.random())  # nosec
+        await asyncio.sleep(5.0 + random.random())  # nosec B311
         return await init_db()
     finally:
         lock.release()

@@ -158,7 +158,7 @@ def format_audit_request_context(ctx: Dict[str, str]) -> str:
     return " ".join(parts)
 
 
-def build_audit_extra(  # pylint: disable=too-many-arguments
+def build_audit_extra(
     *,
     action: str,
     outcome: str,

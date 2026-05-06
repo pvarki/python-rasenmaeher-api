@@ -9,7 +9,7 @@ from rasenmaeher_api import __version__
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_version_cli():  # type: ignore
+async def test_version_cli() -> None:
     """Test the CLI parsing for default version dumping works"""
     cmd = "rasenmaeher_api --version"
     process = await asyncio.create_subprocess_shell(
