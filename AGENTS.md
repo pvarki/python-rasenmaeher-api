@@ -1,12 +1,14 @@
 # AGENTS.md — python-rasenmaeher-api
 
 ## Purpose
+
 Core REST API for Deploy App (RASENMAEHER). Acts as the central identity broker and enrollment
 hub: it handles user enrollment requests, issues and validates certificates via CFSSL, brokers
 authentication through Keycloak and OpenLDAP, and exposes the product integration API that all
 services (TAK, Matrix, BattleLog, etc.) must implement to participate in the Deploy App ecosystem.
 
 ## Stack & Key Technologies
+
 - **Language:** Python 3.11
 - **Framework:** FastAPI + Uvicorn
 - **ORM / DB:** SQLModel (SQLAlchemy + Pydantic), PostgreSQL (`raesenmaeher` schema)
@@ -14,10 +16,11 @@ services (TAK, Matrix, BattleLog, etc.) must implement to participate in the Dep
 - **PKI:** httpx calls to cfssl service
 - **Key libs:** libpvarki (internal pvarki library), cryptography, pydantic v2
 - **Testing:** pytest, pytest-cov (65% minimum coverage), tox
-- **Linting:** prek (pre-commit-compatible), pylint (shared `pylintrc`)
+- **Linting:** prek (pre-commit-compatible), ruff (lint + format), bandit, mypy (strict)
 - **Container:** Docker multi-target (devel_shell, tox, production)
 
 ## Development Setup
+
 ```bash
 # Docker (recommended)
 export DOCKER_BUILDKIT=1
@@ -39,6 +42,7 @@ uv sync
 ```
 
 ## Running Tests
+
 ```bash
 # Via tox (CI method, builds fresh environment)
 docker build --ssh default --target tox -t rasenmaeher_api:tox .
@@ -53,12 +57,15 @@ prek run --all-files
 ```
 
 ## Code Conventions
+
 - Router modules go in `src/rasenmaeher_api/routers/` named by domain (e.g., `enroll.py`).
 - SQLModel models in `src/rasenmaeher_api/models/`.
-- Follow pylint rules in `pylintrc` at root; prek enforces this.
+- Lint/format with ruff (config in `pyproject.toml`); prek enforces this.
 
 ## Architecture Notes
+
 **Key API endpoints:**
+
 - `POST /api/v1/enroll/init` — Start enrollment; returns work_id
 - `GET  /api/v1/enroll/status/{work_id}` — Poll enrollment status
 - `GET  /api/v1/enroll/deliver/{id_string}` — Download credential package
@@ -79,6 +86,7 @@ cert is at `/ca_public/ca_chain.pem` on the shared Docker volume.
 (`RM_SQLITE_FILEPATH_DEV`).
 
 ## Common Agent Pitfalls
+
 1. **All env vars are `RM_` prefixed.** The setting name in code is lowercase without the
    prefix. `RM_CFSSL_HOST` in env → `settings.cfssl_host` in Python. Do not hardcode hostnames.
 2. **`rmapi` depends on cfssl AND keycloak being healthy before it can serve requests.** In
@@ -91,6 +99,7 @@ cert is at `/ca_public/ca_chain.pem` on the shared Docker volume.
    with a 401, check that SSH agent forwarding is set up correctly for the Docker build.
 
 ## Related Repos
+
 - https://github.com/pvarki/docker-rasenmaeher-integration (orchestration root)
 - https://github.com/pvarki/python-pvarki-cfssl (certificate authority)
 - https://github.com/pvarki/docker-rasenmaeher-keycloak (identity provider)

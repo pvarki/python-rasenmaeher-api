@@ -82,7 +82,7 @@ class EnrollmentPool(ORMBaseModel, table=True):
                 statement = statement.where(cls.owner == by_owner.pk)
             if not include_deleted:
                 statement = statement.where(
-                    cls.deleted == None  # pylint: disable=C0121 ; # "is None" will create invalid query
+                    cls.deleted == None  # noqa: E711
                 )
             results = session.exec(statement)
             for result in results:

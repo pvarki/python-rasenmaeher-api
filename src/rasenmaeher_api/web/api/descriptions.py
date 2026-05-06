@@ -52,13 +52,11 @@ class ProductDescriptionExtended(BaseModel):
     component: ProductComponent = Field(description="Component type and ref")
 
 
-class ProductDescriptionList(RootModel[List[ProductDescription]]):  # pylint: disable=too-few-public-methods
+class ProductDescriptionList(RootModel[List[ProductDescription]]):
     """List of product descriptions"""
 
 
-class ProductDescriptionExtendedList(
-    RootModel[List[ProductDescriptionExtended]]
-):  # pylint: disable=too-few-public-methods
+class ProductDescriptionExtendedList(RootModel[List[ProductDescriptionExtended]]):
     """List of product descriptions"""
 
 

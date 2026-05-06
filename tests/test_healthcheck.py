@@ -4,7 +4,7 @@ import logging
 from typing import Dict, Any
 
 import pytest
-from async_asgi_testclient import TestClient  # pylint: disable=import-error
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 
 from rasenmaeher_api import __version__
 from rasenmaeher_api.web.api.healthcheck.schema import AllProductsHealthCheckResponse

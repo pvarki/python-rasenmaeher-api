@@ -27,12 +27,12 @@ class EngineWrapper:
         """Get a singleton"""
         if EngineWrapper._singleton is None:
             EngineWrapper._singleton = EngineWrapper(**kwargs)
-        assert EngineWrapper._singleton is not None
+        assert EngineWrapper._singleton is not None  # nosec B101
         return EngineWrapper._singleton
 
     def __post_init__(self) -> None:
         """create one engine"""
-        assert self.config.dsn
+        assert self.config.dsn  # nosec B101
         if self.config.pool_min_size and self.config.pool_max_size:
             self.engine = create_engine(
                 self.config.dsn,

@@ -6,7 +6,6 @@ import logging
 from fastapi import Depends, APIRouter, Request, HTTPException
 from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 from libpvarki.middleware import MTLSHeader
-from rasenmaeher_api.web.api.middleware.user import ValidUser
 
 from .schema import (
     AllProductsInstructionFragments,

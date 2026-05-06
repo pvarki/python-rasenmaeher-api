@@ -4,7 +4,7 @@ from typing import Any, Dict
 from pathlib import Path
 
 import pytest
-from async_asgi_testclient import TestClient
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 import aiohttp
 from multikeyjwt.jwt.issuer import Issuer
 from multikeyjwt.jwt.verifier import Verifier

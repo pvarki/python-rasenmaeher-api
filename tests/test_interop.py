@@ -3,7 +3,7 @@
 import logging
 
 import pytest
-from async_asgi_testclient import TestClient
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 
 from rasenmaeher_api.web.api.product.schema import ProductAddRequest
 

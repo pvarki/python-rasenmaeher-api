@@ -1,4 +1,4 @@
-"""People API views."""  # pylint: disable=too-many-lines
+"""People API views."""
 
 from typing import List, Optional
 import logging

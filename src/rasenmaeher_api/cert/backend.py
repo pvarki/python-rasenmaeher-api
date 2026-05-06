@@ -1,7 +1,5 @@
 """Certificate operations module with configurable backend."""
 
-# pylint: disable=duplicate-code  # Re-exports same API from selected backend
-
 from .errors import CertError, NoResult, ErrorResult, DBLocked, NoValue
 from ..rmsettings import RMSettings, CertBackend
 

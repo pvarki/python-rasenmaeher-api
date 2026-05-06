@@ -8,9 +8,8 @@ import uuid
 
 import pytest
 import cryptography.hazmat.primitives.serialization.pkcs12
-from async_asgi_testclient import TestClient  # pylint: disable=import-error
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from libpvarki.mtlshelp.csr import async_create_keypair, async_create_client_csr
-from libadvian.testhelpers import nice_tmpdir  # pylint: disable=unused-import
 from cryptography import x509
 
 from rasenmaeher_api.rmsettings import RMSettings
@@ -22,8 +21,6 @@ from rasenmaeher_api.db import (
 
 
 LOGGER = logging.getLogger(__name__)
-
-# pylint: disable=W0621
 
 
 # GENERATE VERIFICATEION CODE
@@ -526,7 +523,7 @@ async def test_invite_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 # ENROLL WITH INVITE CODE
 @pytest.mark.asyncio(loop_scope="session")
-async def test_enroll_with_invite_code(  # pylint: disable=R0915
+async def test_enroll_with_invite_code(
     tilauspalvelu_jwt_admin_client: TestClient, unauth_client_session: TestClient
 ) -> None:
     """
@@ -621,7 +618,7 @@ async def test_enroll_with_invite_code(  # pylint: disable=R0915
 
 # ENROLL WITH CSR (and invite-code
 @pytest.mark.asyncio(loop_scope="session")
-async def test_enroll_with_csr(  # pylint: disable=R0915, R0914
+async def test_enroll_with_csr(
     tilauspalvelu_jwt_admin_client: TestClient, unauth_client_session: TestClient, nice_tmpdir: str
 ) -> None:
     """test enrolling with CSR"""

@@ -7,8 +7,8 @@ import uuid
 
 from libpvarki.schemas.product import UserCRUDRequest
 from pydantic import BaseModel, Field, ConfigDict
-from keycloak.keycloak_admin import KeycloakAdmin
-from keycloak.exceptions import KeycloakError
+from keycloak.keycloak_admin import KeycloakAdmin  # type: ignore[import-untyped]
+from keycloak.exceptions import KeycloakError  # type: ignore[import-untyped]
 
 
 from .rmsettings import RMSettings

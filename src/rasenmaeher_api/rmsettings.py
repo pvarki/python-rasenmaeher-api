@@ -11,7 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 LOGGER = logging.getLogger(__name__)
 
 
-class LogLevel(str, enum.Enum):  # noqa: WPS600
+class LogLevel(str, enum.Enum):
     """Possible log levels."""
 
     NOTSET = "NOTSET"
@@ -22,14 +22,14 @@ class LogLevel(str, enum.Enum):  # noqa: WPS600
     FATAL = "FATAL"
 
 
-class CertBackend(str, enum.Enum):  # noqa: WPS600
+class CertBackend(str, enum.Enum):
     """Available certificate backend implementations."""
 
     CFSSL = "cfssl"
     CERT_MANAGER = "cert_manager"
 
 
-class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
+class RMSettings(BaseSettings):
     """
     Application settings.
 
@@ -167,4 +167,4 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
         return [product["certcn"] for product in self.kraftwerk_manifest_dict["products"].values()]
 
 
-switchme_to_singleton_call = RMSettings.singleton()  # pylint: disable=C0103
+switchme_to_singleton_call = RMSettings.singleton()

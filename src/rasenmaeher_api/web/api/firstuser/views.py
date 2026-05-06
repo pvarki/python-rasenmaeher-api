@@ -134,7 +134,7 @@ async def post_admin_add(
     async def tms_wait() -> None:
         """Wait for background tasks to avoid race conditions"""
         tma = TaskMaster.singleton()
-        while tma._tasks:  # pylint: disable=W0212
+        while tma._tasks:
             await asyncio.sleep(0.1)
 
     try:

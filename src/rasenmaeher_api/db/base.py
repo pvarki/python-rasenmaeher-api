@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from .errors import NotFound, Deleted
 from .engine import EngineWrapper
 
-utcnow = sa.func.current_timestamp()  # pylint: disable=invalid-name,not-callable  # not-callable is false-positive
+utcnow = sa.func.current_timestamp()
 
 LOGGER = logging.getLogger(__name__)
 
