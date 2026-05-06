@@ -5,6 +5,7 @@ on:
 
 jobs:
   publish:
+    name: Publish Docker image
     runs-on: ubuntu-latest
     permissions:
       contents: read
