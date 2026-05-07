@@ -9,7 +9,7 @@ Configuration
 -------------
 
 This application can be configured with environment variables. Below is a example list of available variables.
-You can find all available variables here https://github.com/pvarki/python-rasenmaeher-api/blob/main/src/rasenmaeher_api/settings.py.
+You can find all available variables here https://github.com/pvarki/python-rasenmaeher-api/blob/main/src/rasenmaeher_api/rmsettings.py.
 
 
 .. list-table:: Container Variables
@@ -72,10 +72,10 @@ environment variables here.
 
 All environment variables should start with `RM_` prefix.
 
-For example if you see in your "rasenmaeher_api/settings.py" a variable named like
+For example if you see in your "rasenmaeher_api/rmsettings.py" a variable named like
 `random_parameter`, you should provide the "RM_RANDOM_PARAMETER"
-variable to configure the value. This behaviour can be changed by overriding `env_prefix` property
-in `rasenmaeher_api.settings.Settings.Config`.
+variable to configure the value. This behaviour can be changed by overriding `env_prefix`
+in `rasenmaeher_api.rmsettings.RMSettings.model_config`.
 
 An example of .env file:
 ```bash
@@ -294,13 +294,14 @@ TLDR:
 - Install project deps and pre-commit hooks (via prek)::
 
     uv sync
-    uv run prek install --install-hooks
-    uv run prek run --all-files
+    source .venv/bin/activate
+    prek install --install-hooks
+    prek run --all-files
 
 - Ready to go.
 
 Remember to activate your virtualenv whenever working on the repo, this is needed
-because pylint and mypy hooks use the "system" python for now (because reasons).
+because the mypy hook uses the "system" python for now (because reasons).
 
 Pipeline public-key for JWT verification
 ----------------------------------------
