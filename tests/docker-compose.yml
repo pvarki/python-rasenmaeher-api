@@ -22,9 +22,10 @@ x-cfssl_env: &cfssl_env
 
 services:
   cfssl:
-    image: ${PVARKI_DOCKER_REPO:-group.docker.nexus.dev.pvarki.fi/}pvarki/cfssl:api-1.2.0-d2.3.0-local
+    #TODO: Change back to main
+    image: ghcr.io/pvarki/cfssl-api:1.0.7-260427-pr24-20260506t1433
     build:
-      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
+      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git#ba2ae8454c9b33d20b46fd4fc39dcb66b3afd2c0
       dockerfile: Dockerfile
       target: api
     environment:
@@ -44,9 +45,10 @@ services:
       start_period: 5s
 
   ocsprest:
-    image: ${PVARKI_DOCKER_REPO:-group.docker.nexus.dev.pvarki.fi/}pvarki/cfssl:ocsprest-1.0.6-d2.3.0-local
+    #TODO: Change back to main
+    image: ghcr.io/pvarki/ocsprest-server:1.0.7-260427-pr24-20260506t1433
     build:
-      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git
+      context: https://github.com/pvarki/docker-rasenmaeher-cfssl.git#ba2ae8454c9b33d20b46fd4fc39dcb66b3afd2c0
       dockerfile: Dockerfile
       target: ocsprest
     networks:
