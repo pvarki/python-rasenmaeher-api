@@ -16,7 +16,7 @@ from rasenmaeher_api.rmsettings import RMSettings
 
 def test_version() -> None:
     """Make sure version matches expected"""
-    assert __version__ == "1.15.1+260427"
+    assert __version__ == "1.16.0+260507"
 
 
 @pytest.mark.asyncio(loop_scope="session")
