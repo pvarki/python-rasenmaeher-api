@@ -4,6 +4,24 @@ on:
       - main
 
 jobs:
+  snyk_monitor:
+    name: Run Snyk monitor
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: pvarki/config-ci-library/.github/actions/setup-python@main
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: pvarki/config-ci-library/.github/actions/snyk-monitor@main
+        with:
+          snyk-org: deployapp-core-services
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+
   publish:
     name: Publish Docker image
     runs-on: ubuntu-latest

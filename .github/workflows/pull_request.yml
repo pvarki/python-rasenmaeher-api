@@ -15,9 +15,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"] # , "3.12"]
-    env:
-      PIP_INDEX_URL: https://nexus.dev.pvarki.fi/repository/python/simple
-      UV_DEFAULT_INDEX: https://nexus.dev.pvarki.fi/repository/python/simple
     steps:
       - uses: actions/checkout@v6
         with:
@@ -29,6 +26,24 @@ jobs:
         run: |
           uv run docker/pre_commit_init.sh
 
+  snyk:
+    name: Run Snyk test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: pvarki/config-ci-library/.github/actions/setup-python@main
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: pvarki/config-ci-library/.github/actions/snyk-test@main
+        with:
+          snyk-org: deployapp-core-services
+          snyk-token: ${{ secrets.SNYK_TOKEN }}
+
   test:
     name: Run tests
     runs-on: ubuntu-latest
@@ -39,9 +54,6 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"] # , "3.12"]
-    env:
-      PIP_INDEX_URL: https://nexus.dev.pvarki.fi/repository/python/simple
-      UV_DEFAULT_INDEX: https://nexus.dev.pvarki.fi/repository/python/simple
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -93,7 +105,7 @@ jobs:
 
   publish:
     name: Publish Docker image
-    needs: [versiontag, pre_commit, test, docker_builds]
+    needs: [versiontag, pre_commit, snyk, test, docker_builds]
     runs-on: ubuntu-latest
     permissions:
       contents: read
