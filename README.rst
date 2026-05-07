@@ -9,7 +9,7 @@ Configuration
 -------------
 
 This application can be configured with environment variables. Below is a example list of available variables.
-You can find all available variables here https://github.com/pvarki/python-rasenmaeher-api/blob/main/src/rasenmaeher_api/settings.py.
+You can find all available variables here https://github.com/pvarki/python-rasenmaeher-api/blob/main/src/rasenmaeher_api/rmsettings.py.
 
 
 .. list-table:: Container Variables
@@ -72,10 +72,10 @@ environment variables here.
 
 All environment variables should start with `RM_` prefix.
 
-For example if you see in your "rasenmaeher_api/settings.py" a variable named like
+For example if you see in your "rasenmaeher_api/rmsettings.py" a variable named like
 `random_parameter`, you should provide the "RM_RANDOM_PARAMETER"
-variable to configure the value. This behaviour can be changed by overriding `env_prefix` property
-in `rasenmaeher_api.settings.Settings.Config`.
+variable to configure the value. This behaviour can be changed by overriding `env_prefix`
+in `rasenmaeher_api.rmsettings.RMSettings.model_config`.
 
 An example of .env file:
 ```bash
@@ -234,15 +234,19 @@ Build image, create container and start it::
 pre-commit considerations
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-If working in Docker instead of native env you need to run the pre-commit checks in docker too::
+Hooks are executed by prek_, a drop-in pre-commit replacement that reads the same
+``.pre-commit-config.yaml``. If working in Docker instead of native env you need to run the
+checks in docker too::
 
-    docker exec -i rasenmaeher_api_devel /bin/bash -c "pre-commit install --install-hooks"
-    docker exec -i rasenmaeher_api_devel /bin/bash -c "pre-commit run --all-files"
+    docker exec -i rasenmaeher_api_devel /bin/bash -c "prek install --install-hooks"
+    docker exec -i rasenmaeher_api_devel /bin/bash -c "prek run --all-files"
 
 You need to have the container running, see above. Or alternatively use the docker run syntax but using
 the running container is faster::
 
-    docker run --rm -it -v `pwd`":/app" rasenmaeher_api:devel_shell -c "pre-commit run --all-files"
+    docker run --rm -it -v `pwd`":/app" rasenmaeher_api:devel_shell -c "prek run --all-files"
+
+.. _prek: https://github.com/j178/prek
 
 Test suite
 ^^^^^^^^^^
@@ -286,17 +290,18 @@ TLDR:
 
     git checkout -b my_branch
 
-- install Poetry: https://python-poetry.org/docs/#installation
-- Install project deps and pre-commit hooks::
+- install uv: https://docs.astral.sh/uv/getting-started/installation/
+- Install project deps and pre-commit hooks (via prek)::
 
-    poetry install
-    pre-commit install --install-hooks
-    pre-commit run --all-files
+    uv sync
+    source .venv/bin/activate
+    prek install --install-hooks
+    prek run --all-files
 
 - Ready to go.
 
 Remember to activate your virtualenv whenever working on the repo, this is needed
-because pylint and mypy pre-commit hooks use the "system" python for now (because reasons).
+because the mypy hook uses the "system" python for now (because reasons).
 
 Pipeline public-key for JWT verification
 ----------------------------------------
@@ -318,3 +323,12 @@ the claim `anon_admin_session` set to `true`. Use the token in the API call::
     api/v1/token/code/generate -H 'Content-type: application/json' \
     -H "Authorization: Bearer $TOKEN" \
     -d '{"claims": {"anon_admin_session": true}}'
+
+Versioning
+----------
+
+Versioning is handled with bump-my-version_. To increment, use ``bump-my-version bump <patch/minor/major>``.
+
+You can use ``bump-my-version show-bump`` to see how each option would affect the version.
+
+.. _bump-my-version: https://github.com/callowayproject/bump-my-version

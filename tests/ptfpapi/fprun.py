@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 # FIXME: Move to libpvarki
-class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods,R0801
+class ProductAddRequest(BaseModel):
     """Request to add product interoperability."""
 
     model_config = ConfigDict(
@@ -244,7 +244,7 @@ def main() -> int:
     extra_ca_certs_path = Path(environ.get("LOCAL_CA_CERTS_PATH", "/ca_public"))
     _hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
     bind_port = int(environ.get("FPAPI_BIND_PORT", 7788))
-    bind_address = environ.get("FPAPI_BIND_ADDRESS", "0.0.0.0")  # nosec
+    bind_address = environ.get("FPAPI_BIND_ADDRESS", "0.0.0.0")
     server_cert = (persistentdir / "public" / "server_chain.pem", persistentdir / "private" / "server.key")
     ssl_ctx = get_ssl_context(ssl.Purpose.CLIENT_AUTH, server_cert, extra_ca_certs_path)
     # Enable client cert as required

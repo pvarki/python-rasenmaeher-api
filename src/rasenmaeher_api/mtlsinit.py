@@ -26,9 +26,9 @@ async def _anon_sign_csr(csr: str) -> str:
     """
     backend = RMSettings.singleton().cert_backend
     if backend == CertBackend.CERT_MANAGER:
-        from .cert.cert_manager.anoncsr import anon_sign_csr  # pylint: disable=import-outside-toplevel
+        from .cert.cert_manager.anoncsr import anon_sign_csr
     elif backend == CertBackend.CFSSL:
-        from .cert.cfssl.anoncsr import anon_sign_csr  # pylint: disable=import-outside-toplevel
+        from .cert.cfssl.anoncsr import anon_sign_csr
     else:
         raise ValueError(f"Unknown cert backend: {backend}")
     return await anon_sign_csr(csr)
@@ -54,8 +54,8 @@ def check_mtls_init() -> bool:
     """Check if we have the cert and key"""
     check_settings_clientpaths()
     config = RMSettings.singleton()
-    assert config.mtls_client_cert_path is not None
-    assert config.mtls_client_key_path is not None
+    assert config.mtls_client_cert_path is not None  # nosec B101
+    assert config.mtls_client_key_path is not None  # nosec B101
     cert_path = Path(config.mtls_client_cert_path)
     key_path = Path(config.mtls_client_key_path)
     LOGGER.debug("cert_path={}  exits={}".format(cert_path, cert_path.exists()))
@@ -74,8 +74,8 @@ async def mtls_init() -> None:
     )
     check_settings_clientpaths()
     config = RMSettings.singleton()
-    assert config.mtls_client_key_path is not None
-    assert config.mtls_client_cert_path is not None
+    assert config.mtls_client_key_path is not None  # nosec B101
+    assert config.mtls_client_cert_path is not None  # nosec B101
     if (pth := Path(config.mtls_client_key_path)) != privkeypath:
         privkeypath = pth
     certpath = pubkeypath.parent / f"{CERT_NAME_PREFIX}.pem"
@@ -83,7 +83,7 @@ async def mtls_init() -> None:
         certpath = pth
     lockpath = privkeypath.with_suffix(".lock")
     # Random sleep to avoid race conditions on these file accesses
-    await asyncio.sleep(random.random() * 3.0)  # nosec
+    await asyncio.sleep(random.random() * 3.0)  # nosec B311
     lock = filelock.FileLock(lockpath)
     csrpem: Optional[str] = None
     try:
@@ -108,7 +108,7 @@ async def mtls_init() -> None:
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")
-        await asyncio.sleep(5.0 + random.random())  # nosec
+        await asyncio.sleep(5.0 + random.random())  # nosec B311
         return await mtls_init()
     finally:
         lock.release()
@@ -119,8 +119,8 @@ async def get_session_winit() -> aiohttp.ClientSession:
     await mtls_init()
     check_settings_clientpaths()
     config = RMSettings.singleton()
-    assert config.mtls_client_cert_path is not None
-    assert config.mtls_client_key_path is not None
+    assert config.mtls_client_cert_path is not None  # nosec B101
+    assert config.mtls_client_key_path is not None  # nosec B101
     cert_path = Path(config.mtls_client_cert_path)
     key_path = Path(config.mtls_client_key_path)
     return libsession((cert_path, key_path))

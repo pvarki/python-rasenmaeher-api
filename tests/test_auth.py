@@ -6,15 +6,13 @@ import logging
 
 import pytest
 import pytest_asyncio
-from async_asgi_testclient import TestClient
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from multikeyjwt import Issuer
 
 from rasenmaeher_api.db import Person
 from rasenmaeher_api.db.errors import NotFound
 
 LOGGER = logging.getLogger(__name__)
-
-# pylint: disable=W0621
 
 
 @pytest_asyncio.fixture(scope="function")

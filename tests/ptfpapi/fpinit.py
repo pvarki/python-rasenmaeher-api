@@ -18,9 +18,6 @@ LOGGER = logging.getLogger(__name__)
 DATAPATH = Path("/data/persistent")
 TIMEOUT = aiohttp.ClientTimeout(total=2.0)
 
-# we know we have copy-pasted this shit here, it's for the best, this time...
-# pylint: disable=R0801
-
 
 def create_keypair(name: str) -> crypto.PKey:
     """Generate a keypair"""

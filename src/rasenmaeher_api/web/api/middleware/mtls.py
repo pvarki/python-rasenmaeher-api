@@ -14,10 +14,10 @@ from .datatypes import MTLSorJWTPayload, MTLSorJWTPayloadType
 LOGGER = logging.getLogger(__name__)
 
 
-class MTLSorJWT(HTTPBase):  # pylint: disable=too-few-public-methods
+class MTLSorJWT(HTTPBase):
     """Auth either by JWT or mTLS header"""
 
-    def __init__(  # pylint: disable=too-many-arguments
+    def __init__(
         self,
         *,
         scheme: str = "header",

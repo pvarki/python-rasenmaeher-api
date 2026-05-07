@@ -11,16 +11,15 @@ import random
 from fastapi import FastAPI
 from multikeyjwt import Issuer, Verifier
 from multikeyjwt.config import Secret
-from async_asgi_testclient import TestClient  # pylint: disable=import-error
-import pytest  # pylint: disable=import-error
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
+import pytest
 from libadvian.logging import init_logging
-from libadvian.testhelpers import monkeysession, nice_tmpdir_mod, nice_tmpdir_ses  # pylint: disable=unused-import
 from libadvian.tasks import TaskMaster
-from pytest_docker.plugin import Services
+from pytest_docker.plugin import Services  # type: ignore[import-untyped]
 from aiohttp import web
 
 
-import pytest_asyncio  # pylint: disable=import-error
+import pytest_asyncio
 
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.productapihelpers import check_kraftwerk_manifest
@@ -29,25 +28,26 @@ from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFI
 from rasenmaeher_api.db.dbinit import init_db
 from rasenmaeher_api.db.people import Person
 
+# Register libadvian fixtures (nice_tmpdir, monkeysession, ...) as a pytest plugin
+# so they're available by name in tests without needing explicit imports.
+pytest_plugins = ["libadvian.testhelpers"]
+
 init_logging(logging.DEBUG)
 LOGGER = logging.getLogger(__name__)
 DATA_PATH = Path(__file__).parent / Path("data")
 JWT_PATH = DATA_PATH / Path("jwt")
 
 
-# pylint: disable=W0621
-
-
 # FIXME Should the TaskMaster feature
 async def tms_wait() -> None:
     """Wait for background tasks to avoid race conditions"""
     tma = TaskMaster.singleton()
-    while tma._tasks:  # pylint: disable=W0212
+    while tma._tasks:
         try:
             await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             LOGGER.warning("Waiting for tasks cancelled")
-            LOGGER.debug("Remaining tasks: {}".format(tma._tasks))  # pylint: disable=W0212
+            LOGGER.debug("Remaining tasks: {}".format(tma._tasks))
             return
 
 
@@ -75,15 +75,14 @@ def app_instance(session_env_config: None) -> FastAPI:
     """Singleton app instance"""
     _ = session_env_config
     # We need to import this *after* messing with env or manifest based routes break
-    from rasenmaeher_api.web.application import get_app  # pylint: disable=import-outside-toplevel
+    from rasenmaeher_api.web.application import get_app
 
     app = get_app()
     return app
 
 
-# pylint: disable=W0621
 @pytest.fixture(scope="session", autouse=True)
-def session_env_config(  # pylint: disable=R0915,R0914
+def session_env_config(
     monkeysession: pytest.MonkeyPatch,
     docker_ip: str,
     docker_services: Services,
@@ -368,7 +367,7 @@ async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[s
 @pytest_asyncio.fixture(scope="session")
 async def announce_server() -> AsyncGenerator[str, None]:
     """Simple test server"""
-    bind_port = random.randint(1000, 64000)  # nosec
+    bind_port = random.randint(1000, 64000)
     hostname = "localmaeher.dev.pvarki.fi"
 
     request_payloads: List[Dict[str, Any]] = []

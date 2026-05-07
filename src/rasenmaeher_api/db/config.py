@@ -20,7 +20,7 @@ config = cast(
 
 
 @dataclass
-class DBConfig:  # pylint: disable=R0902
+class DBConfig:
     """DB config dataclass, functools etc used to avoid import-time side-effects"""
 
     driver: str = field(
@@ -84,7 +84,7 @@ class DBConfig:  # pylint: disable=R0902
         """Get a singleton"""
         if DBConfig._singleton is None:
             DBConfig._singleton = DBConfig(**kwargs)
-        assert DBConfig._singleton is not None
+        assert DBConfig._singleton is not None  # nosec B101
         return DBConfig._singleton
 
     def __post_init__(self) -> None:

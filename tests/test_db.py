@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 
 import pytest
-from flaky import flaky
+from flaky import flaky  # type: ignore[import-untyped]
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
 import cryptography.x509
@@ -65,7 +65,7 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_crud(ginosession: None) -> None:  # pylint: disable=too-many-statements
+async def test_person_crud(ginosession: None) -> None:
     """Test the db abstraction of persons and roles"""
     _ = ginosession
     with EngineWrapper.singleton().get_session() as session:
@@ -340,7 +340,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
         await LoginCode.use_code(code)
 
 
-@flaky(max_runs=3, min_passes=1)  # type: ignore[untyped-decorator]
+@flaky(max_runs=3, min_passes=1)
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert(ginosession: None) -> None:
     """Test the cert creation with the classmethod (and revocation)"""
@@ -371,10 +371,10 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
     peoplepath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people"
     old_files = set(peoplepath.rglob("*"))
     RMSettings.singleton()
-    assert RMSettings._singleton  # pylint: disable=W0212
+    assert RMSettings._singleton
     with monkeypatch.context() as mpatch:
-        mpatch.setattr(RMSettings._singleton, "cfssl_host", "http://nosuchost")  # pylint: disable=W0212
-        mpatch.setenv("RM_CFSSL_HOST", RMSettings._singleton.cfssl_host)  # pylint: disable=W0212
+        mpatch.setattr(RMSettings._singleton, "cfssl_host", "http://nosuchost")
+        mpatch.setenv("RM_CFSSL_HOST", RMSettings._singleton.cfssl_host)
         with pytest.raises(BackendError):
             await Person.create_with_cert("BONGO01a", {"kissa": "puuma"})
         new_files = set(peoplepath.rglob("*"))
@@ -383,7 +383,7 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
             await Person.by_callsign("BONGO01a")
 
 
-@flaky(max_runs=3, min_passes=1)  # type: ignore[untyped-decorator]
+@flaky(max_runs=3, min_passes=1)
 @pytest.mark.asyncio(loop_scope="session")
 async def test_person_with_cert_duplicatename(ginosession: None) -> None:
     """Test the cert creation with the classmethod but reserved callsign"""

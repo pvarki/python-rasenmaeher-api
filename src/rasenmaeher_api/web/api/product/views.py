@@ -184,7 +184,7 @@ async def get_product_proxy(
     if tgtproduct not in manifest["products"]:
         raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
     if "api/v1/users" in tgtpath:
-        LOGGER.audit("User {} (pk: {}) tried to access CRUD integration endpoint".format(person.callsign, person.pk))  # type: ignore[attr-defined] # pylint: disable=C0301
+        LOGGER.audit("User {} (pk: {}) tried to access CRUD integration endpoint".format(person.callsign, person.pk))  # type: ignore[attr-defined]
         raise HTTPException(status_code=403, detail="Accessing CRUD integration endpoints via proxy is forbidden")
     productconf = manifest["products"][tgtproduct]
     # We do not read the cert for these because it takes time and is not really needed

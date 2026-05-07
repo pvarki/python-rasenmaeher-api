@@ -1,0 +1,7 @@
+# Snyk (https://snyk.io) policy file
+version: v1.25.0
+ignore:
+  SNYK-PYTHON-PYOPENSSL-15674459:
+    - '*':
+        reason: Upgrading pyopenssl to 26.0 removes the X509Extension API which we still use at a few places. We do not use the exploitable `set_cookie_generate_callback` method.
+        expires: 2026-09-07T00:00:00.000Z

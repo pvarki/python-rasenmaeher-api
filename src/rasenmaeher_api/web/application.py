@@ -51,7 +51,7 @@ def get_app_no_init() -> FastAPI:
     app.include_router(router=api_router, prefix="/api/v1")
     app.include_router(router=api_router_v2, prefix="/api/v2")
     # FIXME: figure out WTF mypy wants here, or has FastAPI changed something ?
-    app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())  # type: ignore
+    app.add_middleware(DBConnectionMiddleware, config=DBConfig.singleton())  # type: ignore[arg-type]
 
     def custom_openapi() -> Dict[str, Any]:
         """Return OpenAPI schema enriched with a generation timestamp."""
@@ -101,5 +101,5 @@ async def report_to_kraftwerk() -> None:
     except (aiohttp.ClientError, TimeoutError) as exc:
         LOGGER.warning("Failed to report to KRAFTWERK at {}".format(url))
         LOGGER.info(exc)
-    except Exception as exc:  # pylint: disable=W0718
+    except Exception as exc:
         LOGGER.exception("Unhandled exception while reporting to KRAFTWERK: {}".format(exc))

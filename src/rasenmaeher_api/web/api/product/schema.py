@@ -3,7 +3,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class CertificatesResponse(BaseModel):  # pylint: disable=too-few-public-methods
+class CertificatesResponse(BaseModel):
     """Respond with signed client cert and CA chain"""
 
     model_config = ConfigDict(
@@ -22,7 +22,7 @@ class CertificatesResponse(BaseModel):  # pylint: disable=too-few-public-methods
     certificate: str = Field(description="Signed cert, cfssl encoded (newlines -> \\n)")
 
 
-class CertificatesRequest(BaseModel):  # pylint: disable=too-few-public-methods
+class CertificatesRequest(BaseModel):
     """Request signed cert"""
 
     model_config = ConfigDict(
@@ -44,7 +44,7 @@ yiIpfvrcT9M4hJwtVFZy
     csr: str = Field(description="CSR PEM")
 
 
-class RevokeRequest(BaseModel):  # pylint: disable=too-few-public-methods
+class RevokeRequest(BaseModel):
     """Request a cert to be revoked"""
 
     model_config = ConfigDict(
@@ -66,7 +66,7 @@ zPs4ufNJed0=
     cert: str = Field(description="Cert PEM")
 
 
-class KCClientToken(BaseModel):  # pylint: disable=too-few-public-methods
+class KCClientToken(BaseModel):
     """Token for registering a KC client (for OIDC)"""
 
     model_config = ConfigDict(
@@ -94,7 +94,7 @@ class KCClientToken(BaseModel):  # pylint: disable=too-few-public-methods
 
 
 # FIXME: Move to libpvarki
-class ProductAddRequest(BaseModel):  # pylint: disable=too-few-public-methods
+class ProductAddRequest(BaseModel):
     """Request to add product interoperability."""
 
     model_config = ConfigDict(
