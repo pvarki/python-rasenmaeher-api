@@ -11,7 +11,6 @@ from async_asgi_testclient import TestClient  # pylint: disable=import-error
 from rasenmaeher_api.cert.backend import get_ca, get_crl, validate_reason
 from rasenmaeher_api.db import Person
 
-
 LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=W0621
