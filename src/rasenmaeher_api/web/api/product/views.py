@@ -11,7 +11,8 @@ from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.schemas.product import ReadyRequest
 from libpvarki.schemas.product import UserCRUDRequest
 from multikeyjwt.middleware import JWTBearer
-from OpenSSL.crypto import load_certificate_request, FILETYPE_PEM  # FIXME: use cryptography instead of pyOpenSSL
+from cryptography import x509
+from cryptography.x509.oid import NameOID
 
 
 from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken, ProductAddRequest
@@ -102,11 +103,11 @@ async def renew_csr(
     certs: CertificatesRequest,
 ) -> CertificatesResponse:
     """Used by product integration API to request renew of their mTLS client cert"""
-    req = load_certificate_request(FILETYPE_PEM, ensure_utf8(certs.csr))
-    req_dn = dict(req.get_subject().get_components())
+    req = x509.load_pem_x509_csr(ensure_utf8(certs.csr))
+    req_cn = req.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
     peer_dn = request.state.mtlsdn
     # Make sure the renew is for same name
-    if ensure_str(req_dn[b"CN"]) != ensure_str(peer_dn["CN"]):
+    if ensure_str(req_cn) != ensure_str(peer_dn["CN"]):
         raise HTTPException(403, "Renewal must be for same name")
 
     cachain = await get_ca()
