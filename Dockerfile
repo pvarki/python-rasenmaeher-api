@@ -85,10 +85,11 @@ SHELL ["/bin/bash", "-lc"]
 # Copy only requirements, to cache them in docker layer:
 WORKDIR /pysetup
 COPY ./uv.lock ./pyproject.toml ./README.rst /pysetup/
-# Install runtime deps into the project venv (without installing the project itself yet)
+# Cache and install runtime deps into the project venv (without installing the project itself yet)
 RUN --mount=type=ssh uv venv /.venv \
     && echo 'source /.venv/bin/activate' >>/root/.profile \
-    && uv sync --frozen --no-install-project --no-dev \
+    && uv export --frozen --no-dev --format requirements.txt --no-hashes --output-file  /tmp/requirements.txt \
+    && pip3 wheel --extra-index-url https://nexus.dev.pvarki.fi/repository/python/simple --wheel-dir=/tmp/wheelhouse -r /tmp/requirements.txt \
     && true
 
 
@@ -102,6 +103,7 @@ COPY ./docker/container-init.sh /container-init.sh
 # Only files needed by production setup
 COPY ./uv.lock ./pyproject.toml ./README.rst /app/
 COPY ./src /app/src
+COPY --from=builder_base /tmp/wheelhouse /tmp/wheelhouse
 WORKDIR /app
 # Build the wheel package with uv
 RUN --mount=type=ssh source /.venv/bin/activate \
