@@ -8,7 +8,6 @@ from sqlmodel import Session, create_engine
 
 from .config import DBConfig
 
-
 LOGGER = logging.getLogger(__name__)
 
 

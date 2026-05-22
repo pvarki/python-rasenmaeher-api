@@ -125,6 +125,7 @@ class RMSettings(BaseSettings):  # pylint: disable=too-few-public-methods
     # Enrollment code generation related
     code_size: int = 8
     code_avoid_confusion: bool = True  # Replace 1 and 0 with O and I to avoid confusion
+    enrollment_lifetime: int = 60 * 60 * 4  # 4 hours, JWT/cookie lifetime
 
     _singleton: ClassVar[Optional["RMSettings"]] = None
 

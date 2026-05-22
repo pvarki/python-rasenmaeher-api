@@ -29,14 +29,12 @@ class CertificatesRequest(BaseModel):  # pylint: disable=too-few-public-methods
         extra="forbid",
         json_schema_extra={
             "examples": [
-                {
-                    "csr": """-----BEGIN CERTIFICATE REQUEST-----
+                {"csr": """-----BEGIN CERTIFICATE REQUEST-----
 MIIENzCCAx+gAwIBAgIUYI++L/D00OIhBba4cixT5aJrw+wwDQYJKoZIhvcNAQEL
 ...
 0TdCAC4q4VuW+1FYcLrBkZhJZDnPRn214POSwN5lRmkYfUK40VGBRJMhgaI6Iud/
 yiIpfvrcT9M4hJwtVFZy
------END CERTIFICATE REQUEST-----"""
-                },
+-----END CERTIFICATE REQUEST-----"""},
             ]
         },
     )
@@ -51,14 +49,12 @@ class RevokeRequest(BaseModel):  # pylint: disable=too-few-public-methods
         extra="forbid",
         json_schema_extra={
             "examples": [
-                {
-                    "cert": """-----BEGIN CERTIFICATE-----
+                {"cert": """-----BEGIN CERTIFICATE-----
 MIID9DCCAtygAwIBAgIUSF7KldQcZ9tc8IHB9zBQnf/1V58wDQYJKoZIhvcNAQEL
 ...
 RTM/xsm9FVNDBFy/w5Xu6Xewa5UrHkRtrEsbmhbbc6VLytoQrhgqV6kbFJP8vgFn
 zPs4ufNJed0=
------END CERTIFICATE-----"""
-                },
+-----END CERTIFICATE-----"""},
             ]
         },
     )

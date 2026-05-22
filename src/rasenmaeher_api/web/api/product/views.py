@@ -25,7 +25,6 @@ from ....productapihelpers import post_to_product
 from ....mtlsinit import get_session_winit
 from ..middleware.user import ValidUser
 
-
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
 

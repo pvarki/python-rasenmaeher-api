@@ -8,7 +8,6 @@ from pathlib import Path
 
 import cryptography.x509
 
-
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
 
 

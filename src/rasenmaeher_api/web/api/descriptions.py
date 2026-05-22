@@ -9,7 +9,6 @@ from libpvarki.middleware import MTLSHeader
 from rasenmaeher_api.web.api.middleware.user import ValidUser
 from ...productapihelpers import get_from_all_products, get_from_product
 
-
 LOGGER = logging.getLogger(__name__)
 
 router = APIRouter()  # These endpoints are public

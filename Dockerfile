@@ -39,6 +39,7 @@ RUN poetry install --no-interaction --no-ansi \
 # Base builder image #
 ######################
 FROM python:3.11-bookworm as builder_base
+ARG PIP_EXTRA_ARGS=""
 
 ENV \
   # locale
@@ -51,8 +52,6 @@ ENV \
   PIP_NO_CACHE_DIR=off \
   PIP_DISABLE_PIP_VERSION_CHECK=on \
   PIP_DEFAULT_TIMEOUT=100 \
-  PIP_INDEX_URL=https://nexus.dev.pvarki.fi/repository/python/simple \
-  POETRY_PYPI_MIRROR_URL=https://nexus.dev.pvarki.fi/repository/python/simple \
   # poetry:
   POETRY_VERSION=2.2.1
 
@@ -138,7 +137,7 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
     && WHEELFILE=`echo /tmp/wheelhouse/rasenmaeher_api-*.whl` \
-    && pip3 install --index-url https://nexus.dev.pvarki.fi/repository/python/simple --find-links=/tmp/wheelhouse/ "$WHEELFILE"[all] \
+    && pip3 install $PIP_EXTRA_ARGS --find-links=/tmp/wheelhouse/ "$WHEELFILE"[all] \
     && rm -rf /tmp/wheelhouse/ \
     # Do whatever else you need to
     && true

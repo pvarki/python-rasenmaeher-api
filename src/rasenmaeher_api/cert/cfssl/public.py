@@ -18,7 +18,6 @@ from .base import (
 )
 from .private import refresh_ocsp
 
-
 LOGGER = logging.getLogger(__name__)
 CRL_LIFETIME = "1800s"  # seconds
 
