@@ -29,6 +29,7 @@ repos:
       - id: end-of-file-fixer
         stages: [pre-commit]
       - id: check-added-large-files
+        exclude: (uv|poetry)\.lock
         stages: [pre-commit]
       - id: check-case-conflict
         stages: [pre-commit]
