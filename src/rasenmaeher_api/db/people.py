@@ -100,6 +100,8 @@ class Person(ORMBaseModel, table=True):
         cnf = RMSettings.singleton()
         if callsign in cnf.valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
+        if callsign == cnf.mtls_client_cert_cn:
+            raise CallsignReserved("Using the rasenmaeher service CN as a callsign is forbidden")
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()

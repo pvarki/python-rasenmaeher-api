@@ -31,6 +31,7 @@ dependencies = [
     "python-keycloak>=4.2.0,<5.0",
     "sqlmodel>=0.0.37,<1.0",
     "psycopg2-binary>=2.9,<3.0",
+    "kubernetes>=31.0,<33.0",
 ]
 
 [project.urls]
@@ -87,6 +88,10 @@ strict=true
 [[tool.mypy.overrides]]
 module="tests"
 disallow_untyped_decorators=false
+
+[[tool.mypy.overrides]]
+module=["kubernetes", "kubernetes.*"]
+ignore_missing_imports=true
 
 [tool.pytest.ini_options]
 junit_family="xunit2"
