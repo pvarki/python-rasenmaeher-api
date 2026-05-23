@@ -1,6 +1,6 @@
 [project]
 name = "rasenmaeher_api"
-version = "1.16.0+260508"
+version = "1.16.0+260523"
 description = "python-rasenmaeher-api"
 authors = [
     { name = "Aciid", email = "703382+Aciid@users.noreply.github.com" },

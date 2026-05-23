@@ -2113,7 +2113,7 @@ wheels = [
 
 [[package]]
 name = "rasenmaeher-api"
-version = "1.16.0+260508"
+version = "1.16.0+260523"
 source = { editable = "." }
 dependencies = [
     { name = "aiodns" },
