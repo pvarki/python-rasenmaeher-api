@@ -1,6 +1,7 @@
 """Base helpers etc"""
 
 from typing import Any, Mapping, Union, List, cast
+import json
 import logging
 import ssl
 
@@ -38,11 +39,24 @@ def default_timeout() -> aiohttp.ClientTimeout:
 
 async def get_result(response: aiohttp.ClientResponse) -> Any:
     """Get the result part"""
-    data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json(content_type=None))
+    body = await response.text()
+    try:
+        data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], json.loads(body) if body else {})
+    except json.JSONDecodeError as exc:
+        LOGGER.error(
+            "Non-JSON response from {} (HTTP {} {}): {!r}".format(
+                response.url, response.status, response.reason, body[:1000]
+            )
+        )
+        raise CFSSLError(
+            "HTTP {} {} from {} with non-JSON body: {!r}".format(
+                response.status, response.reason, response.url, body[:500]
+            )
+        ) from exc
     LOGGER.debug("data={}".format(data))
     if not data:
-        LOGGER.error("Got empty json from response={}".format(response))
-        raise CFSSLError("Got empty response")
+        LOGGER.error("Empty body from {} (HTTP {} {})".format(response.url, response.status, response.reason))
+        raise CFSSLError("Empty response from {} (HTTP {} {})".format(response.url, response.status, response.reason))
     if errors := data.get("errors"):
         errors = cast(List[Mapping[str, Any]], errors)
         for error in errors:
