@@ -40,7 +40,6 @@ def cli_group(ctx: click.Context, loglevel: int, verbose: int) -> None:
 
     LOGGER.setLevel(loglevel)
     ctx.ensure_object(dict)
-    ctx.obj["loop"] = asyncio.get_event_loop()
     ctx.obj["dbwrapper"] = DBWrapper(config=DBConfig.singleton())
 
 
@@ -87,7 +86,7 @@ def do_http_healthcheck(ctx: click.Context, host: str, port: int, timeout: float
                     return 1
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(doit()))
+    ctx.exit(asyncio.run(doit()))
 
 
 @cli_group.command(name="addcode")
@@ -112,7 +111,7 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
         click.echo(code)
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
+    ctx.exit(asyncio.run(call_backend(claims)))
 
 
 @cli_group.command(name="getpfx")
@@ -139,7 +138,7 @@ def get_pfx(ctx: click.Context, callsign: str, admin: bool) -> None:
 
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(do_the_needful()))
+    ctx.exit(asyncio.run(do_the_needful()))
 
 
 @cli_group.command(name="revokeuser")
@@ -160,7 +159,7 @@ def revoke_user(ctx: click.Context, callsign: str, reason: str) -> None:
 
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(do_the_needful()))
+    ctx.exit(asyncio.run(do_the_needful()))
 
 
 @cli_group.command(name="getjwt")
@@ -186,7 +185,7 @@ def get_jwt(ctx: click.Context, claims_json: str, nonce: bool) -> None:
         click.echo(token)
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
+    ctx.exit(asyncio.run(call_backend(claims)))
 
 
 @cli_group.command(name="getadminjwt")
@@ -209,7 +208,7 @@ def get_adminjwt(ctx: click.Context, claims_json: str) -> None:
         click.echo(token)
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(call_backend(claims)))
+    ctx.exit(asyncio.run(call_backend(claims)))
 
 
 @cli_group.command(name="addtestusers")
@@ -226,7 +225,7 @@ def add_test_users(ctx: click.Context) -> None:
         click.echo(pprint.pformat(ret))
         return 0
 
-    ctx.exit(ctx.obj["loop"].run_until_complete(call_testusers()))
+    ctx.exit(asyncio.run(call_testusers()))
 
 
 def rasenmaeher_api_cli() -> None:
