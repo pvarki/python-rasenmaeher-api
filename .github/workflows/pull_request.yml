@@ -60,7 +60,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5 # v6 has a known bug https://github.com/orgs/community/discussions/183817
         with:
           submodules: recursive
       - uses: pvarki/config-ci-library/.github/actions/setup-python@main
