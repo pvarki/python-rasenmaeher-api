@@ -66,7 +66,7 @@ async def _is_valid(callsign: str) -> bool:
     try:
         if callsign in settings.valid_product_cns:
             return True
-    except Exception:  # pylint: disable=broad-except
+    except Exception:
         LOGGER.debug("valid_product_cns lookup failed", exc_info=True)
     try:
         await Person.by_callsign(callsign)

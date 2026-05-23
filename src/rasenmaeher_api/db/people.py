@@ -48,6 +48,8 @@ class Person(ORMBaseModel, table=True):
     certspath: str = Field(nullable=False, index=False, unique=True)
     extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
     revoke_reason: str = Field(nullable=True, index=False)
+    # Decimal-string serial of the issued client cert; used by the OCSP responder to look up the row.
+    cert_serial: Optional[str] = Field(default=None, nullable=True, index=True)
 
     @classmethod
     async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
@@ -124,6 +126,10 @@ class Person(ORMBaseModel, table=True):
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                 certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                 newperson.certfile.write_text(certpem)
+                issued = cryptography.x509.load_pem_x509_certificate(certpem.encode("utf-8"))
+                newperson.cert_serial = str(issued.serial_number)
+                session.add(newperson)
+                session.commit()
             except Exception as exc:
                 LOGGER.exception("Something went wrong, doing cleanup")
                 shutil.rmtree(certspath)
@@ -282,6 +288,19 @@ class Person(ORMBaseModel, table=True):
         """Get by callsign"""
         with EngineWrapper.get_session() as session:
             statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
+            obj = session.exec(statement).first()
+            if not obj:
+                raise NotFound()
+            if obj.deleted and not allow_deleted:
+                raise Deleted()
+            return obj
+
+    @classmethod
+    async def by_cert_serial(cls, serial: str, allow_deleted: bool = True) -> Self:
+        """Get by issued cert serial (decimal string). OCSP responder needs
+        revoked rows too, so allow_deleted defaults to True here."""
+        with EngineWrapper.get_session() as session:
+            statement = select(cls).where(cls.cert_serial == serial)
             obj = session.exec(statement).first()
             if not obj:
                 raise NotFound()

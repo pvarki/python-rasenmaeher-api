@@ -106,6 +106,13 @@ class RMSettings(BaseSettings):
     cert_manager_cert_duration: str = "8760h"
     cert_manager_ca_bundle_path: str = "/pvarki-ca/opendefense-ca-cert.pem"
     cert_manager_cleanup_on_revoke: bool = True
+    # Dedicated OCSP signer materialized from a cert-manager Certificate CR with
+    # usages: [digital signature, ocsp signing]. The Secret is mounted into the
+    # rmapi pod at these paths. See web/api/ocsp/views.py for the runtime use.
+    cert_manager_ocsp_signer_cert_path: str = "/pvarki-ocsp/tls.crt"
+    cert_manager_ocsp_signer_key_path: str = "/pvarki-ocsp/tls.key"
+    # How long an OCSP response is considered fresh; clients may cache up to this.
+    cert_manager_ocsp_next_update_hours: int = 1
 
     # Shared secret used by the Traefik callsign-validity plugin to auth to the
     # internal websocket. Optional — if unset, the websocket accepts any caller

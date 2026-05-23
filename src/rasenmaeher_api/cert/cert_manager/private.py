@@ -183,7 +183,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
                     raise CertManagerError(f"CertificateRequest {namespace}/{name} ready but no certificate in status")
                 cert_pem = base64.b64decode(cert_b64).decode("utf-8")
                 if bundle:
-                    from .public import get_ca  # pylint: disable=import-outside-toplevel
+                    from .public import get_ca
 
                     ca_pem = await get_ca()
                     if not cert_pem.endswith("\n"):
@@ -202,8 +202,14 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
 
 
 async def sign_ocsp(cert: str, status: str = "good") -> Any:
-    """TODO Implement for TAK to use"""
-    LOGGER.warning("sign_ocsp not implemented yet as part of cert manager")
+    """No-op under cert-manager.
+
+    OCSP is served on-demand by the rmapi endpoint at ``/api/v1/ocsp`` (see
+    ``web/api/ocsp/views.py``), which reads revocation state from the rmapi DB
+    and signs responses with the cert-manager-issued OCSP signer. There is no
+    background pre-signing step to perform here.
+    """
+    LOGGER.debug("sign_ocsp is a no-op under cert-manager backend")
     return None
 
 
@@ -257,5 +263,9 @@ async def dump_crlfiles() -> None:
 
 
 async def refresh_ocsp() -> None:
-    """TODO Implement for TAK to use"""
-    LOGGER.debug("refresh_ocsp not implemented yet as part of cert manager")
+    """No-op under cert-manager.
+
+    OCSP responses are produced on demand at ``/api/v1/ocsp``, so there is no
+    pre-computed response set to refresh.
+    """
+    LOGGER.debug("refresh_ocsp is a no-op under cert-manager backend")
