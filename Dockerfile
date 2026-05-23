@@ -2,8 +2,8 @@
 #############################################
 # Tox testsuite for multiple python version #
 #############################################
-FROM advian/tox-base:debian-bookworm as tox
-ARG PYTHON_VERSIONS="3.11 3.12"
+FROM advian/tox-base:debian-trixie as tox
+ARG PYTHON_VERSIONS="3.14 3.12"
 ARG UV_VERSION="0.11.6"
 RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
     && echo RESOLVED_VERSIONS=$RESOLVED_VERSIONS \
@@ -37,7 +37,7 @@ RUN uv sync --frozen \
 ######################
 # Base builder image #
 ######################
-FROM python:3.11-bookworm as builder_base
+FROM python:3.14-trixie as builder_base
 COPY --from=ghcr.io/astral-sh/uv:0.11.6 /uv /uvx /usr/local/bin/
 
 ENV \
@@ -117,7 +117,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 #########################
 # Main production build #
 #########################
-FROM python:3.11-slim-bookworm as production
+FROM python:3.14-slim-trixie as production
 COPY --from=production_build /tmp/wheelhouse /tmp/wheelhouse
 COPY --from=production_build /docker-entrypoint.sh /docker-entrypoint.sh
 COPY --from=production_build /container-init.sh /container-init.sh
