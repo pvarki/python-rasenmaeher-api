@@ -46,7 +46,7 @@ jobs:
 
   test:
     name: Run tests
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     permissions:
       contents: write
       pull-requests: write
@@ -88,7 +88,7 @@ jobs:
 
   docker_builds:
     name: Build Docker images
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     steps:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -106,7 +106,7 @@ jobs:
   publish:
     name: Publish Docker image
     needs: [versiontag, pre_commit, snyk, test, docker_builds]
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     permissions:
       contents: read
       packages: write
