@@ -7,25 +7,21 @@ Traefik callsign-validity plugin), so the revoke functions only best-effort
 clean up the CR.
 """
 
-from typing import Union, Any, Dict, Optional, cast
+from typing import Union, Any, Optional, cast
 from pathlib import Path
 import asyncio
 import base64
 import logging
 
+from cloudcoil import apimachinery
+from cloudcoil.errors import ResourceConflict, APIError, ResourceNotFound
+from cloudcoil.models.cert_manager.v1 import CertificateRequest, CertificateRequestSpec, Condition, IssuerRef
 import cryptography.x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID
-from kubernetes.client import ApiException
 
 from ...rmsettings import RMSettings
 from .base import CertManagerError
-from .k8s import (
-    get_custom_objects_api,
-    CERT_MANAGER_GROUP,
-    CERT_MANAGER_VERSION,
-    CERTIFICATEREQUESTS_PLURAL,
-)
 from .names import cr_name
 
 
@@ -108,91 +104,58 @@ def _csr_usages(csr_pem: str) -> list[str]:
     return out
 
 
-def _ready_condition(cr_obj: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Return the Ready condition dict from a CertificateRequest, or None."""
-    status = cr_obj.get("status") or {}
-    for cond in status.get("conditions", []) or []:
-        if cond.get("type") == "Ready":
-            return cast(Dict[str, Any], cond)
+def _ready_condition(certificate_request: CertificateRequest) -> Optional[Condition]:
+    """Return the Ready condition from a CertificateRequest, or None."""
+    status = certificate_request.status
+    if status is None:
+        return None
+    for cond in status.conditions or []:
+        if cond.type == "Ready":
+            return cond
     return None
 
 
-def _build_cr_manifest(name: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> Dict[str, Any]:
-    """Build the CertificateRequest CR payload."""
-    usages = _csr_usages(csr_pem)
-    if not usages:
-        # Default for clients that ship a CSR without explicit KeyUsage extensions.
-        usages = ["digital signature", "key encipherment", "client auth"]
-    return {
-        "apiVersion": f"{CERT_MANAGER_GROUP}/{CERT_MANAGER_VERSION}",
-        "kind": "CertificateRequest",
-        "metadata": {
-            "name": name,
-            "namespace": settings.cert_manager_namespace,
-        },
-        "spec": {
-            "duration": settings.cert_manager_cert_duration,
-            "usages": usages,
-            "request": csr_b64,
-            "issuerRef": {
-                "name": settings.cert_manager_issuer_name,
-                "kind": settings.cert_manager_issuer_kind,
-                "group": settings.cert_manager_issuer_group,
-            },
-        },
-    }
-
-
-def _create_cr_sync(name: str, manifest: Dict[str, Any], namespace: str) -> None:
+async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> None:
     """Create the CertificateRequest, swallowing AlreadyExists (idempotent submit)."""
-    api = get_custom_objects_api()
     try:
-        api.create_namespaced_custom_object(
-            group=CERT_MANAGER_GROUP,
-            version=CERT_MANAGER_VERSION,
-            namespace=namespace,
-            plural=CERTIFICATEREQUESTS_PLURAL,
-            body=manifest,
-        )
+        usages = _csr_usages(csr_pem)
+        if not usages:
+            # Default for clients that ship a CSR without explicit KeyUsage extensions.
+            usages = ["digital signature", "key encipherment", "client auth"]
+        await CertificateRequest(
+            metadata=apimachinery.ObjectMeta(name=name, namespace=namespace),
+            spec=CertificateRequestSpec(
+                duration=settings.cert_manager_cert_duration,
+                usages=cast(Any, usages),
+                request=csr_b64,
+                issuer_ref=IssuerRef(
+                    name=settings.cert_manager_issuer_name,
+                    kind=settings.cert_manager_issuer_kind,
+                    group=settings.cert_manager_issuer_group,
+                ),
+            ),
+        ).async_create()
+
         LOGGER.info("Created CertificateRequest %s/%s", namespace, name)
-    except ApiException as exc:
-        if exc.status == 409:
-            LOGGER.info("CertificateRequest %s/%s already exists, will poll existing", namespace, name)
-            return
+    except ResourceConflict:
+        LOGGER.info("CertificateRequest %s/%s already exists, will poll existing", namespace, name)
+        return
+    except APIError as exc:
         raise CertManagerError(f"Failed to create CertificateRequest {namespace}/{name}: {exc}") from exc
 
 
-def _get_cr_sync(name: str, namespace: str) -> Dict[str, Any]:
-    """Fetch a CertificateRequest. Raises on HTTP error."""
-    api = get_custom_objects_api()
-    return cast(
-        Dict[str, Any],
-        api.get_namespaced_custom_object(
-            group=CERT_MANAGER_GROUP,
-            version=CERT_MANAGER_VERSION,
-            namespace=namespace,
-            plural=CERTIFICATEREQUESTS_PLURAL,
-            name=name,
-        ),
-    )
+async def _get_cr(name: str, namespace: str) -> CertificateRequest:
+    """Fetch a CertificateRequest. Raises ``ResourceNotFound`` if missing."""
+    return await CertificateRequest.async_get(name=name, namespace=namespace)
 
 
-def _delete_cr_sync(name: str, namespace: str) -> bool:
+async def _delete_cr(name: str, namespace: str) -> bool:
     """Delete a CertificateRequest. Returns True if deleted, False if it didn't exist."""
-    api = get_custom_objects_api()
     try:
-        api.delete_namespaced_custom_object(
-            group=CERT_MANAGER_GROUP,
-            version=CERT_MANAGER_VERSION,
-            namespace=namespace,
-            plural=CERTIFICATEREQUESTS_PLURAL,
-            name=name,
-        )
+        await CertificateRequest.async_delete(name=name, namespace=namespace)
         return True
-    except ApiException as exc:
-        if exc.status == 404:
-            return False
-        raise
+    except ResourceNotFound:
+        return False
 
 
 async def sign_csr(csr: str, bundle: bool = True) -> str:
@@ -206,23 +169,20 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     name = cr_name(cn) if cn else f"rm-anon-{base64.urlsafe_b64encode(csr.encode()).decode()[:10].lower()}"
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
-    manifest = _build_cr_manifest(name, csr, csr_b64, settings)
 
-    await asyncio.to_thread(_create_cr_sync, name, manifest, namespace)
+    await _create_cr(name, namespace, csr, csr_b64, settings)
 
     deadline = asyncio.get_event_loop().time() + settings.cert_manager_timeout
     while True:
-        cr_obj = await asyncio.to_thread(_get_cr_sync, name, namespace)
+        cr_obj = await _get_cr(name, namespace)
         cond = _ready_condition(cr_obj)
         if cond is not None:
-            status = cond.get("status")
-            if status == "True":
-                cert_b64 = (cr_obj.get("status") or {}).get("certificate")
+            if cond.status == "True":
+                cert_b64 = cr_obj.status.certificate if cr_obj.status else None
                 if not cert_b64:
                     raise CertManagerError(f"CertificateRequest {namespace}/{name} ready but no certificate in status")
                 cert_pem = base64.b64decode(cert_b64).decode("utf-8")
                 if bundle:
-                    # Late import to avoid a cycle.
                     from .public import get_ca  # pylint: disable=import-outside-toplevel
 
                     ca_pem = await get_ca()
@@ -230,9 +190,9 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
                         cert_pem += "\n"
                     cert_pem += ca_pem
                 return cert_pem
-            if status == "False":
-                reason = cond.get("reason", "Unknown")
-                msg = cond.get("message", "")
+            if cond.status == "False":
+                reason = cond.reason or "Unknown"
+                msg = cond.message or ""
                 raise CertManagerError(f"CertificateRequest {namespace}/{name} failed: reason={reason} message={msg}")
         if asyncio.get_event_loop().time() >= deadline:
             raise CertManagerError(
@@ -242,8 +202,8 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
 
 
 async def sign_ocsp(cert: str, status: str = "good") -> Any:
-    """OCSP signing — not used under cert-manager. No-op for compatibility."""
-    LOGGER.debug("sign_ocsp called under cert-manager backend; no-op")
+    """TODO Implement for TAK to use"""
+    LOGGER.warning("sign_ocsp not implemented yet as part of cert manager")
     return None
 
 
@@ -268,28 +228,10 @@ async def revoke_pem(pem: Union[str, Path], reason: ReasonTypes) -> None:
     the rmapi DB (``Person.deleted``) and is consumed by the Traefik plugin via
     websocket. This function only cleans up the matching CertificateRequest CR.
     """
-    if isinstance(pem, Path):
-        pem = pem.read_text("utf-8")
-    settings = RMSettings.singleton()
-    if not settings.cert_manager_cleanup_on_revoke:
-        return
-    cert = cryptography.x509.load_pem_x509_certificate(pem.encode("utf-8"))
-    cn: Optional[str] = None
-    for attribute in cert.subject:
-        if attribute.oid == cryptography.x509.NameOID.COMMON_NAME:
-            cn = cast(str, attribute.value)
-            break
-    if not cn:
-        LOGGER.warning("revoke_pem: cert has no CN, cannot derive CR name; skipping cleanup")
-        return
-    name = cr_name(cn)
-    try:
-        deleted = await asyncio.to_thread(_delete_cr_sync, name, settings.cert_manager_namespace)
-    except ApiException as exc:
-        LOGGER.warning("revoke_pem: failed to delete CR %s: %s", name, exc)
-        return
-    if deleted:
-        LOGGER.info("revoke_pem: deleted CertificateRequest %s/%s", settings.cert_manager_namespace, name)
+    validate_reason(reason)
+    LOGGER.debug(
+        "revoke_pem called under cert-manager backend; no-op aside from DB-driven revocation",
+    )
 
 
 async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonTypes) -> None:
@@ -305,15 +247,15 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
 
 async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
     """Adding to a cert DB is a cfssl concept. No-op under cert-manager."""
-    LOGGER.debug("certadd_pem called under cert-manager backend; no-op")
+    LOGGER.warning("certadd_pem called under cert-manager backend; no-op")
     return None
 
 
 async def dump_crlfiles() -> None:
     """CRL dumping is not applicable under cert-manager. No-op."""
-    LOGGER.debug("dump_crlfiles called under cert-manager backend; no-op")
+    LOGGER.warning("dump_crlfiles called under cert-manager backend; no-op")
 
 
 async def refresh_ocsp() -> None:
-    """OCSP refresh is not applicable under cert-manager. No-op."""
-    LOGGER.debug("refresh_ocsp called under cert-manager backend; no-op")
+    """TODO Implement for TAK to use"""
+    LOGGER.debug("refresh_ocsp not implemented yet as part of cert manager")
