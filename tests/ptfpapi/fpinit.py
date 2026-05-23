@@ -8,64 +8,18 @@ import sys
 from pathlib import Path
 
 import aiohttp
-from OpenSSL import crypto  # FIXME: use cryptography instead of pyOpenSSL
 from libadvian.logging import init_logging
+from libpvarki.mtlshelp.csr import (
+    async_create_client_csr,
+    async_create_keypair,
+    async_create_server_csr,
+    resolve_filepaths,
+)
 
-# FIXME: refactor to use the helpers from libpvarki 1.6.0
 
 LOGGER = logging.getLogger(__name__)
 DATAPATH = Path("/data/persistent")
 TIMEOUT = aiohttp.ClientTimeout(total=2.0)
-
-# we know we have copy-pasted this shit here, it's for the best, this time...
-# pylint: disable=R0801
-
-
-def create_keypair(name: str) -> crypto.PKey:
-    """Generate a keypair"""
-
-    privkeypath = DATAPATH / "private" / f"{name}.key"
-    if not privkeypath.parent.exists():
-        privkeypath.parent.mkdir(parents=True)
-    pubkeypath = DATAPATH / "public" / f"{name}.pub"
-    if not pubkeypath.parent.exists():
-        pubkeypath.parent.mkdir(parents=True)
-    ckp = crypto.PKey()
-    LOGGER.debug("Generating keypair, this will take a moment")
-    ckp.generate_key(crypto.TYPE_RSA, 4096)
-    LOGGER.debug("Done")
-    with privkeypath.open("wb") as fpntr:
-        fpntr.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, ckp))
-    with pubkeypath.open("wb") as fpntr:
-        fpntr.write(crypto.dump_publickey(crypto.FILETYPE_PEM, ckp))
-    return ckp
-
-
-def create_csr(keypair: crypto.PKey, certname: str, cnstr: str, client: bool = False) -> Path:
-    """Generate CSR file"""
-    cert_path = DATAPATH / "public" / f"{certname}.pem"
-    if not cert_path.parent.exists():
-        cert_path.parent.mkdir(parents=True)
-    csrpath = cert_path.parent / cert_path.name.replace(".pem", ".csr")
-
-    req = crypto.X509Req()
-    sanbytes = ", ".join([f"DNS:{cnstr}", "IP:127.0.0.1", "DNS:localhost"]).encode("utf-8")
-    req.get_subject().CN = cnstr
-    extensions = [
-        crypto.X509Extension(b"keyUsage", True, b"digitalSignature,nonRepudiation,keyEncipherment"),
-    ]
-    if client:
-        extensions.append(crypto.X509Extension(b"extendedKeyUsage", True, b"clientAuth"))
-    else:
-        extensions.append(crypto.X509Extension(b"extendedKeyUsage", True, b"serverAuth"))
-        extensions.append(crypto.X509Extension(b"subjectAltName", False, sanbytes))
-    req.add_extensions(extensions)
-    req.set_pubkey(keypair)
-    req.sign(keypair, "sha256")
-    with csrpath.open("wb") as fpntr:
-        fpntr.write(crypto.dump_certificate_request(crypto.FILETYPE_PEM, req))
-
-    return csrpath
 
 
 async def get_ca() -> str:
@@ -125,22 +79,21 @@ async def main() -> int:
         LOGGER.info("Init already done")
         return 0
     LOGGER.info("Initializing server cert")
-    keypair = await asyncio.get_event_loop().run_in_executor(None, create_keypair, "server")
-    csr_path = await asyncio.get_event_loop().run_in_executor(
-        None, create_csr, keypair, "server", environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
-    )
-    certpem = (await sign_csr(csr_path.read_text())).replace("\\n", "\n")
+    server_priv, server_pub, server_csrpath = resolve_filepaths(DATAPATH, "server")
+    keypair = await async_create_keypair(server_priv, server_pub)
+    server_cn = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
+    csr_pem = await async_create_server_csr(keypair, server_csrpath, [server_cn, "IP:127.0.0.1", "DNS:localhost"])
+    certpem = (await sign_csr(csr_pem)).replace("\\n", "\n")
     capem = (await get_ca()).replace("\\n", "\n")
     cert_path.write_text(certpem, encoding="ascii")
     certhain = certpem + capem
     chain_path.write_text(certhain, encoding="ascii")
 
     LOGGER.info("Initializing client cert")
-    keypair2 = await asyncio.get_event_loop().run_in_executor(None, create_keypair, "client")
-    csr_path2 = await asyncio.get_event_loop().run_in_executor(
-        None, create_csr, keypair2, "client", "mtlstestclient", True
-    )
-    certpem2 = (await sign_csr(csr_path2.read_text())).replace("\\n", "\n")
+    client_priv, client_pub, client_csrpath = resolve_filepaths(DATAPATH, "client")
+    keypair2 = await async_create_keypair(client_priv, client_pub)
+    csr_pem2 = await async_create_client_csr(keypair2, client_csrpath, {"CN": "mtlstestclient"})
+    certpem2 = (await sign_csr(csr_pem2)).replace("\\n", "\n")
     cert_path2 = DATAPATH / "public" / "client.pem"
     cert_path2.write_text(certpem2, encoding="ascii")
     LOGGER.info("All done")

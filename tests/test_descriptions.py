@@ -3,7 +3,7 @@
 import logging
 
 import pytest
-from async_asgi_testclient import TestClient
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 
 LOGGER = logging.getLogger(__name__)
 

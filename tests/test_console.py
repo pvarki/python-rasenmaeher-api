@@ -1,6 +1,7 @@
 """Test CLI scripts"""
 
 import asyncio
+import os
 
 import pytest
 from libadvian.binpackers import ensure_str
@@ -9,7 +10,7 @@ from rasenmaeher_api import __version__
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_version_cli():  # type: ignore
+async def test_version_cli() -> None:
     """Test the CLI parsing for default version dumping works"""
     cmd = "rasenmaeher_api --version"
     process = await asyncio.create_subprocess_shell(
@@ -22,3 +23,20 @@ async def test_version_cli():  # type: ignore
     assert process.returncode == 0
     # Check output
     assert ensure_str(out[0]).strip().endswith(__version__)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_addcode_cli() -> None:
+    """Test we can add new admin code via CLI"""
+    cmd = "rasenmaeher_api addcode"
+    process = await asyncio.create_subprocess_shell(
+        cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+        env=os.environ,
+    )
+    out = await asyncio.wait_for(process.communicate(), 15)
+    # Demand clean exit
+    assert process.returncode == 0
+    # Check output
+    assert ensure_str(out[0]).strip()

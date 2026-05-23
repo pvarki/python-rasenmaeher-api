@@ -87,7 +87,7 @@ async def _method_to_all_products(
         nonlocal url_suffix, methodname, response_schema, data
         try:
             return name, await _method_to_product(name, methodname, url_suffix, data, response_schema)
-        except Exception as exc:  # pylint: disable=W0718
+        except Exception as exc:
             LOGGER.exception(exc)
             return name, None
 
@@ -145,6 +145,6 @@ async def _method_to_product(
         except pydantic.ValidationError as exc:
             LOGGER.error("Invalid response from {}: {}".format(url, repr(exc)))
             return None
-        except Exception:  # pylint: disable=W0718
+        except Exception:
             LOGGER.exception("Something went seriously wrong calling {}".format(url))
             return None

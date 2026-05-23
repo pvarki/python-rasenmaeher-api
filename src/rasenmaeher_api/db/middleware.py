@@ -18,7 +18,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class DBWrapper:  # pylint: disable=R0902
+class DBWrapper:
     """Handle app db connection stuff"""
 
     config: DBConfig = field(default_factory=DBConfig)
@@ -39,7 +39,7 @@ class DBWrapper:  # pylint: disable=R0902
             try:
                 await self.create_engine()
                 break
-            except Exception as exc:  # pylint: disable=W0703
+            except Exception as exc:
                 LOGGER.error("database connection failed {}".format(exc))
                 # TODO: Check that it's a connection error, otherwise just raise immediately
                 if retries < self.config.retry_limit:
@@ -54,7 +54,7 @@ class DBWrapper:  # pylint: disable=R0902
         # we no longer need to manage connections like this
 
 
-class DBConnectionMiddleware:  # pylint: disable=R0903
+class DBConnectionMiddleware:
     """Middleware that handles request connection pooling"""
 
     def __init__(self, app: FastAPI, config: DBConfig) -> None:

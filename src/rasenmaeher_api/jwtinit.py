@@ -39,13 +39,15 @@ def _check_public_keys_tilauspalvelu(pubkeydir: Path) -> None:
         lock.acquire(timeout=0.0)
         ssl_ctx = get_ca_context(ssl.Purpose.SERVER_AUTH)
         try:
-            with urllib.request.urlopen(
-                RMSettings.singleton().tilauspalvelu_jwt, context=ssl_ctx, timeout=HTTP_TIMEOUT  # nosec
+            with urllib.request.urlopen(  # nosec B310
+                RMSettings.singleton().tilauspalvelu_jwt,
+                context=ssl_ctx,
+                timeout=HTTP_TIMEOUT,
             ) as response:
                 tppubkey.write_bytes(response.read())
         except (urllib.request.HTTPError, TimeoutError) as exc:
             LOGGER.error("Could not load TILAUSPALVELU key: {}".format(exc))
-        except Exception as exc:  # pylint: disable=W0718
+        except Exception as exc:
             LOGGER.exception("Unhanled exception while loading TILAUSPALVELU key: {}".format(exc))
     except filelock.Timeout:
         LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
@@ -137,7 +139,7 @@ def resolve_rm_jwt_privkey_path() -> Path:
         keypath = Path(str(keypath))
         if keypath.exists():
             LOGGER.warning(
-                "We have defined private key path and file exists but it seems not be usable, will overwrite it with new key"  # pylint: disable=C0301
+                "We have defined private key path and file exists but it seems not be usable, will overwrite it with new key"
             )
     else:
         keypath = DEFAULT_KEY_PATH
@@ -163,7 +165,7 @@ async def jwt_init() -> None:
     genprivpath: Optional[Path] = None
     lockpath = keypath.with_suffix(".lock")
     # Random sleep to avoid race conditions on these file accesses
-    await asyncio.sleep(random.random() * 3.0)  # nosec
+    await asyncio.sleep(random.random() * 3.0)  # nosec B311
     lock = filelock.FileLock(lockpath)
     try:
         lock.acquire(timeout=0.0)
@@ -179,7 +181,7 @@ async def jwt_init() -> None:
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")
-        await asyncio.sleep(5.0 + random.random())  # nosec
+        await asyncio.sleep(5.0 + random.random())  # nosec B311
         return await jwt_init()
     finally:
         lock.release()
