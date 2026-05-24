@@ -7,6 +7,7 @@ Traefik callsign-validity plugin), so the revoke functions only best-effort
 clean up the CR.
 """
 
+import hashlib
 from typing import List, Literal, Tuple, Union, Any, Optional, cast
 from pathlib import Path
 import asyncio
@@ -192,7 +193,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     settings = RMSettings.singleton()
     cn = _csr_common_name(csr)
-    name = cr_name(cn) if cn else f"rm-anon-{base64.urlsafe_b64encode(csr.encode()).decode()[:10].lower()}"
+    name = cr_name(cn) if cn else f"rm-anon-{hashlib.sha256(csr.encode()).hexdigest()[:10].lower()}"
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
 
