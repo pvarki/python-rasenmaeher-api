@@ -14,9 +14,11 @@ import asyncio
 import base64
 import logging
 
-from cloudcoil import apimachinery
 from cloudcoil.errors import ResourceConflict, APIError, ResourceNotFound
-from cloudcoil.models.cert_manager.v1 import CertificateRequest, CertificateRequestSpec, Condition, IssuerRef
+from cloudcoil.models.cert_manager.v1 import (
+    CertificateRequest,
+    Condition,
+)
 import cryptography.x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID
@@ -142,33 +144,45 @@ def _ready_condition(certificate_request: CertificateRequest) -> Optional[Condit
     return None
 
 
-async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> None:
-    """Create the CertificateRequest, swallowing AlreadyExists (idempotent submit)."""
+async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> CertificateRequest:
+    """Create the CertificateRequest and return it."""
     try:
         usages: List[KeyUsages] = _csr_usages(csr_pem)
         if not usages:
             # Default for clients that ship a CSR without explicit KeyUsage extensions.
             usages = ["digital signature", "key encipherment", "client auth"]
-        await CertificateRequest(
-            metadata=apimachinery.ObjectMeta(name=name, namespace=namespace),
-            spec=CertificateRequestSpec(
-                duration=settings.cert_manager_cert_duration,
-                usages=usages,
-                request=csr_b64,
-                issuer_ref=IssuerRef(
-                    name=settings.cert_manager_issuer_name,
-                    kind=settings.cert_manager_issuer_kind,
-                    group=settings.cert_manager_issuer_group,
-                ),
-            ),
-        ).async_create()
 
-        LOGGER.info("Created CertificateRequest %s/%s", namespace, name)
-    except ResourceConflict:
-        LOGGER.info("CertificateRequest %s/%s already exists, will poll existing", namespace, name)
-        return
+        certificate_request = (
+            CertificateRequest.builder()
+            .metadata(lambda metadata: metadata.name(name).namespace(namespace))
+            .spec(
+                lambda spec: spec.duration(settings.cert_manager_cert_duration)
+                .usages(usages)
+                .request(csr_b64)
+                .issuer_ref(
+                    lambda issuer_ref: issuer_ref.name(settings.cert_manager_issuer_name)
+                    .kind(settings.cert_manager_issuer_kind)
+                    .group(settings.cert_manager_issuer_group)
+                )
+            )
+        ).build()
+
+        LOGGER.info("Creating CertificateRequest %s/%s", namespace, name)
+        LOGGER.debug("CertificateRequest: %s", certificate_request.model_dump_json())
+
+        return await certificate_request.async_create()
+
     except APIError as exc:
         raise CertManagerError(f"Failed to create CertificateRequest {namespace}/{name}: {exc}") from exc
+
+
+async def _upsert_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> CertificateRequest:
+    """Create or fetch an existing CertificateRequest."""
+    try:
+        return await _create_cr(name, namespace, csr_pem, csr_b64, settings)
+    except ResourceConflict:
+        LOGGER.info("CertificateRequest %s/%s already exists, will poll existing", namespace, name)
+        return await _get_cr(name, namespace)
 
 
 async def _get_cr(name: str, namespace: str) -> CertificateRequest:
@@ -197,7 +211,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
 
-    await _create_cr(name, namespace, csr, csr_b64, settings)
+    await _upsert_cr(name, namespace, csr, csr_b64, settings)
 
     deadline = asyncio.get_event_loop().time() + settings.cert_manager_timeout
     while True:
