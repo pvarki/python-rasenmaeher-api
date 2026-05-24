@@ -23,7 +23,7 @@ from cryptography.x509.oid import ExtendedKeyUsageOID
 from ...rmsettings import RMSettings
 from .base import CertManagerError
 from .names import cr_name
-
+from .public import get_ca
 
 LOGGER = logging.getLogger(__name__)
 _POLL_INTERVAL = 1.0  # seconds between status polls
@@ -209,8 +209,6 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
                     raise CertManagerError(f"CertificateRequest {namespace}/{name} ready but no certificate in status")
                 cert_pem = base64.b64decode(cert_b64).decode("utf-8")
                 if bundle:
-                    from .public import get_ca
-
                     ca_pem = await get_ca()
                     if not cert_pem.endswith("\n"):
                         cert_pem += "\n"
