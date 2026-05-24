@@ -1,7 +1,7 @@
 """Private APIs for cert-manager backend.
 
 The signing flow creates a cert-manager ``CertificateRequest`` CR carrying the
-caller-provided CSR, polls until cert-manager marks it ``Ready``, and returns
+caller-provided CSR, waits until cert-manager issues the certificate, and returns
 the issued certificate as PEM. Revocation is DB-driven (consumed by the
 Traefik callsign-validity plugin), so the revoke functions only best-effort
 clean up the CR.
@@ -10,15 +10,11 @@ clean up the CR.
 import hashlib
 from typing import List, Literal, Tuple, Union, Any, Optional, cast
 from pathlib import Path
-import asyncio
 import base64
 import logging
 
-from cloudcoil.errors import ResourceConflict, APIError, ResourceNotFound
-from cloudcoil.models.cert_manager.v1 import (
-    CertificateRequest,
-    Condition,
-)
+from cloudcoil.errors import ResourceConflict, APIError, ResourceNotFound, WaitTimeout
+from cloudcoil.models.cert_manager.v1 import CertificateRequest
 import cryptography.x509
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID
@@ -29,7 +25,6 @@ from .names import cr_name
 from .public import get_ca
 
 LOGGER = logging.getLogger(__name__)
-_POLL_INTERVAL = 1.0  # seconds between status polls
 
 ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
 
@@ -133,17 +128,6 @@ def _csr_usages(csr_pem: str) -> List[KeyUsages]:
     return out
 
 
-def _ready_condition(certificate_request: CertificateRequest) -> Optional[Condition]:
-    """Return the Ready condition from a CertificateRequest, or None."""
-    status = certificate_request.status
-    if status is None:
-        return None
-    for cond in status.conditions or []:
-        if cond.type == "Ready":
-            return cond
-    return None
-
-
 async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> CertificateRequest:
     """Create the CertificateRequest and return it."""
     try:
@@ -211,33 +195,28 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
 
-    await _upsert_cr(name, namespace, csr, csr_b64, settings)
+    certificate_request = await _upsert_cr(name, namespace, csr, csr_b64, settings)
 
-    deadline = asyncio.get_event_loop().time() + settings.cert_manager_timeout
-    while True:
-        cr_obj = await _get_cr(name, namespace)
-        cond = _ready_condition(cr_obj)
-        if cond is not None:
-            if cond.status == "True":
-                cert_b64 = cr_obj.status.certificate if cr_obj.status else None
-                if not cert_b64:
-                    raise CertManagerError(f"CertificateRequest {namespace}/{name} ready but no certificate in status")
-                cert_pem = base64.b64decode(cert_b64).decode("utf-8")
-                if bundle:
-                    ca_pem = await get_ca()
-                    if not cert_pem.endswith("\n"):
-                        cert_pem += "\n"
-                    cert_pem += ca_pem
-                return cert_pem
-            if cond.status == "False":
-                reason = cond.reason or "Unknown"
-                msg = cond.message or ""
-                raise CertManagerError(f"CertificateRequest {namespace}/{name} failed: reason={reason} message={msg}")
-        if asyncio.get_event_loop().time() >= deadline:
-            raise CertManagerError(
-                f"CertificateRequest {namespace}/{name} did not become Ready within {settings.cert_manager_timeout}s"
-            )
-        await asyncio.sleep(_POLL_INTERVAL)
+    try:
+        await certificate_request.async_wait_for(
+            lambda _, cr: (req := cast(CertificateRequest, cr)).status is not None
+            and req.status.certificate is not None,
+            timeout=settings.cert_manager_timeout,
+        )
+    except WaitTimeout as exc:
+        raise CertManagerError(
+            f"CertificateRequest {namespace}/{name} did not issue a certificate within {settings.cert_manager_timeout}s"
+        ) from exc
+
+    assert certificate_request.status is not None
+    assert certificate_request.status.certificate is not None
+
+    cert_pem: str = certificate_request.status.certificate
+
+    if bundle:
+        ca_pem = await get_ca()
+        cert_pem = cert_pem.rstrip("\n") + "\n" + ca_pem
+    return cert_pem
 
 
 async def sign_ocsp(cert: str, status: str = "good") -> Any:
