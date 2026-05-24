@@ -7,7 +7,7 @@ Traefik callsign-validity plugin), so the revoke functions only best-effort
 clean up the CR.
 """
 
-from typing import Union, Any, Optional, cast
+from typing import List, Literal, Tuple, Union, Any, Optional, cast
 from pathlib import Path
 import asyncio
 import base64
@@ -52,7 +52,33 @@ def _csr_common_name(csr_pem: str) -> Optional[str]:
     return None
 
 
-_KEY_USAGE_NAMES = (
+type KeyUsages = Literal[
+    "signing",
+    "digital signature",
+    "content commitment",
+    "key encipherment",
+    "key agreement",
+    "data encipherment",
+    "cert sign",
+    "crl sign",
+    "encipher only",
+    "decipher only",
+    "any",
+    "server auth",
+    "client auth",
+    "code signing",
+    "email protection",
+    "s/mime",
+    "ipsec end system",
+    "ipsec tunnel",
+    "ipsec user",
+    "timestamping",
+    "ocsp signing",
+    "microsoft sgc",
+    "netscape sgc",
+]
+
+_KEY_USAGE_NAMES: Tuple[Tuple[str, KeyUsages], ...] = (
     ("digital_signature", "digital signature"),
     ("content_commitment", "content commitment"),
     ("key_encipherment", "key encipherment"),
@@ -62,7 +88,7 @@ _KEY_USAGE_NAMES = (
     ("crl_sign", "crl sign"),
 )
 
-_EXT_KEY_USAGE_NAMES = {
+_EXT_KEY_USAGE_NAMES: dict[cryptography.x509.ObjectIdentifier, KeyUsages] = {
     ExtendedKeyUsageOID.SERVER_AUTH: "server auth",
     ExtendedKeyUsageOID.CLIENT_AUTH: "client auth",
     ExtendedKeyUsageOID.CODE_SIGNING: "code signing",
@@ -72,7 +98,7 @@ _EXT_KEY_USAGE_NAMES = {
 }
 
 
-def _csr_usages(csr_pem: str) -> list[str]:
+def _csr_usages(csr_pem: str) -> List[KeyUsages]:
     """Extract cert-manager `spec.usages` values from a CSR's KeyUsage extensions.
 
     cert-manager's admission webhook rejects requests whose declared ``usages``
@@ -80,7 +106,7 @@ def _csr_usages(csr_pem: str) -> list[str]:
     list dynamically so we honor whatever the caller embedded.
     """
     csr = cryptography.x509.load_pem_x509_csr(csr_pem.encode("utf-8"))
-    out: list[str] = []
+    out: List[KeyUsages] = []
     try:
         ku = csr.extensions.get_extension_for_class(cryptography.x509.KeyUsage).value
         for attr, name in _KEY_USAGE_NAMES:
@@ -118,7 +144,7 @@ def _ready_condition(certificate_request: CertificateRequest) -> Optional[Condit
 async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> None:
     """Create the CertificateRequest, swallowing AlreadyExists (idempotent submit)."""
     try:
-        usages = _csr_usages(csr_pem)
+        usages: List[KeyUsages] = _csr_usages(csr_pem)
         if not usages:
             # Default for clients that ship a CSR without explicit KeyUsage extensions.
             usages = ["digital signature", "key encipherment", "client auth"]
@@ -126,7 +152,7 @@ async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, sett
             metadata=apimachinery.ObjectMeta(name=name, namespace=namespace),
             spec=CertificateRequestSpec(
                 duration=settings.cert_manager_cert_duration,
-                usages=cast(Any, usages),
+                usages=usages,
                 request=csr_b64,
                 issuer_ref=IssuerRef(
                     name=settings.cert_manager_issuer_name,
@@ -183,7 +209,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
                     raise CertManagerError(f"CertificateRequest {namespace}/{name} ready but no certificate in status")
                 cert_pem = base64.b64decode(cert_b64).decode("utf-8")
                 if bundle:
-                    from .public import get_ca  # pylint: disable=import-outside-toplevel
+                    from .public import get_ca
 
                     ca_pem = await get_ca()
                     if not cert_pem.endswith("\n"):
