@@ -208,8 +208,10 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
             f"CertificateRequest {namespace}/{name} did not issue a certificate within {settings.cert_manager_timeout}s"
         ) from exc
 
-    assert certificate_request.status is not None
-    assert certificate_request.status.certificate is not None
+    if certificate_request.status is None:
+        raise RuntimeError("certificate request has no status")
+    if certificate_request.status.certificate is None:
+        raise RuntimeError("certificate request status has no certificate")
 
     cert_pem: str = certificate_request.status.certificate
 

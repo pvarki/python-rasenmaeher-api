@@ -13,9 +13,7 @@ def cr_name(callsign: str) -> str:
     """
     slug = re.sub(r"[^a-z0-9-]", "-", callsign.lower()).strip("-")[:40]
     digest = hashlib.sha256(callsign.encode("utf-8")).hexdigest()[:10]
-    if slug:
-        return f"rm-{slug}-{digest}"
-    return f"rm-{digest}"
+    return "-".join(filter(None, ("rm", slug, digest)))
 
 
 def cr_name_for_serial(serial: str) -> str:
