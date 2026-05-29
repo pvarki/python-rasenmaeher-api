@@ -111,3 +111,51 @@ class ProductAddRequest(BaseModel):
 
     certcn: str = Field(description="CN of the certificate")
     x509cert: str = Field(description="Certificate encoded with CFSSL conventions (newlines escaped)")
+
+
+class ProductAuthzRequest(BaseModel):  # pylint: disable=too-few-public-methods
+    """Request authz for a specific source product."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "examples": [
+                {
+                    "certcn": "product.deployment.tld",
+                },
+            ],
+        },
+    )
+
+    certcn: str = Field(description="CN of the source product certificate")
+
+
+class ProductAuthzResponse(BaseModel):  # pylint: disable=too-few-public-methods
+    """Authz info for a product integration."""
+
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "examples": [
+                {
+                    "type": "mtls",
+                },
+                {
+                    "type": "bearer-token",
+                    "token": "<JWT>",
+                },
+                {
+                    "type": "basic",
+                    "username": "product.deployment.tld",
+                    "password": "<PASSWORD>",
+                    "ro_password": "<PASSWORD>",
+                },
+            ],
+        },
+    )
+
+    type: str = Field(description="type of authz: bearer-token, basic, mtls")
+    token: str | None = Field(description="Bearer token", default=None)
+    username: str | None = Field(description="Username for basic auth", default=None)
+    password: str | None = Field(description="Password for basic auth", default=None)
+    ro_password: str | None = Field(description="Password for read-only streaming", default=None)

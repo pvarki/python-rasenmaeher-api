@@ -15,7 +15,15 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 
 
-from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken, ProductAddRequest
+from .schema import (
+    CertificatesResponse,
+    CertificatesRequest,
+    RevokeRequest,
+    KCClientToken,
+    ProductAddRequest,
+    ProductAuthzRequest,
+    ProductAuthzResponse,
+)
 from ....db.nonces import SeenToken
 from ....db.errors import NotFound
 from ....db import Person
@@ -169,6 +177,35 @@ async def add_interop(
         return OperationResultResponse(success=False, error="post_to_product returned None")
     resp = cast(OperationResultResponse, resp)
     return resp
+
+
+@router.get("/interop/{tgtproduct}/authz", dependencies=[Depends(MTLSHeader(auto_error=True))])
+async def get_interop_authz(
+    tgtproduct: str,
+    request: Request,
+) -> ProductAuthzResponse:
+    """Broker authz for another product integration on behalf of the caller."""
+    payload = request.state.mtlsdn
+    srcproduct = payload.get("CN")
+    if srcproduct not in RMSettings.singleton().valid_product_cns:
+        raise HTTPException(status_code=403)
+
+    manifest = RMSettings.singleton().kraftwerk_manifest_dict
+    if "products" not in manifest:
+        LOGGER.error("Manifest does not have products key")
+        raise HTTPException(status_code=500, detail="Manifest does not have products key")
+    if tgtproduct not in manifest["products"]:
+        raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
+
+    resp = await post_to_product(
+        tgtproduct,
+        "/api/v1/interop/authz",
+        ProductAuthzRequest(certcn=str(srcproduct)).model_dump(),
+        ProductAuthzResponse,
+    )
+    if resp is None:
+        raise HTTPException(status_code=502, detail="Target integration did not return authz")
+    return cast(ProductAuthzResponse, resp)
 
 
 @router.get("/proxy/{tgtproduct}/{tgtpath:path}", dependencies=[Depends(ValidUser(auto_error=True))])
