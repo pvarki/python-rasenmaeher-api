@@ -17,7 +17,7 @@ Wire protocol:
     -> 400 if body is malformed
 
 Auth: if ``RM_CALLSIGN_VALIDITY_SECRET`` is set, the client must send a
-matching ``X-Validity-Secret`` header. Otherwise the endpoint is open
+matching ``Validity-Secret`` header. Otherwise the endpoint is open
 (suitable for in-cluster-only Service exposure).
 
 Note: this used to be a websocket endpoint, but Traefik's Yaegi interpreter
@@ -78,10 +78,10 @@ async def _is_valid(callsign: str) -> bool:
 @router.post("/check", response_model=CheckResponse)
 async def callsign_validity_check(
     req: CheckRequest,
-    x_validity_secret: Optional[str] = Header(default=None, alias="X-Validity-Secret"),
+    validity_secret: Optional[str] = Header(default=None, alias="Validity-Secret"),
 ) -> CheckResponse:
     """Return whether the given callsign is currently valid."""
-    _check_secret(x_validity_secret)
+    _check_secret(validity_secret)
     callsign = req.callsign.strip()
     if not callsign:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="callsign must be non-empty")
