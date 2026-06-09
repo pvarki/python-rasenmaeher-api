@@ -2,17 +2,20 @@
 
 import hashlib
 import re
+from typing import Optional
 
 
-def cr_name(callsign: str) -> str:
+def cr_name(csr: str, callsign: Optional[str]) -> str:
     """Derive a Kubernetes resource name for a callsign's CertificateRequest.
 
     Callsigns can include characters outside the k8s ``[a-z0-9-]{1,253}`` set,
-    so we slugify and append a stable hash to guarantee uniqueness even when
-    sanitization would otherwise collide.
+    so we slugify and append a hash generated from the certificate signing
+    request to ensure uniqueness.
     """
-    slug = re.sub(r"[^a-z0-9-]", "-", callsign.lower()).strip("-")[:40]
-    digest = hashlib.sha256(callsign.encode("utf-8")).hexdigest()[:10]
+    identifier: str = callsign or "anon"
+
+    slug = re.sub(r"[^a-z0-9-]", "-", identifier.lower()).strip("-")[:40]
+    digest = hashlib.sha256(csr.encode("utf-8")).hexdigest()[:10]
     return "-".join(filter(None, ("rm", slug, digest)))
 
 
