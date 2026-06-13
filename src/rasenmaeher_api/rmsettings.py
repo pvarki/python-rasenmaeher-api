@@ -98,13 +98,13 @@ class RMSettings(BaseSettings):
     cfssl_timeout: float = 2.5
 
     # Cert-Manager configuration (used when cert_backend == CERT_MANAGER)
-    cert_manager_namespace: str = "opendefense-system"
-    cert_manager_issuer_name: str = "opendefense-intermediate-ca-issuer"
+    cert_manager_namespace: str = "opendefence-system"
+    cert_manager_issuer_name: str = "intermediate-ca-issuer"
     cert_manager_issuer_kind: str = "ClusterIssuer"
     cert_manager_issuer_group: str = "cert-manager.io"
     cert_manager_timeout: float = 30.0
     cert_manager_cert_duration: str = "8760h"
-    cert_manager_ca_bundle_path: str = "/pvarki-ca/opendefense-ca-cert.pem"
+    cert_manager_ca_bundle_path: str = "/pvarki-ca/opendefence-ca-cert.pem"
     cert_manager_cleanup_on_revoke: bool = True
 
     # Shared secret used by the Traefik callsign-validity plugin to auth to the

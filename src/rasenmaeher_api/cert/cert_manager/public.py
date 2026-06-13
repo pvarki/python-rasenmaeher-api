@@ -1,7 +1,7 @@
 """Public surface for cert-manager backend - CA cert, CRL etc.
 
 The CA bundle is read from a path mounted into the rmapi pod (the same
-``opendefense-bundle`` ConfigMap that already feeds mTLS trust). CRLs are
+``opendefence-bundle`` ConfigMap that already feeds mTLS trust). CRLs are
 not produced under cert-manager — revocation is consumed by the Traefik
 plugin via websocket — so the CRL helpers return an empty placeholder.
 """
