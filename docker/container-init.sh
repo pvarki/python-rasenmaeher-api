@@ -1,15 +1,7 @@
 #!/bin/bash -l
 set -e
 # Make sure product api endpoints point to correct IP, 127.0.01 is this containers localhost...
-awk '!/.*localmaeher.*/' /etc/hosts >/etc/hosts.new && cat /etc/hosts.new >/etc/hosts
-# FIXME: resolve the product hostnames from manifest
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') fake.localmaeher.dev.pvarki.fi" >>/etc/hosts
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') tak.localmaeher.dev.pvarki.fi" >>/etc/hosts
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') kc.localmaeher.dev.pvarki.fi" >>/etc/hosts
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') bl.localmaeher.dev.pvarki.fi" >>/etc/hosts
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') mtx.localmaeher.dev.pvarki.fi" >>/etc/hosts
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') matrix.localmaeher.dev.pvarki.fi" >>/etc/hosts
-echo "$(getent ahostsv4 host.docker.internal | awk '{ print $1 }') rmcryptpad.localmaeher.dev.pvarki.fi" >>/etc/hosts
+test -x /pvarki/hosts_script.sh && . /pvarki/hosts_script.sh
 
 # Make sure the persistent directories exist
 test -d /data/persistent/private || ( mkdir -p /data/persistent/private && chmod og-rwx /data/persistent/private )
