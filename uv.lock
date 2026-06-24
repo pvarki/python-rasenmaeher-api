@@ -1000,7 +1000,7 @@ wheels = [
 
 [[package]]
 name = "libpvarki"
-version = "2.2.0"
+version = "2.2.1"
 source = { registry = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple" }
 dependencies = [
     { name = "aiodns" },
@@ -1011,9 +1011,9 @@ dependencies = [
     { name = "fastapi" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.2.0/libpvarki-2.2.0.tar.gz", hash = "sha256:202d8a33991147e56b0ac46d3290dd24e1cd028842bf519f7cdecf524c047242" }
+sdist = { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.2.1/libpvarki-2.2.1.tar.gz", hash = "sha256:163e4e4a1b2bf9571fd9ad5bb27afec6e576fe59947788bf16b83e834fe80613" }
 wheels = [
-    { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.2.0/libpvarki-2.2.0-py3-none-any.whl", hash = "sha256:ce6ddeca0079b21ce85d0b6974781af102aca559f7c6c7e2f3a7335073e7fbb2" },
+    { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.2.1/libpvarki-2.2.1-py3-none-any.whl", hash = "sha256:a8130e838046dbba99cd83eb39126001fb8e7da872f0c9f969d514a38f9968ad" },
 ]
 
 [[package]]
