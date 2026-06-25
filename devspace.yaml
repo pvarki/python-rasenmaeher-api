@@ -1,0 +1,32 @@
+version: v2beta1
+name: rasenmaeher-api
+
+images:
+  rmapi:
+    image: ghcr.io/pvarki/rasenmaeher-api
+    dockerfile: ./Dockerfile
+    context: ./
+    target: devel_shell
+    skipPush: true
+    buildKit: {}
+
+pipelines:
+  dev: |-
+    build_images --all
+    start_dev --all
+
+dev:
+  rmapi:
+    labelSelector:
+      app: rmapi
+    namespace: opendefence-system
+    container: rmapi
+    devImage: ${runtime.images.rmapi}
+    command:
+      - /bin/bash
+      - -lc
+      - source /container-init.sh && uv sync --frozen && uv run uvicorn --host 0.0.0.0 --port 8000 --log-level debug --factory rasenmaeher_api.web.application:get_app --reload
+    sync:
+      - path: ./src:/app/src
+      - path: ./docker:/app/docker
+    logs: {}

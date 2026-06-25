@@ -2,7 +2,7 @@
 .idea
 
 *.ipynb
-
+.devspace
 
 # ci artefacts
 pytest*.xml
