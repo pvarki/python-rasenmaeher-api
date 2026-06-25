@@ -20,6 +20,7 @@ from cryptography.x509.oid import ExtendedKeyUsageOID
 
 from ...rmsettings import RMSettings
 from .base import CertManagerError
+from .chain import lean_chain
 from .names import cr_name
 from .public import get_ca
 
@@ -216,8 +217,9 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     cert_pem = base64.b64decode(certificate_request.status.certificate).decode("utf-8")
 
     if bundle:
-        ca_pem = await get_ca()
-        cert_pem = cert_pem.rstrip("\n") + "\n" + ca_pem
+        cert_pem = lean_chain(cert_pem, await get_ca())
+    else:
+        cert_pem = lean_chain(cert_pem)
     return cert_pem
 
 
