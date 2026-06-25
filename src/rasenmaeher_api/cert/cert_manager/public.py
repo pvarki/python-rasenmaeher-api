@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ...rmsettings import RMSettings
 from .base import CertManagerError
+from .chain import lean_chain
 
 
 LOGGER = logging.getLogger(__name__)
@@ -46,8 +47,5 @@ async def get_crl() -> bytes:
 
 
 async def get_bundle(cert: str) -> str:
-    """Return cert concatenated with the CA bundle."""
-    ca_pem = await get_ca()
-    if not cert.endswith("\n"):
-        cert = cert + "\n"
-    return cert + ca_pem
+    """Return cert plus the issuing chain, deduplicated and root-stripped."""
+    return lean_chain(cert, await get_ca())
