@@ -107,6 +107,12 @@ class RMSettings(BaseSettings):
     cert_manager_ca_bundle_path: str = "/pvarki-ca/opendefence-ca-cert.pem"
     cert_manager_cleanup_on_revoke: bool = True
 
+    # OCSP responder (cert_manager backend only)
+    ocsp_ca_secret_name: str = "intermediate-ca-secret"
+    ocsp_ca_secret_namespace: str = "cert-manager"
+    ocsp_response_validity: int = 3600  # seconds from now until nextUpdate
+    ocsp_responder_url: Optional[str] = None  # our public responder URL, informational
+
     # Shared secret used by the Traefik callsign-validity plugin to auth to the
     # internal websocket. Optional — if unset, the websocket accepts any caller
     # (suitable for in-cluster-only Service exposure during local dev).

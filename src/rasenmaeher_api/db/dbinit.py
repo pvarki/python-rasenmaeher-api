@@ -16,11 +16,12 @@ from .engine import EngineWrapper
 # Import all models to ensure ORM can create all tables
 from .base import ORMBaseModel
 from .enrollments import Enrollment, EnrollmentPool
+from .issuedcerts import IssuedCert
 from .logincodes import LoginCode
 from .nonces import SeenToken
 from .people import Person, Role
 
-_ = (Person, Role, EnrollmentPool, Enrollment, SeenToken, LoginCode)
+_ = (Person, Role, EnrollmentPool, Enrollment, SeenToken, LoginCode, IssuedCert)
 LOGGER = logging.getLogger(__name__)
 
 
@@ -41,8 +42,8 @@ async def init_db() -> None:
                 LOGGER.debug("Creating schema {}".format(ORMBaseModel.__table_args__["schema"]))
                 connection.execute(CreateSchema(ORMBaseModel.__table_args__["schema"]))
                 connection.commit()
-                SQLModel.metadata.create_all(connection)
-                connection.commit()
+            SQLModel.metadata.create_all(connection)
+            connection.commit()
     except filelock.Timeout:
         LOGGER.warning("Someone has already locked {}".format(lockpath))
         LOGGER.debug("Sleeping for ~5s and then recursing")

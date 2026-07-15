@@ -2,6 +2,7 @@
 
 from fastapi.routing import APIRouter
 
+from rasenmaeher_api.rmsettings import CertBackend, RMSettings
 from rasenmaeher_api.web.api import (
     healthcheck,
     product,
@@ -38,3 +39,8 @@ api_router_v2.include_router(descriptions.router_v2_admin, prefix="/admin/descri
 
 api_router_v2.include_router(instructions.router_v2, prefix="/instructions", tags=["instructions"])
 api_router_v2.include_router(instructions.router_v2_admin, prefix="/admin/instructions", tags=["instructions"])
+
+if RMSettings.singleton().cert_backend == CertBackend.CERT_MANAGER:
+    from rasenmaeher_api.cert.cert_manager.ocsp import router as ocsp_router
+
+    api_router.include_router(ocsp_router, prefix="/ocsp", tags=["ocsp"])
