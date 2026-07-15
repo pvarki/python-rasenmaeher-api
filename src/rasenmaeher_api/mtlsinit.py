@@ -103,6 +103,10 @@ async def mtls_init() -> None:
                 certpem = (await _anon_sign_csr(csrpem)).replace("\\n", "\n")
                 LOGGER.debug("Saving mTLS cert to {}".format(certpath))
                 certpath.write_text(certpem, encoding="ascii")
+                # Lazy import, see _anon_sign_csr for the circular import chain
+                from rasenmaeher_api.db.issuedcerts import record_issued_cert
+
+                await record_issued_cert(certpem)
             except CertError as exc:
                 LOGGER.exception("Signing failed: {}".format(exc))
     except filelock.Timeout:

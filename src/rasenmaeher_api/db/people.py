@@ -48,6 +48,7 @@ class Person(ORMBaseModel, table=True):
     certspath: str = Field(nullable=False, index=False, unique=True)
     extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
     revoke_reason: str = Field(nullable=True, index=False)
+    cert_serial: Optional[str] = Field(default=None, nullable=True, index=True, unique=True)
 
     @classmethod
     async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
@@ -124,6 +125,10 @@ class Person(ORMBaseModel, table=True):
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                 certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                 newperson.certfile.write_text(certpem)
+                leaf = cryptography.x509.load_pem_x509_certificate(certpem.encode())
+                newperson.cert_serial = str(leaf.serial_number)
+                session.add(newperson)
+                session.commit()
             except Exception as exc:
                 LOGGER.exception("Something went wrong, doing cleanup")
                 shutil.rmtree(certspath)

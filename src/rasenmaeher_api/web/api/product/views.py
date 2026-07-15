@@ -13,6 +13,7 @@ from libpvarki.schemas.product import UserCRUDRequest
 from multikeyjwt.middleware import JWTBearer
 from cryptography import x509
 from cryptography.x509.oid import NameOID
+from rasenmaeher_api.db.issuedcerts import record_issued_cert
 
 
 from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken, ProductAddRequest
@@ -35,6 +36,8 @@ async def csr_common(certs: CertificatesRequest) -> CertificatesResponse:
     cachain = await get_ca()
     certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
     bundlepem = await get_bundle(certpem)
+
+    await record_issued_cert(certpem)
 
     return CertificatesResponse(
         ca=cachain,
@@ -113,6 +116,8 @@ async def renew_csr(
     cachain = await get_ca()
     certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
     bundlepem = await get_bundle(certpem)
+
+    await record_issued_cert(certpem)
 
     return CertificatesResponse(
         ca=cachain,
