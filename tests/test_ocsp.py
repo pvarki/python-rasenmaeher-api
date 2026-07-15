@@ -113,14 +113,18 @@ async def ocsp_client() -> AsyncGenerator[TestClient, None]:
 
 
 def _add_person(
-    serial: int, deleted: Optional[datetime] = None, revoke_reason: Optional[str] = None, tmp: str = ""
+    serial: Optional[int] = None,
+    deleted: Optional[datetime] = None,
+    revoke_reason: Optional[str] = None,
+    tmp: str = "",
+    callsign: Optional[str] = None,
 ) -> Person:
     """Insert a Person row directly (bypasses cert signing)"""
     person = Person(
-        callsign=f"ocsptest_{uuid.uuid4()}",
+        callsign=callsign or f"ocsptest_{uuid.uuid4()}",
         certspath=f"{tmp}/ocsptest/{uuid.uuid4()}",
         extra={},
-        cert_serial=str(serial),
+        cert_serial=str(serial) if serial is not None else None,
     )
     if deleted:
         person.deleted = deleted
@@ -212,14 +216,39 @@ async def test_product_cert_valid_cn(ocsp_env: OCSPTestEnv, ginosession: None) -
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_product_cert_stale_cn(ocsp_env: OCSPTestEnv, ginosession: None) -> None:
-    """Recorded cert whose CN is no longer a valid product -> REVOKED cessation_of_operation"""
+async def test_issued_cert_active_user_cn(ocsp_env: OCSPTestEnv, ginosession: None, nice_tmpdir: str) -> None:
+    """Per-user cert signed via product path (e.g. TAK) with an active owner -> GOOD"""
     _ = ginosession
-    leaf = ocsp_env.make_leaf("gone.example.invalid")
-    _add_issued(leaf.serial_number, "gone.example.invalid")
+    callsign = f"atakuser_{uuid.uuid4()}"
+    _add_person(tmp=nice_tmpdir, callsign=callsign)  # active owner, different (main) cert serial
+    leaf = ocsp_env.make_leaf(callsign)
+    _add_issued(leaf.serial_number, callsign)  # TAK's separate per-user cert
+    resp = await _respond(ocsp_env.make_request(leaf))
+    assert resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL
+    assert resp.certificate_status == ocsp.OCSPCertStatus.GOOD
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_issued_cert_revoked_user_cn(ocsp_env: OCSPTestEnv, ginosession: None, nice_tmpdir: str) -> None:
+    """Per-user cert signed via product path whose owner is revoked -> REVOKED with owner's reason"""
+    _ = ginosession
+    callsign = f"atakuser_{uuid.uuid4()}"
+    _add_person(tmp=nice_tmpdir, callsign=callsign, deleted=datetime.now(UTC), revoke_reason="privilege_withdrawn")
+    leaf = ocsp_env.make_leaf(callsign)
+    _add_issued(leaf.serial_number, callsign)
     resp = await _respond(ocsp_env.make_request(leaf))
     assert resp.certificate_status == ocsp.OCSPCertStatus.REVOKED
-    assert resp.revocation_reason == x509.ReasonFlags.cessation_of_operation
+    assert resp.revocation_reason == x509.ReasonFlags.privilege_withdrawn
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_issued_cert_no_owner_cn(ocsp_env: OCSPTestEnv, ginosession: None) -> None:
+    """Recorded cert whose CN matches no Person and no product -> GOOD (we issued it)"""
+    _ = ginosession
+    leaf = ocsp_env.make_leaf("orphan.example.invalid")
+    _add_issued(leaf.serial_number, "orphan.example.invalid")
+    resp = await _respond(ocsp_env.make_request(leaf))
+    assert resp.certificate_status == ocsp.OCSPCertStatus.GOOD
 
 
 @pytest.mark.asyncio(loop_scope="session")
