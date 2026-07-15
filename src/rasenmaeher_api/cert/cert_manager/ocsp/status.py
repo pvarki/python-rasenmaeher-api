@@ -44,17 +44,24 @@ async def lookup_status(serial: int) -> CertStatusResult:
 
     if issued_cert := await IssuedCert.by_serial(str(serial)):
         settings = RMSettings.singleton()
-        if issued_cert.cn == settings.mtls_client_cert_cn:
-            return CertStatusResult(status=ocsp.OCSPCertStatus.GOOD)
         try:
-            if issued_cert.cn in settings.valid_product_cns:
-                return CertStatusResult(status=ocsp.OCSPCertStatus.GOOD)
+            product_cns = settings.valid_product_cns
         except Exception:
             LOGGER.debug("valid_product_cns lookup failed", exc_info=True)
-        return CertStatusResult(
-            status=ocsp.OCSPCertStatus.REVOKED,
-            revocation_time=issued_cert.updated,
-            revocation_reason=x509.ReasonFlags.cessation_of_operation,
-        )
+            product_cns = []
+        # Product/service infra certs are trusted by CA membership
+        if issued_cert.cn == settings.mtls_client_cert_cn or issued_cert.cn in product_cns:
+            return CertStatusResult(status=ocsp.OCSPCertStatus.GOOD)
+        # Otherwise it's a per-user cert signed via the product path (e.g. TAK's
+        # per-callsign client cert). Honor the owning Person's revocation.
+        with EngineWrapper.get_session() as session:
+            owner = session.exec(select(Person).where(Person.callsign == issued_cert.cn)).first()
+        if owner and owner.deleted is not None:
+            return CertStatusResult(
+                status=ocsp.OCSPCertStatus.REVOKED,
+                revocation_time=owner.deleted,
+                revocation_reason=validate_reason(owner.revoke_reason or "unspecified"),
+            )
+        return CertStatusResult(status=ocsp.OCSPCertStatus.GOOD)
 
     return CertStatusResult(status=ocsp.OCSPCertStatus.UNKNOWN)
