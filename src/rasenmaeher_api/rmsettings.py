@@ -111,7 +111,6 @@ class RMSettings(BaseSettings):
     ocsp_ca_secret_name: str = "intermediate-ca-secret"
     ocsp_ca_secret_namespace: str = "cert-manager"
     ocsp_response_validity: int = 3600  # seconds from now until nextUpdate
-    ocsp_responder_url: Optional[str] = None  # our public responder URL, informational
 
     # Shared secret used by the Traefik callsign-validity plugin to auth to the
     # internal websocket. Optional — if unset, the websocket accepts any caller
