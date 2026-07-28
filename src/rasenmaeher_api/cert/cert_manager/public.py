@@ -14,7 +14,6 @@ from ...rmsettings import RMSettings
 from .base import CertManagerError
 from .chain import lean_chain
 
-
 LOGGER = logging.getLogger(__name__)
 
 

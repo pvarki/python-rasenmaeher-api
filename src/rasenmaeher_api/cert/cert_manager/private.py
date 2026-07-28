@@ -7,14 +7,14 @@ Traefik callsign-validity plugin), so the revoke functions only best-effort
 clean up the CR.
 """
 
-from typing import List, Literal, Tuple, Union, Any, Optional, cast
-from pathlib import Path
 import base64
 import logging
+from pathlib import Path
+from typing import Any, Literal, cast
 
-from cloudcoil.errors import ResourceConflict, APIError, ResourceNotFound, WaitTimeout
-from cloudcoil.models.cert_manager.v1 import CertificateRequest
 import cryptography.x509
+from cloudcoil.errors import APIError, ResourceConflict, ResourceNotFound, WaitTimeout
+from cloudcoil.models.cert_manager.v1 import CertificateRequest
 from cryptography.hazmat.primitives import serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID
 
@@ -26,7 +26,7 @@ from .public import get_ca
 
 LOGGER = logging.getLogger(__name__)
 
-ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
+ReasonTypes = cryptography.x509.ReasonFlags | str
 
 
 def _csr_pem_to_b64(csr_pem: str) -> str:
@@ -41,7 +41,7 @@ def _csr_pem_to_b64(csr_pem: str) -> str:
     return base64.b64encode(normalized_pem).decode("ascii")
 
 
-def _csr_common_name(csr_pem: str) -> Optional[str]:
+def _csr_common_name(csr_pem: str) -> str | None:
     """Extract the CN attribute from a PEM CSR, if present."""
     csr = cryptography.x509.load_pem_x509_csr(csr_pem.encode("utf-8"))
     for attribute in csr.subject:
@@ -76,7 +76,7 @@ type KeyUsages = Literal[
     "netscape sgc",
 ]
 
-_KEY_USAGE_NAMES: Tuple[Tuple[str, KeyUsages], ...] = (
+_KEY_USAGE_NAMES: tuple[tuple[str, KeyUsages], ...] = (
     ("digital_signature", "digital signature"),
     ("content_commitment", "content commitment"),
     ("key_encipherment", "key encipherment"),
@@ -96,7 +96,7 @@ _EXT_KEY_USAGE_NAMES: dict[cryptography.x509.ObjectIdentifier, KeyUsages] = {
 }
 
 
-def _csr_usages(csr_pem: str) -> List[KeyUsages]:
+def _csr_usages(csr_pem: str) -> list[KeyUsages]:
     """Extract cert-manager `spec.usages` values from a CSR's KeyUsage extensions.
 
     cert-manager's admission webhook rejects requests whose declared ``usages``
@@ -104,7 +104,7 @@ def _csr_usages(csr_pem: str) -> List[KeyUsages]:
     list dynamically so we honor whatever the caller embedded.
     """
     csr = cryptography.x509.load_pem_x509_csr(csr_pem.encode("utf-8"))
-    out: List[KeyUsages] = []
+    out: list[KeyUsages] = []
     try:
         ku = csr.extensions.get_extension_for_class(cryptography.x509.KeyUsage).value
         for attr, name in _KEY_USAGE_NAMES:
@@ -131,7 +131,7 @@ def _csr_usages(csr_pem: str) -> List[KeyUsages]:
 async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> CertificateRequest:
     """Create the CertificateRequest and return it."""
     try:
-        usages: List[KeyUsages] = _csr_usages(csr_pem)
+        usages: list[KeyUsages] = _csr_usages(csr_pem)
         if not usages:
             # Default for clients that ship a CSR without explicit KeyUsage extensions.
             usages = ["digital signature", "key encipherment", "client auth"]
@@ -140,13 +140,17 @@ async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, sett
             CertificateRequest.builder()
             .metadata(lambda metadata: metadata.name(name).namespace(namespace))
             .spec(
-                lambda spec: spec.duration(settings.cert_manager_cert_duration)
-                .usages(usages)
-                .request(csr_b64)
-                .issuer_ref(
-                    lambda issuer_ref: issuer_ref.name(settings.cert_manager_issuer_name)
-                    .kind(settings.cert_manager_issuer_kind)
-                    .group(settings.cert_manager_issuer_group)
+                lambda spec: (
+                    spec.duration(settings.cert_manager_cert_duration)
+                    .usages(usages)
+                    .request(csr_b64)
+                    .issuer_ref(
+                        lambda issuer_ref: (
+                            issuer_ref.name(settings.cert_manager_issuer_name)
+                            .kind(settings.cert_manager_issuer_kind)
+                            .group(settings.cert_manager_issuer_group)
+                        )
+                    )
                 )
             )
         ).build()
@@ -199,8 +203,9 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
 
     try:
         await certificate_request.async_wait_for(
-            lambda _, cr: (req := cast(CertificateRequest, cr)).status is not None
-            and req.status.certificate is not None,
+            lambda _, cr: (
+                (req := cast(CertificateRequest, cr)).status is not None and req.status.certificate is not None
+            ),
             timeout=settings.cert_manager_timeout,
         )
     except WaitTimeout as exc:
@@ -238,14 +243,14 @@ def validate_reason(reason: ReasonTypes) -> cryptography.x509.ReasonFlags:
     if isinstance(reason, str):
         by_val = str_reasons.get(reason)
         if by_val is None:
-            raise ValueError(f"Could not resolve '{reason}' into cryptography.x509.ReasonFlags")
+            raise TypeError(f"Could not resolve '{reason}' into cryptography.x509.ReasonFlags")
         return by_val
     if not isinstance(reason, cryptography.x509.ReasonFlags):
-        raise ValueError(f"{reason} is not valid cryptography.x509.ReasonFlags (or string version of the value)")
+        raise TypeError(f"{reason} is not valid cryptography.x509.ReasonFlags (or string version of the value)")
     return reason
 
 
-async def revoke_pem(pem: Union[str, Path], reason: ReasonTypes) -> None:
+async def revoke_pem(pem: str | Path, reason: ReasonTypes) -> None:
     """Best-effort revoke. Under cert-manager, revocation is authoritative in
     the rmapi DB (``Person.deleted``) and is consumed by the Traefik plugin via
     websocket. This function only cleans up the matching CertificateRequest CR.
@@ -267,7 +272,7 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
     )
 
 
-async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
+async def certadd_pem(pem: str | Path, status: str = "good") -> Any:
     """Adding to a cert DB is a cfssl concept. No-op under cert-manager."""
     LOGGER.warning("certadd_pem called under cert-manager backend; no-op")
     return None

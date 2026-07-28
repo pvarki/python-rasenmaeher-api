@@ -2,14 +2,13 @@
 
 import logging
 
-from fastapi import APIRouter, Request, HTTPException, Depends
-from multikeyjwt import Verifier, Issuer
+from fastapi import APIRouter, Depends, HTTPException, Request
+from multikeyjwt import Issuer, Verifier
 from multikeyjwt.middleware import JWTBearer, JWTPayload
 
-
-from .schema import JWTExchangeRequestResponse, LoginCodeCreateRequest, LoginCodeRequestResponse
+from ....db import LoginCode, SeenToken
 from ..utils.auditcontext import build_audit_extra
-from ....db import SeenToken, LoginCode
+from .schema import JWTExchangeRequestResponse, LoginCodeCreateRequest, LoginCodeRequestResponse
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -90,7 +89,7 @@ async def exchange_token(request: Request, req: JWTExchangeRequestResponse) -> J
     )
 
     resp = JWTExchangeRequestResponse(jwt=new_jwt)
-    LOGGER.debug("returning {}".format(resp))
+    LOGGER.debug(f"returning {resp}")
     return resp
 
 
@@ -102,7 +101,7 @@ async def refresh_token(jwt: JWTPayload = Depends(JWTBearer(auto_error=True))) -
     LOGGER.debug("Called")
     new_jwt = Issuer.singleton().issue({key: val for key, val in jwt.items() if key not in TOKEN_COPY_EXCLUDE_FIELDS})
     resp = JWTExchangeRequestResponse(jwt=new_jwt)
-    LOGGER.debug("returning {}".format(resp))
+    LOGGER.debug(f"returning {resp}")
     return resp
 
 
@@ -149,7 +148,7 @@ async def create_code(
     )
 
     resp = LoginCodeRequestResponse(code=code)
-    LOGGER.debug("returning {}".format(resp))
+    LOGGER.debug(f"returning {resp}")
     return resp
 
 
@@ -200,5 +199,5 @@ async def exchange_code(request: Request, req: LoginCodeRequestResponse) -> JWTE
     )
 
     resp = JWTExchangeRequestResponse(jwt=new_jwt)
-    LOGGER.debug("returning {}".format(resp))
+    LOGGER.debug(f"returning {resp}")
     return resp

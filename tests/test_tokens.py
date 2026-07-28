@@ -1,12 +1,12 @@
 """Test the token endpoints"""
 
-from typing import cast
 import logging
+from typing import cast
 
 import pytest
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
-from requests.exceptions import HTTPError
 from multikeyjwt import Verifier
+from requests.exceptions import HTTPError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,10 +14,10 @@ LOGGER = logging.getLogger(__name__)
 async def get_code(client: TestClient) -> str:
     """Get a code"""
     resp = await client.post("/api/v1/token/code/generate", json={"claims": {"anon_admin_session": True}})
-    LOGGER.debug("resp={}".format(resp))
+    LOGGER.debug(f"resp={resp}")
     resp.raise_for_status()
     payload = resp.json()
-    LOGGER.debug("payload={}".format(payload))
+    LOGGER.debug(f"payload={payload}")
     assert "code" in payload
     return cast(str, payload["code"])
 
@@ -36,20 +36,20 @@ async def test_get_code_422(tilauspalvelu_jwt_client: TestClient) -> None:
     resp = await client.post(
         "/api/v1/token/code/generate", json={"claims": {"anon_admin_session": True}, "nosuchfield": "trollollooo"}
     )
-    LOGGER.debug("resp={}".format(resp))
+    LOGGER.debug(f"resp={resp}")
     assert resp.status_code == 422
     payload = resp.json()
-    LOGGER.debug("payload={}".format(payload))
+    LOGGER.debug(f"payload={payload}")
 
 
 async def use_code(client: TestClient, code: str) -> str:
     """Use the code"""
     # This always fails for now
     resp2 = await client.post("/api/v1/token/code/exchange", json={"code": code})
-    LOGGER.debug("resp2={}".format(resp2))
+    LOGGER.debug(f"resp2={resp2}")
     resp2.raise_for_status()
     payload2 = resp2.json()
-    LOGGER.debug("payload2={}".format(payload2))
+    LOGGER.debug(f"payload2={payload2}")
     assert "jwt" in payload2
     return cast(str, payload2["jwt"])
 
@@ -79,14 +79,14 @@ async def test_refresh_jwt(tilauspalvelu_jwt_client: TestClient) -> None:
     """Test that the refresh endpoint works"""
     client = tilauspalvelu_jwt_client
     resp = await client.get("/api/v1/token/jwt/refresh")
-    LOGGER.debug("resp={}".format(resp))
+    LOGGER.debug(f"resp={resp}")
     resp.raise_for_status()
     payload = resp.json()
-    LOGGER.debug("payload={}".format(payload))
+    LOGGER.debug(f"payload={payload}")
     assert "jwt" in payload
     assert payload["jwt"]
     claims = Verifier.singleton().decode(payload["jwt"])
-    LOGGER.debug("claims={}".format(claims))
+    LOGGER.debug(f"claims={claims}")
     assert claims
     # TODO: check issue time is recent
     # Check some claims we know should have been copied

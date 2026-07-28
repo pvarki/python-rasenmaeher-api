@@ -1,8 +1,6 @@
 """Healthcheck response schemas"""
 
-from typing import Dict
-
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BasicHealthCheckResponse(BaseModel):
@@ -55,4 +53,4 @@ class AllProductsHealthCheckResponse(BaseModel):
     )
 
     all_ok: bool = Field(description="Is everything ok ?")
-    products: Dict[str, bool] = Field(description="Status for each product")
+    products: dict[str, bool] = Field(description="Status for each product")

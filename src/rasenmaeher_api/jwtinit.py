@@ -1,18 +1,17 @@
 """Init JWT issuer"""
 
-from typing import Optional, Union
+import asyncio
 import logging
 import os
-import asyncio
-from pathlib import Path
 import random
-import urllib.request
 import ssl
+import urllib.request
+from pathlib import Path
 
 import filelock
+from libpvarki.mtlshelp.context import get_ca_context
 from multikeyjwt import Issuer
 from multikeyjwt.keygen import generate_keypair
-from libpvarki.mtlshelp.context import get_ca_context
 
 from .rmsettings import RMSettings
 
@@ -27,12 +26,12 @@ def _check_public_keys_tilauspalvelu(pubkeydir: Path) -> None:
     """handle TILAUSPALVELU public key"""
     tppubkey = pubkeydir / "tilauspalvelu.pub"
     if tppubkey.exists():
-        LOGGER.debug("{} exists".format(tppubkey))
+        LOGGER.debug(f"{tppubkey} exists")
         return
     if not RMSettings.singleton().tilauspalvelu_jwt:
         LOGGER.info("No URL for TILAUSPALVELU public key given")
         return
-    LOGGER.info("Making sure TILAUSPALVELU key is in {}".format(pubkeydir))
+    LOGGER.info(f"Making sure TILAUSPALVELU key is in {pubkeydir}")
     lockpath = pubkeydir.parent / "tpkeycopy.lock"
     lock = filelock.FileLock(lockpath)
     try:
@@ -46,11 +45,11 @@ def _check_public_keys_tilauspalvelu(pubkeydir: Path) -> None:
             ) as response:
                 tppubkey.write_bytes(response.read())
         except (urllib.request.HTTPError, TimeoutError) as exc:
-            LOGGER.error("Could not load TILAUSPALVELU key: {}".format(exc))
-        except Exception as exc:
-            LOGGER.exception("Unhanled exception while loading TILAUSPALVELU key: {}".format(exc))
+            LOGGER.error(f"Could not load TILAUSPALVELU key: {exc}")
+        except Exception:
+            LOGGER.exception("Unhandled exception while loading TILAUSPALVELU key")
     except filelock.Timeout:
-        LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
+        LOGGER.info(f"Someone already locked {lockpath}, leaving them to it")
     finally:
         lock.release()
 
@@ -58,38 +57,38 @@ def _check_public_keys_tilauspalvelu(pubkeydir: Path) -> None:
 def _check_public_keys_kraftwerk(pubkeydir: Path) -> None:
     """Handle KRAFTWERK Public Keys copy"""
     if not KRAFTWERK_KEYS_PATH.exists():
-        LOGGER.warning("{} does not exist, not copying KRAFTWERK public keys".format(KRAFTWERK_KEYS_PATH))
+        LOGGER.warning(f"{KRAFTWERK_KEYS_PATH} does not exist, not copying KRAFTWERK public keys")
         return
-    LOGGER.info("Making sure KRAFTWERK provided keys are in {}".format(pubkeydir))
+    LOGGER.info(f"Making sure KRAFTWERK provided keys are in {pubkeydir}")
     lockpath = pubkeydir.parent / "pubkeycopy.lock"
     lock = filelock.FileLock(lockpath)
     try:
         lock.acquire(timeout=0.0)
         for fpath in KRAFTWERK_KEYS_PATH.iterdir():
             tgtpath = pubkeydir / fpath.name
-            LOGGER.debug("Checking {} vs {} (exists={})".format(fpath, tgtpath, tgtpath.exists()))
+            LOGGER.debug(f"Checking {fpath} vs {tgtpath} (exists={tgtpath.exists()})")
             if tgtpath.exists():
                 continue
             # Copy the pubkey
-            LOGGER.info("Copying {} to {}".format(fpath, tgtpath))
+            LOGGER.info(f"Copying {fpath} to {tgtpath}")
             tgtpath.write_bytes(fpath.read_bytes())
     except filelock.Timeout:
-        LOGGER.info("Someone already locked {}, leaving them to it".format(lockpath))
+        LOGGER.info(f"Someone already locked {lockpath}, leaving them to it")
     finally:
         lock.release()
 
 
 def resolve_pubkeydir() -> Path:
     """Resolve the directory for public keys and make sure it exists"""
-    pubkeydir: Union[Path, Optional[str]] = os.environ.get("JWT_PUBKEY_PATH")
-    LOGGER.debug("initial pubkeydir={}".format(pubkeydir))
+    pubkeydir: Path | str | None = os.environ.get("JWT_PUBKEY_PATH")
+    LOGGER.debug(f"initial pubkeydir={pubkeydir}")
     if pubkeydir:
         pubkeydir = Path(pubkeydir)
         if pubkeydir.exists() and not pubkeydir.is_dir():
             pubkeydir = pubkeydir.parent
     else:
         pubkeydir = DEFAULT_PUB_PATH.parent
-    LOGGER.debug("final pubkeydir={}".format(pubkeydir))
+    LOGGER.debug(f"final pubkeydir={pubkeydir}")
     if not pubkeydir.exists():
         pubkeydir.mkdir(parents=True)
     return pubkeydir
@@ -134,7 +133,7 @@ def check_jwt_init() -> bool:
 
 def resolve_rm_jwt_privkey_path() -> Path:
     """resolve the path for the private key"""
-    keypath: Union[Path, Optional[str]] = os.environ.get("JWT_PRIVKEY_PATH")
+    keypath: Path | str | None = os.environ.get("JWT_PRIVKEY_PATH")
     if keypath:
         keypath = Path(str(keypath))
         if keypath.exists():
@@ -148,7 +147,7 @@ def resolve_rm_jwt_privkey_path() -> Path:
     return keypath
 
 
-def resolve_rm_jwt_pubkey_path(expect_name: Optional[str] = None) -> Path:
+def resolve_rm_jwt_pubkey_path(expect_name: str | None = None) -> Path:
     """resolve the path for the public key"""
     if not expect_name:
         expect_name = resolve_rm_jwt_privkey_path().name.replace(".key", ".pub")
@@ -161,8 +160,8 @@ async def jwt_init() -> None:
         return
     keypath = resolve_rm_jwt_privkey_path()
 
-    genpubpath: Optional[Path] = None
-    genprivpath: Optional[Path] = None
+    genpubpath: Path | None = None
+    genprivpath: Path | None = None
     lockpath = keypath.with_suffix(".lock")
     # Random sleep to avoid race conditions on these file accesses
     await asyncio.sleep(random.random() * 3.0)  # nosec B311
@@ -179,7 +178,7 @@ async def jwt_init() -> None:
             None, generate_keypair, keypath, keypass
         )
     except filelock.Timeout:
-        LOGGER.warning("Someone has already locked {}".format(lockpath))
+        LOGGER.warning(f"Someone has already locked {lockpath}")
         LOGGER.debug("Sleeping for ~5s and then recursing")
         await asyncio.sleep(5.0 + random.random())  # nosec B311
         return await jwt_init()
@@ -191,7 +190,7 @@ async def jwt_init() -> None:
         raise RuntimeError("Returned private key does not exist!")
     pubkeypath = resolve_rm_jwt_pubkey_path(genpubpath.name)
 
-    LOGGER.debug("Copy generated pubkey to {}".format(pubkeypath))
+    LOGGER.debug(f"Copy generated pubkey to {pubkeypath}")
     pubkeypath.write_bytes(genpubpath.read_bytes())
     # Make sure KRAFTWERK public keys get copied
     check_public_keys()

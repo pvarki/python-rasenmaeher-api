@@ -1,20 +1,20 @@
 """Public things, CA cert, CRL etc"""
 
-from typing import Dict, Any
-import logging
 import base64
+import logging
+from typing import Any
 
 import aiohttp
 
 from .base import (
-    base_url,
-    anon_session,
-    get_result,
-    get_result_cert,
     CFSSLError,
-    get_result_bundle,
-    ocsprest_base,
+    anon_session,
+    base_url,
     default_timeout,
+    get_result,
+    get_result_bundle,
+    get_result_cert,
+    ocsprest_base,
 )
 from .private import refresh_ocsp
 
@@ -30,7 +30,7 @@ async def get_ca() -> str:
 
     async with await anon_session() as session:
         url = f"{base_url()}/api/v1/cfssl/info"
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
         # PONDER: Why does this need to be a POST ??
         try:
             async with session.post(url, json=payload, timeout=default_timeout()) as response:
@@ -47,7 +47,7 @@ async def get_ocsprest_crl(suffix: str) -> bytes:
         try:
             async with session.get(url) as response:
                 data = await response.read()
-                LOGGER.debug("{} returned {}".format(url, repr(data)))
+                LOGGER.debug(f"{url} returned {data!r}")
                 return data
         except aiohttp.ClientError as exc:
             raise CFSSLError(str(exc)) from exc
@@ -80,7 +80,7 @@ async def get_bundle(cert: str) -> str:
     await refresh_ocsp()
     async with await anon_session() as session:
         url = f"{base_url()}/api/v1/cfssl/bundle"
-        payload: Dict[str, Any] = {"certificate": cert, "flavor": "optimal"}
+        payload: dict[str, Any] = {"certificate": cert, "flavor": "optimal"}
         try:
             async with session.post(url, json=payload, timeout=default_timeout()) as response:
                 return await get_result_bundle(response)

@@ -2,13 +2,13 @@
 
 import logging
 
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import FileResponse
 
 from ....db import Person
+from ....rmsettings import RMSettings
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
-from ....rmsettings import RMSettings
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -23,11 +23,9 @@ async def get_user_pem(
 ) -> FileResponse:
     """Get the signed cert in PEM format (no keys)"""
     deplosuffix = f"_{RMSettings.singleton().deployment_name}.pem"
-    if callsign.endswith(deplosuffix):
-        callsign = callsign[: -len(deplosuffix)]
-    if callsign.endswith(".pem"):
-        callsign = callsign[:-4]
-    LOGGER.debug("PEM: Called with callsign={}".format(callsign))
+    callsign = callsign.removesuffix(deplosuffix)
+    callsign = callsign.removesuffix(".pem")
+    LOGGER.debug(f"PEM: Called with callsign={callsign}")
     if person.callsign != callsign:
         LOGGER.audit(  # type: ignore[attr-defined]
             "Certificate download denied - callsign mismatch",
@@ -77,14 +75,12 @@ async def get_user_pfx(
     :returns pfx or 403 error
     """
     deplosuffix = f"_{RMSettings.singleton().deployment_name}.pfx"
-    if callsign.endswith(deplosuffix):
-        callsign = callsign[: -len(deplosuffix)]
-    if callsign.endswith(".pfx"):
-        callsign = callsign[:-4]
+    callsign = callsign.removesuffix(deplosuffix)
+    callsign = callsign.removesuffix(".pfx")
     if callsign.endswith(".pem"):
         LOGGER.debug("PFX: got .pem suffix, delegating")
         return await get_user_pem(request, callsign, person)
-    LOGGER.debug("PFX: Called with callsign={}".format(callsign))
+    LOGGER.debug(f"PFX: Called with callsign={callsign}")
     if person.callsign != callsign:
         LOGGER.audit(  # type: ignore[attr-defined]
             "Certificate download denied - callsign mismatch",

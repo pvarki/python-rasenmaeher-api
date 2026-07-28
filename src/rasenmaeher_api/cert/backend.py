@@ -1,43 +1,43 @@
 """Certificate operations module with configurable backend."""
 
-from .errors import CertError, NoResult, ErrorResult, DBLocked, NoValue
-from ..rmsettings import RMSettings, CertBackend
+from ..rmsettings import CertBackend, RMSettings
+from .errors import CertError, DBLocked, ErrorResult, NoResult, NoValue
 
 _backend = RMSettings.singleton().cert_backend
 
 if _backend == CertBackend.CERT_MANAGER:
     from .cert_manager import (
-        get_ca,
+        ReasonTypes,
+        anon_sign_csr,
+        certadd_pem,
+        dump_crlfiles,
         get_bundle,
+        get_ca,
         get_crl,
         get_ocsprest_crl,
-        sign_csr,
+        refresh_ocsp,
         revoke_pem,
         revoke_serial,
-        validate_reason,
-        refresh_ocsp,
-        dump_crlfiles,
+        sign_csr,
         sign_ocsp,
-        certadd_pem,
-        anon_sign_csr,
-        ReasonTypes,
+        validate_reason,
     )
 elif _backend == CertBackend.CFSSL:
     from .cfssl import (
-        get_ca,
+        ReasonTypes,
+        anon_sign_csr,
+        certadd_pem,
+        dump_crlfiles,
         get_bundle,
+        get_ca,
         get_crl,
         get_ocsprest_crl,
-        sign_csr,
+        refresh_ocsp,
         revoke_pem,
         revoke_serial,
-        validate_reason,
-        refresh_ocsp,
-        dump_crlfiles,
+        sign_csr,
         sign_ocsp,
-        certadd_pem,
-        anon_sign_csr,
-        ReasonTypes,
+        validate_reason,
     )
 else:
     raise ValueError(f"Unknown cert backend: {_backend}")
@@ -45,26 +45,26 @@ else:
 __all__ = [
     # Errors (always available)
     "CertError",
-    "NoResult",
-    "ErrorResult",
     "DBLocked",
+    "ErrorResult",
+    "NoResult",
     "NoValue",
-    # Public functions
-    "get_ca",
-    "get_bundle",
-    "get_crl",
-    "get_ocsprest_crl",
-    # Private functions
-    "sign_csr",
-    "revoke_pem",
-    "revoke_serial",
-    "validate_reason",
-    "refresh_ocsp",
-    "dump_crlfiles",
-    "sign_ocsp",
-    "certadd_pem",
-    # Anonymous functions
-    "anon_sign_csr",
     # Types
     "ReasonTypes",
+    # Anonymous functions
+    "anon_sign_csr",
+    "certadd_pem",
+    "dump_crlfiles",
+    "get_bundle",
+    # Public functions
+    "get_ca",
+    "get_crl",
+    "get_ocsprest_crl",
+    "refresh_ocsp",
+    "revoke_pem",
+    "revoke_serial",
+    # Private functions
+    "sign_csr",
+    "sign_ocsp",
+    "validate_reason",
 ]

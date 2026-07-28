@@ -1,6 +1,7 @@
 """Errors"""
 
-from typing import Sequence, Any
+from collections.abc import Sequence
+from typing import Any
 
 from starlette import status
 from starlette.exceptions import HTTPException

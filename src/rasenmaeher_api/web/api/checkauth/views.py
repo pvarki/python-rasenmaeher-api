@@ -2,13 +2,12 @@
 
 from typing import cast
 
-
 from fastapi import APIRouter, Depends, Request
+from libpvarki.middleware.mtlsheader import DNDict, MTLSHeader
 from multikeyjwt.middleware import JWTBearer, JWTPayload
-from libpvarki.middleware.mtlsheader import MTLSHeader, DNDict
 
-from ..middleware.mtls import MTLSorJWT
 from ..middleware.datatypes import MTLSorJWTPayload
+from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 
 router = APIRouter()

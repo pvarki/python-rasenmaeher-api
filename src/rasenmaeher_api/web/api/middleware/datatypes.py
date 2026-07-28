@@ -1,11 +1,10 @@
 """Data types needed by this module"""
 
-from typing import Union, Optional
-from dataclasses import dataclass, field
 import enum
+from dataclasses import dataclass, field
 
-from multikeyjwt.middleware.jwtbearer import JWTPayload
 from libpvarki.middleware.mtlsheader import DNDict
+from multikeyjwt.middleware.jwtbearer import JWTPayload
 
 
 class MTLSorJWTPayloadType(enum.Enum):
@@ -20,5 +19,5 @@ class MTLSorJWTPayload:
     """payload either from mTLS or JWT auth"""
 
     type: MTLSorJWTPayloadType = field()
-    userid: Optional[str] = field()
-    payload: Union[DNDict, JWTPayload] = field()
+    userid: str | None = field()
+    payload: DNDict | JWTPayload = field()

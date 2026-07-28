@@ -1,12 +1,11 @@
 """Middleware stuff"""
 
-from dataclasses import dataclass, field
-import logging
 import asyncio
+import logging
+from dataclasses import dataclass, field
 
-from starlette.types import Receive, Scope, Send
 from fastapi import FastAPI
-
+from starlette.types import Receive, Scope, Send
 
 from .config import DBConfig
 from .dbinit import init_db
@@ -32,7 +31,7 @@ class DBWrapper:
 
     async def app_startup_event(self) -> None:
         """App startup callback, connect to db or die"""
-        LOGGER.info("Connecting to the database: {!r}".format(self.config.dsn))
+        LOGGER.info(f"Connecting to the database: {self.config.dsn!r}")
         retries = 0
         while True:
             retries += 1
@@ -40,7 +39,7 @@ class DBWrapper:
                 await self.create_engine()
                 break
             except Exception as exc:
-                LOGGER.error("database connection failed {}".format(exc))
+                LOGGER.error(f"database connection failed {exc}")
                 # TODO: Check that it's a connection error, otherwise just raise immediately
                 if retries < self.config.retry_limit:
                     LOGGER.info("Waiting for the database to start...")

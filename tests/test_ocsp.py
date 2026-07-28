@@ -1,27 +1,27 @@
 """OCSP responder tests (cert_manager backend)"""
 
-from typing import AsyncGenerator, Optional
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
 import base64
 import logging
 import os
 import urllib.parse
 import uuid
+from collections.abc import AsyncGenerator
+from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import pytest_asyncio
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
-from fastapi import FastAPI
 from cryptography import x509
-from cryptography.x509 import ocsp
-from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.x509 import ocsp
+from cryptography.x509.oid import NameOID
+from fastapi import FastAPI
 
 from rasenmaeher_api.cert.cert_manager.ocsp import signer
 from rasenmaeher_api.cert.cert_manager.ocsp.responder import build_ocsp_response
-from rasenmaeher_api.db import Person, EngineWrapper
+from rasenmaeher_api.db import EngineWrapper, Person
 from rasenmaeher_api.db.issuedcerts import IssuedCert, record_issued_cert
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 
@@ -81,8 +81,8 @@ class OCSPTestEnv:
     def make_request(
         self,
         leaf: x509.Certificate,
-        algorithm: Optional[hashes.HashAlgorithm] = None,
-        nonce: Optional[bytes] = None,
+        algorithm: hashes.HashAlgorithm | None = None,
+        nonce: bytes | None = None,
         foreign: bool = False,
     ) -> bytes:
         """DER OCSP request for the given leaf"""
@@ -113,11 +113,11 @@ async def ocsp_client() -> AsyncGenerator[TestClient, None]:
 
 
 def _add_person(
-    serial: Optional[int] = None,
-    deleted: Optional[datetime] = None,
-    revoke_reason: Optional[str] = None,
+    serial: int | None = None,
+    deleted: datetime | None = None,
+    revoke_reason: str | None = None,
     tmp: str = "",
-    callsign: Optional[str] = None,
+    callsign: str | None = None,
 ) -> Person:
     """Insert a Person row directly (bypasses cert signing)"""
     person = Person(

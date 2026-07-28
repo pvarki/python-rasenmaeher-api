@@ -1,20 +1,19 @@
 """People API views."""
 
-from typing import List, Optional
 import logging
 
-from fastapi import APIRouter, Request, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from libpvarki.schemas.generic import OperationResultResponse
 
+from ....db import Person
+from ....db.errors import BackendError, NotFound
+from ..middleware.mtls import MTLSorJWT
+from ..middleware.user import ValidUser
+from ..utils.auditcontext import build_audit_extra
 from .schema import (
     CallSignPerson,
     PeopleListOut,
 )
-from ..middleware.mtls import MTLSorJWT
-from ..middleware.user import ValidUser
-from ..utils.auditcontext import build_audit_extra
-from ....db import Person
-from ....db.errors import BackendError, NotFound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -33,13 +32,13 @@ async def request_people_list(revoked: bool = False) -> PeopleListOut:
     if revoked is given will list *also* revoked users.
     """
 
-    result_list: List[CallSignPerson] = []
+    result_list: list[CallSignPerson] = []
     async for dbperson in Person.list(include_deleted=revoked):
         if dbperson.callsign == "anon_admin":
             # Skip the "dummy" user for anon_admin
             continue
         roles = await dbperson.roles_set()
-        revoked_date: Optional[str] = None
+        revoked_date: str | None = None
         if dbperson.deleted:
             revoked_date = dbperson.deleted.isoformat()
         listitem = CallSignPerson(
@@ -63,7 +62,7 @@ async def request_people_list_onlydeleted() -> PeopleListOut:
 
     """
 
-    result_list: List[CallSignPerson] = []
+    result_list: list[CallSignPerson] = []
     async for dbperson in Person.list(only_deleted=True):
         if dbperson.callsign == "anon_admin":
             # Skip the "dummy" user for anon_admin, this should never be revoked though...
@@ -89,7 +88,7 @@ async def request_people_list_byrole(role: str) -> PeopleListOut:
 
     """
 
-    result_list: List[CallSignPerson] = []
+    result_list: list[CallSignPerson] = []
     async for dbperson in Person.by_role(role):
         if dbperson.callsign == "anon_admin":
             # Skip the "dummy" user for anon_admin
@@ -159,5 +158,5 @@ async def delete_person(request: Request, callsign: str) -> OperationResultRespo
                 error_message=str(exc),
             ),
         )
-        LOGGER.error("Backend failure: {}".format(exc))
+        LOGGER.error(f"Backend failure: {exc}")
         return OperationResultResponse(success=False, error=str(exc))

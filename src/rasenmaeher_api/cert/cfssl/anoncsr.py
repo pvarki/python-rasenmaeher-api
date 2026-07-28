@@ -4,8 +4,7 @@ import logging
 
 import aiohttp
 
-
-from .base import anon_session, get_result_cert, CFSSLError, ocsprest_base, default_timeout
+from .base import CFSSLError, anon_session, default_timeout, get_result_cert, ocsprest_base
 
 LOGGER = logging.getLogger(__name__)
 

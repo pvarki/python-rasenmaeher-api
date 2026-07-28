@@ -1,9 +1,9 @@
 """Instruction response schemas"""
 
-from typing import Dict, Optional, Any, List
+from typing import Any
 
-from pydantic import BaseModel, Field, ConfigDict, RootModel
 from libpvarki.schemas.product import UserInstructionFragment
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 
 class AllProductsInstructionFragments(BaseModel):
@@ -26,7 +26,7 @@ class AllProductsInstructionFragments(BaseModel):
         },
     )
 
-    fragments: Dict[str, Optional[UserInstructionFragment]] = Field(
+    fragments: dict[str, UserInstructionFragment | None] = Field(
         description="Instructions keyed by product short name, if fetching of fragment failed value for that product is null"
     )
 
@@ -41,7 +41,7 @@ class ProductFile(BaseModel):
     data: str = Field(description="data-url for the file")
 
 
-class ProductFileList(RootModel[List[ProductFile]]):
+class ProductFileList(RootModel[list[ProductFile]]):
     """List of files"""
 
 
@@ -50,7 +50,7 @@ class AllProductsInstructionFiles(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    files: Dict[str, Optional[ProductFileList]] = Field(
+    files: dict[str, ProductFileList | None] = Field(
         description="files keyed by product short name, if fetching failed value for that product is null"
     )
 
@@ -71,4 +71,4 @@ class ProductData(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    data: Dict[str, Any] = Field(description="User data required for modular UI.")
+    data: dict[str, Any] = Field(description="User data required for modular UI.")

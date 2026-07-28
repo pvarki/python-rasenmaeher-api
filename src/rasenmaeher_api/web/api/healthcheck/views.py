@@ -1,17 +1,18 @@
 """Healthcheck API views."""
 
-from typing import cast
 import logging
 import os
+from typing import cast
 
 from fastapi import APIRouter
 from libpvarki.schemas.product import ProductHealthCheckResponse
 
 from rasenmaeher_api import __version__
-from .schema import BasicHealthCheckResponse, AllProductsHealthCheckResponse
+
 from ....db import Person
-from ....rmsettings import switchme_to_singleton_call
 from ....productapihelpers import check_kraftwerk_manifest, get_from_all_products
+from ....rmsettings import switchme_to_singleton_call
+from .schema import AllProductsHealthCheckResponse, BasicHealthCheckResponse
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -62,14 +63,14 @@ async def request_healthcheck_services() -> AllProductsHealthCheckResponse:
         return ret
     for productname, response in statuses.items():
         if not response:
-            LOGGER.warning("No response from {}, setting all_ok to False".format(productname))
+            LOGGER.warning(f"No response from {productname}, setting all_ok to False")
             ret.products[productname] = False
             ret.all_ok = False
             continue
         response = cast(ProductHealthCheckResponse, response)
         ret.products[productname] = response.healthy
         if not response.healthy:
-            LOGGER.warning("Unhealthy report from {}, setting all_ok to False".format(productname))
+            LOGGER.warning(f"Unhealthy report from {productname}, setting all_ok to False")
             ret.all_ok = False
 
     return ret

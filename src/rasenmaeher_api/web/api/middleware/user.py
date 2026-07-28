@@ -1,16 +1,16 @@
 """Middleware to require valid user"""
 
-from typing import Optional, Sequence, cast
 import logging
+from collections.abc import Sequence
+from typing import cast
 
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
 
-
+from ....db.errors import DBError, Deleted, NotFound
 from ....db.people import Person
-from ....db.errors import DBError, NotFound, Deleted
-from .mtls import MTLSorJWT
-from .datatypes import MTLSorJWTPayloadType
 from ....rmsettings import RMSettings
+from .datatypes import MTLSorJWTPayloadType
+from .mtls import MTLSorJWT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class ValidUser(MTLSorJWT):
         self.require_roles = require_roles
         super().__init__(auto_error=auto_error)
 
-    async def __call__(self, request: Request) -> Optional[Person]:  # type: ignore[override]
+    async def __call__(self, request: Request) -> Person | None:  # type: ignore[override]
         """Call parent and check the userid"""
         request.state.person = None
         payload = await super().__call__(request)
@@ -54,9 +54,9 @@ class ValidUser(MTLSorJWT):
 
         roles = await request.state.person.roles_set()
         required = set(self.require_roles)
-        LOGGER.debug("required={} roles={}".format(required, roles))
+        LOGGER.debug(f"required={required} roles={roles}")
         if not required.issubset(roles):
-            LOGGER.warning("Required roles not granted, required={} roles={}".format(required, roles))
+            LOGGER.warning(f"Required roles not granted, required={required} roles={roles}")
             if self.auto_error:
                 raise HTTPException(status_code=403, detail="Required role(s) not granted")
 

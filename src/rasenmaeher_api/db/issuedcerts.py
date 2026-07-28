@@ -1,10 +1,10 @@
 """DB abstraction for non-user certs we signed (product/service mTLS), used by the OCSP responder"""
 
-from typing import Optional
 import logging
+from typing import Optional
 
-from cryptography import x509
 import sqlalchemy
+from cryptography import x509
 from sqlmodel import Field, select
 
 from .base import ORMBaseModel

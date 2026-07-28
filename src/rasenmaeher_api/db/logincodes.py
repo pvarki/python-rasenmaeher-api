@@ -1,18 +1,18 @@
 """DB abstraction for storing nonces etc things needed to prevent re-use of certain tokens"""
 
-from typing import Dict, Any, Optional
-import logging
-import string
-import secrets
 import datetime
+import logging
+import secrets
+import string
+from typing import Any
 
-from sqlalchemy.dialects.postgresql import JSONB
 from multikeyjwt import Issuer
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, select
 
-from .engine import EngineWrapper
 from .base import ORMBaseModel
-from .errors import ForbiddenOperation, NotFound, Deleted, TokenReuse
+from .engine import EngineWrapper
+from .errors import Deleted, ForbiddenOperation, NotFound, TokenReuse
 
 LOGGER = logging.getLogger(__name__)
 CODE_CHAR_COUNT = 12  # TODO: Make configurable ??
@@ -26,17 +26,17 @@ class LoginCode(ORMBaseModel, table=True):
     __tablename__ = "logincodes"
 
     code: str = Field(nullable=False, index=True, unique=True)
-    auditmeta: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    auditmeta: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
     used_on: datetime.datetime = Field(nullable=True)
-    claims: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    claims: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
 
     @classmethod
-    async def use_code(cls, code: str, auditmeta: Optional[Dict[str, Any]] = None) -> str:
+    async def use_code(cls, code: str, auditmeta: dict[str, Any] | None = None) -> str:
         """Exchange the code for JWT, if it was already used raise error that is also 403, return JWT with the claims"""
         try:
             obj = await LoginCode.by_code(code)
             if obj.used_on:
-                LOGGER.error("{} was used on {}".format(obj.code, obj.used_on))
+                LOGGER.error(f"{obj.code} was used on {obj.used_on}")
                 raise TokenReuse()
         except NotFound:
             pass
@@ -58,12 +58,12 @@ class LoginCode(ORMBaseModel, table=True):
         if not obj:
             raise NotFound()
         if obj.deleted:
-            LOGGER.error("Got a deleted token {}, this should not be possible".format(obj.pk))
+            LOGGER.error(f"Got a deleted token {obj.pk}, this should not be possible")
             raise Deleted()  # This should *not* be happening
         return obj
 
     @classmethod
-    async def create_for_claims(cls, claims: Dict[str, Any], auditmeta: Optional[Dict[str, Any]] = None) -> str:
+    async def create_for_claims(cls, claims: dict[str, Any], auditmeta: dict[str, Any] | None = None) -> str:
         """Create a new one with random code for the given claims"""
         # TODO: Do this in a transaction to avoid race conditions
         attempt = 0

@@ -1,7 +1,7 @@
 """Functions that routes that deal with users MUST call after changes"""
 
-import uuid
 import logging
+import uuid
 
 LOGGER = logging.getLogger(__name__)
 

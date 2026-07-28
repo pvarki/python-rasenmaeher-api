@@ -1,19 +1,18 @@
 """Helpers for testing, unit and manual"""
 
-from typing import Tuple, List
 import logging
 
-from .db import Person, Enrollment, LoginCode
+from .db import Enrollment, LoginCode, Person
 
 LOGGER = logging.getLogger(__name__)
 
 
-async def create_test_users() -> Tuple[List[str], List[str]]:
+async def create_test_users() -> tuple[list[str], list[str]]:
     """Create a few test users and work ids returns
     list of work-ids and their corresponding jwt tokens
     """
-    work_ids: List[str] = []
-    jwt_tokens: List[str] = []
+    work_ids: list[str] = []
+    jwt_tokens: list[str] = []
 
     # Create "anon_admin", this is also done in /firstuser/add-admin if one not exists yet
     # anon_admin is only used to "approve" the newly created admin users. Aka user for "anon_admin_session".

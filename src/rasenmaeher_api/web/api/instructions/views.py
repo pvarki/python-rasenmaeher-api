@@ -1,22 +1,22 @@
 """Instruction routes"""
 
-from typing import cast, Optional
 import logging
+from typing import cast
 
-from fastapi import Depends, APIRouter, Request, HTTPException
-from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
+from fastapi import APIRouter, Depends, HTTPException, Request
 from libpvarki.middleware import MTLSHeader
+from libpvarki.schemas.product import UserCRUDRequest, UserInstructionFragment
 
+from ....db import Person
+from ....productapihelpers import get_from_all_products, post_to_all_products, post_to_product
+from ..middleware.user import ValidUser
 from .schema import (
-    AllProductsInstructionFragments,
-    ProductFileList,
     AllProductsInstructionFiles,
+    AllProductsInstructionFragments,
     InstructionData,
     ProductData,
+    ProductFileList,
 )
-from ..middleware.user import ValidUser
-from ....productapihelpers import get_from_all_products, post_to_all_products, post_to_product
-from ....db import Person
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
@@ -52,7 +52,7 @@ async def user_instruction_fragment(request: Request) -> AllProductsInstructionF
     user = UserCRUDRequest(
         uuid=str(person.pk), callsign=person.callsign, x509cert=person.certfile.read_text(encoding="utf-8")
     )
-    LOGGER.debug("person={}, user={}".format(person, user))
+    LOGGER.debug(f"person={person}, user={user}")
     responses = await post_to_all_products("api/v1/clients/fragment", user.model_dump(), ProductFileList)
     if responses is None:
         raise ValueError("Everything is broken")
@@ -64,7 +64,7 @@ async def user_instruction_fragment(request: Request) -> AllProductsInstructionF
     dependencies=[Depends(ValidUser(auto_error=True))],
     response_model=InstructionData,
 )
-async def get_product_instructions(request: Request, product: str, language: str) -> Optional[InstructionData]:
+async def get_product_instructions(request: Request, product: str, language: str) -> InstructionData | None:
     """Get instructions JSON for given product and language"""
     person = cast(Person, request.state.person)
     user = UserCRUDRequest(
@@ -74,7 +74,7 @@ async def get_product_instructions(request: Request, product: str, language: str
     response = await post_to_product(product, endpoint_url, user.model_dump(), InstructionData)
     if response is None:
         _reason = f"Unable to get instructions for {product}"
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=404, detail=_reason)
     response = cast(InstructionData, response)
     return response
@@ -84,7 +84,7 @@ async def get_product_instructions(request: Request, product: str, language: str
     "/data/{product}",
     dependencies=[Depends(ValidUser(auto_error=True))],
 )
-async def get_product_data(request: Request, product: str) -> Optional[ProductData]:
+async def get_product_data(request: Request, product: str) -> ProductData | None:
     """Get component data"""
     person = cast(Person, request.state.person)
     user = UserCRUDRequest(
@@ -94,7 +94,7 @@ async def get_product_data(request: Request, product: str) -> Optional[ProductDa
     response = await post_to_product(product, endpoint_url, user.model_dump(), ProductData)
     if response is None:
         _reason = f"Unable to get data for {product}"
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=404, detail=_reason)
     response = cast(ProductData, response)
     return response
@@ -104,7 +104,7 @@ async def get_product_data(request: Request, product: str) -> Optional[ProductDa
     "/data/{product}",
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def get_admin_product_data(request: Request, product: str) -> Optional[ProductData]:
+async def get_admin_product_data(request: Request, product: str) -> ProductData | None:
     """Get component data"""
     person = cast(Person, request.state.person)
     user = UserCRUDRequest(
@@ -114,7 +114,7 @@ async def get_admin_product_data(request: Request, product: str) -> Optional[Pro
     response = await post_to_product(product, endpoint_url, user.model_dump(), ProductData)
     if response is None:
         _reason = f"Unable to get data for {product}"
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=404, detail=_reason)
     response = cast(ProductData, response)
     return response

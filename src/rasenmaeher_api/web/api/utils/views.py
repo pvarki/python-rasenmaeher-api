@@ -6,11 +6,10 @@ from fastapi import APIRouter, Depends, Response
 from fastapi.responses import FileResponse
 from libpvarki.middleware.mtlsheader import MTLSHeader
 
-
-from .schema import LdapConnString
-from ....rmsettings import RMSettings
 from ....cert.backend import get_ocsprest_crl
 from ....jwtinit import resolve_rm_jwt_pubkey_path
+from ....rmsettings import RMSettings
+from .schema import LdapConnString
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
