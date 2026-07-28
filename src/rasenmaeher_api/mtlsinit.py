@@ -1,18 +1,17 @@
 """Init mTLS client cert for RASENMAEHER itself"""
 
-from typing import Optional
 import asyncio
-from pathlib import Path
 import logging
 import random
+from pathlib import Path
 
-from libpvarki.mtlshelp.session import get_session as libsession
-from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair, resolve_filepaths
 import aiohttp
 import filelock
+from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair, resolve_filepaths
+from libpvarki.mtlshelp.session import get_session as libsession
 
 from .cert.errors import CertError
-from .rmsettings import RMSettings, CertBackend
+from .rmsettings import CertBackend, RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -58,11 +57,9 @@ def check_mtls_init() -> bool:
     assert config.mtls_client_key_path is not None  # nosec B101
     cert_path = Path(config.mtls_client_cert_path)
     key_path = Path(config.mtls_client_key_path)
-    LOGGER.debug("cert_path={}  exits={}".format(cert_path, cert_path.exists()))
-    LOGGER.debug("key_path={}  exits={}".format(key_path, key_path.exists()))
-    if cert_path.exists() and key_path.exists():
-        return True
-    return False
+    LOGGER.debug(f"cert_path={cert_path}  exits={cert_path.exists()}")
+    LOGGER.debug(f"key_path={key_path}  exits={key_path.exists()}")
+    return bool(cert_path.exists() and key_path.exists())
 
 
 async def mtls_init() -> None:
@@ -85,7 +82,7 @@ async def mtls_init() -> None:
     # Random sleep to avoid race conditions on these file accesses
     await asyncio.sleep(random.random() * 3.0)  # nosec B311
     lock = filelock.FileLock(lockpath)
-    csrpem: Optional[str] = None
+    csrpem: str | None = None
     try:
         lock.acquire(timeout=0.0)
         # Check the privkey again to avoid overwriting.
@@ -96,21 +93,21 @@ async def mtls_init() -> None:
             csrpem = await async_create_client_csr(keypair, csrpath, {"CN": config.mtls_client_cert_cn})
         if not certpath.exists():
             if not csrpem:
-                LOGGER.debug("Loading mTLS client CSR from {}".format(csrpath))
+                LOGGER.debug(f"Loading mTLS client CSR from {csrpath}")
                 csrpem = csrpath.read_text()
             try:
                 LOGGER.debug("Getting CSR signed")
                 certpem = (await _anon_sign_csr(csrpem)).replace("\\n", "\n")
-                LOGGER.debug("Saving mTLS cert to {}".format(certpath))
+                LOGGER.debug(f"Saving mTLS cert to {certpath}")
                 certpath.write_text(certpem, encoding="ascii")
                 # Lazy import, see _anon_sign_csr for the circular import chain
                 from rasenmaeher_api.db.issuedcerts import record_issued_cert
 
                 await record_issued_cert(certpem)
-            except CertError as exc:
-                LOGGER.exception("Signing failed: {}".format(exc))
+            except CertError:
+                LOGGER.exception("Signing failed")
     except filelock.Timeout:
-        LOGGER.warning("Someone has already locked {}".format(lockpath))
+        LOGGER.warning(f"Someone has already locked {lockpath}")
         LOGGER.debug("Sleeping for ~5s and then recursing")
         await asyncio.sleep(5.0 + random.random())  # nosec B311
         return await mtls_init()

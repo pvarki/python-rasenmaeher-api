@@ -1,13 +1,13 @@
 """Read database configuration from ENV or .env -file"""
 
-from typing import Optional, cast, Callable, ClassVar, Any
-import logging
 import functools
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import Any, ClassVar, Optional, cast
 
-
-from sqlalchemy.engine.url import URL, make_url
 from sqlalchemy import util
+from sqlalchemy.engine.url import URL, make_url
 from starlette.config import Config
 from starlette.datastructures import Secret
 
@@ -26,11 +26,11 @@ class DBConfig:
     driver: str = field(
         default_factory=cast(Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql"))
     )
-    host: Optional[str] = field(default_factory=functools.partial(config, "RM_DATABASE_HOST", default=None))
+    host: str | None = field(default_factory=functools.partial(config, "RM_DATABASE_HOST", default=None))
     port: int = field(
         default_factory=cast(Callable[..., int], functools.partial(config, "RM_DATABASE_PORT", cast=int, default=None))
     )
-    user: Optional[str] = field(
+    user: str | None = field(
         default_factory=cast(Callable[..., str], functools.partial(config, "RM_DATABASE_USER", default="raesenmaeher"))
     )
     password: Secret = field(
@@ -41,9 +41,9 @@ class DBConfig:
     database: str = field(
         default_factory=cast(Callable[..., str], functools.partial(config, "RM_DATABASE_NAME", default="raesenmaeher"))
     )
-    dsn: Optional[URL] = field(
+    dsn: URL | None = field(
         default_factory=cast(
-            Callable[..., Optional[URL]],
+            Callable[..., URL | None],
             functools.partial(
                 config,
                 "RM_DB_DSN",
@@ -100,6 +100,6 @@ class DBConfig:
                 query=util.EMPTY_DICT,
             )
 
-        LOGGER.debug("DSN={}".format(self.dsn))
-        LOGGER.debug("HOST={}".format(self.host))
-        LOGGER.debug("DATABASE={}".format(self.database))
+        LOGGER.debug(f"DSN={self.dsn}")
+        LOGGER.debug(f"HOST={self.host}")
+        LOGGER.debug(f"DATABASE={self.database}")

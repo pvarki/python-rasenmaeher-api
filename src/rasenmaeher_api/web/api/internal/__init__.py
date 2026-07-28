@@ -10,6 +10,5 @@ from fastapi import APIRouter
 
 from . import callsign_validity
 
-
 router = APIRouter()
 router.include_router(callsign_validity.router, prefix="/callsign-validity", tags=["internal"])

@@ -1,8 +1,8 @@
 """Token exchange schemas"""
 
-from typing import Any, Dict
+from typing import Any
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class JWTExchangeRequestResponse(BaseModel):
@@ -37,7 +37,7 @@ class LoginCodeCreateRequest(BaseModel):
         },
     )
 
-    claims: Dict[str, Any] = Field(description="The claims that should be issued when this token is redeemed")
+    claims: dict[str, Any] = Field(description="The claims that should be issued when this token is redeemed")
 
 
 class LoginCodeRequestResponse(BaseModel):

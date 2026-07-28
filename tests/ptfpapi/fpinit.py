@@ -1,11 +1,12 @@
 """Create server cert and get it signed by CFSSL"""
 
-from typing import cast, Any, Mapping, Union, Dict
 import asyncio
 import logging
-from os import environ
 import sys
+from collections.abc import Mapping
+from os import environ
 from pathlib import Path
+from typing import Any, cast
 
 import aiohttp
 from libadvian.logging import init_logging
@@ -15,7 +16,6 @@ from libpvarki.mtlshelp.csr import (
     async_create_server_csr,
     resolve_filepaths,
 )
-
 
 LOGGER = logging.getLogger(__name__)
 DATAPATH = Path("/data/persistent")
@@ -32,11 +32,11 @@ async def get_ca() -> str:
     async with aiohttp.ClientSession() as session:
         session.headers.add("Content-Type", "application/json")
         url = f"{cfssl_host}:{cfssl_port}/api/v1/cfssl/info"
-        payload: Dict[str, Any] = {}
+        payload: dict[str, Any] = {}
 
         # FIXME: Why does this need to be a POST ??
         async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
-            data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
+            data = cast(Mapping[str, Any | Mapping[str, Any]], await response.json())
             result = data.get("result")
             if not result:
                 raise ValueError("CFSSL did not return result")
@@ -59,7 +59,7 @@ async def sign_csr(csr: str) -> str:
         url = f"{cfssl_host}:{cfssl_port}/api/v1/cfssl/sign"
         payload = {"certificate_request": csr}
         async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
-            data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], await response.json())
+            data = cast(Mapping[str, Any | Mapping[str, Any]], await response.json())
             result = data.get("result")
             if not result:
                 raise ValueError("CFSSL did not return result")

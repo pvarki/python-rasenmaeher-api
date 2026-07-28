@@ -1,34 +1,34 @@
 """Abstractions for people"""
 
-from typing import Self, Optional, AsyncGenerator, Dict, Any, Set, Union
 import asyncio
-import uuid
-import logging
-from pathlib import Path
-import shutil
 import datetime
+import logging
+import shutil
+import uuid
+from collections.abc import AsyncGenerator
+from pathlib import Path
+from typing import Any, Optional, Self
 
 import cryptography.x509
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlmodel import Field, SQLModel, select
 import sqlalchemy as sa
-from sqlalchemy.sql import func
-from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_keypair, async_create_client_csr
-from libpvarki.schemas.product import UserCRUDRequest
-from libpvarki.schemas.generic import OperationResultResponse
-from libpvarki.mtlshelp.pkcs12 import convert_pem_to_pkcs12
 from libadvian.tasks import TaskMaster
+from libpvarki.mtlshelp.csr import PRIVDIR_MODE, async_create_client_csr, async_create_keypair
+from libpvarki.mtlshelp.pkcs12 import convert_pem_to_pkcs12
+from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.schemas.product import UserCRUDRequest
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.sql import func
+from sqlmodel import Field, SQLModel, select
 
-
-from .base import ORMBaseModel, utcnow
-from ..web.api.middleware.datatypes import MTLSorJWTPayload
-from .errors import NotFound, Deleted, BackendError, CallsignReserved
-from ..cert.backend import sign_csr, revoke_pem, validate_reason, ReasonTypes, refresh_ocsp
+from ..cert.backend import ReasonTypes, refresh_ocsp, revoke_pem, sign_csr, validate_reason
+from ..kchelpers import KCClient, KCUserData
 from ..productapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
-from ..kchelpers import KCClient, KCUserData
-from .engine import EngineWrapper
+from ..web.api.middleware.datatypes import MTLSorJWTPayload
 from ..web.api.utils.csr_utils import verify_csr
+from .base import ORMBaseModel, utcnow
+from .engine import EngineWrapper
+from .errors import BackendError, CallsignReserved, Deleted, NotFound
 
 LOGGER = logging.getLogger(__name__)
 
@@ -46,12 +46,12 @@ class Person(ORMBaseModel, table=True):
     callsign: str = Field(nullable=False, index=True, unique=True)
     # Directory with the key, cert and pfx
     certspath: str = Field(nullable=False, index=False, unique=True)
-    extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    extra: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
     revoke_reason: str = Field(nullable=True, index=False)
-    cert_serial: Optional[str] = Field(default=None, nullable=True, index=True, unique=True)
+    cert_serial: str | None = Field(default=None, nullable=True, index=True, unique=True)
 
     @classmethod
-    async def update_from_kcdata(cls, kcdata: Dict[str, Any], person: Optional["Person"] = None) -> "Person":
+    async def update_from_kcdata(cls, kcdata: dict[str, Any], person: Optional["Person"] = None) -> "Person":
         """Update the local record with KC deta"""
         if not person:
             if "callsign" in kcdata:
@@ -74,7 +74,7 @@ class Person(ORMBaseModel, table=True):
             }
         )
         try:
-            LOGGER.debug("Updating extra for {}".format(person.callsign))
+            LOGGER.debug(f"Updating extra for {person.callsign}")
             with EngineWrapper.get_session() as session:
                 session.add(person)
                 session.commit()
@@ -84,7 +84,7 @@ class Person(ORMBaseModel, table=True):
             raise BackendError(str(exc)) from exc
 
     @classmethod
-    async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID], allow_deleted: bool = False) -> "Person":
+    async def by_pk_or_callsign(cls, inval: str | uuid.UUID, allow_deleted: bool = False) -> "Person":
         """Get person by pk or by callsign"""
         try:
             return await cls.by_pk(inval, allow_deleted)
@@ -93,7 +93,7 @@ class Person(ORMBaseModel, table=True):
 
     @classmethod
     async def create_with_cert(
-        cls, callsign: str, extra: Optional[Dict[str, Any]] = None, csrpem: Optional[str] = None
+        cls, callsign: str, extra: dict[str, Any] | None = None, csrpem: str | None = None
     ) -> "Person":
         """Create the cert etc and save the person"""
         if csrpem and not verify_csr(csrpem, callsign):
@@ -133,7 +133,7 @@ class Person(ORMBaseModel, table=True):
                 LOGGER.exception("Something went wrong, doing cleanup")
                 shutil.rmtree(certspath)
                 remaining = list(certspath.rglob("*"))
-                LOGGER.debug("Remaining files: {}".format(remaining))
+                LOGGER.debug(f"Remaining files: {remaining}")
                 session.rollback()
                 raise BackendError(str(exc)) from exc
             # refresh object if everything went ok
@@ -226,7 +226,7 @@ class Person(ORMBaseModel, table=True):
         )
 
     @property
-    def certsubject(self) -> Dict[str, str]:
+    def certsubject(self) -> dict[str, str]:
         """Return the dict that gets set to cert DN"""
         return {"CN": self.callsign}
 
@@ -262,13 +262,9 @@ class Person(ORMBaseModel, table=True):
             statement = select(cls)
             if only_deleted:
                 include_deleted = True
-                statement = statement.where(
-                    cls.deleted != None  # noqa: E711
-                )
+                statement = statement.where(cls.deleted != None)
             if not include_deleted:
-                statement = statement.where(
-                    cls.deleted == None  # noqa: E711
-                )
+                statement = statement.where(cls.deleted == None)
             results = session.exec(statement)
             for result in results:
                 yield result
@@ -301,9 +297,7 @@ class Person(ORMBaseModel, table=True):
         with EngineWrapper.get_session() as session:
             statement = select(cls).where(func.lower(cls.callsign) == func.lower(callsign))
             data = session.exec(statement).first()
-            if not data:
-                return False
-            return True
+            return bool(data)
 
     @classmethod
     async def by_mtlsjwt_payload(cls, payload: MTLSorJWTPayload, allow_deleted: bool = False) -> Self:
@@ -332,15 +326,13 @@ class Person(ORMBaseModel, table=True):
     async def has_role(self, role: str) -> bool:
         """Check if this user has given role"""
         obj = await self._get_role(role)
-        if obj:
-            return True
-        return False
+        return bool(obj)
 
     async def assign_role(self, role: str) -> bool:
         """Assign a role, return true if role was created, false if it already existed"""
         if await self.has_role(role):
             if role == "admin":
-                LOGGER.debug("{} already promoted but informing anyway".format(self.callsign))
+                LOGGER.debug(f"{self.callsign} already promoted but informing anyway")
                 TaskMaster.singleton().create_task(user_promoted(self))
             return False
         with EngineWrapper.get_session() as session:
@@ -351,7 +343,7 @@ class Person(ORMBaseModel, table=True):
             session.commit()
             session.refresh(self)
         if role == "admin":
-            LOGGER.debug("{} promoted, informing".format(self.callsign))
+            LOGGER.debug(f"{self.callsign} promoted, informing")
             TaskMaster.singleton().create_task(user_promoted(self))
         return True
 
@@ -360,7 +352,7 @@ class Person(ORMBaseModel, table=True):
         obj = await self._get_role(role)
         if not obj:
             if role == "admin":
-                LOGGER.debug("{} already demoted but informing anyway".format(self.callsign))
+                LOGGER.debug(f"{self.callsign} already demoted but informing anyway")
                 TaskMaster.singleton().create_task(user_demoted(self))
             return False
         with EngineWrapper.get_session() as session:
@@ -370,11 +362,11 @@ class Person(ORMBaseModel, table=True):
             session.commit()
             session.refresh(self)
         if role == "admin":
-            LOGGER.debug("{} demoted, informing".format(self.callsign))
+            LOGGER.debug(f"{self.callsign} demoted, informing")
             TaskMaster.singleton().create_task(user_demoted(self))
         return True
 
-    async def roles_set(self) -> Set[str]:
+    async def roles_set(self) -> set[str]:
         """Shorthand"""
         return {role async for role in self.roles()}
 

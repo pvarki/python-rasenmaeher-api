@@ -1,12 +1,12 @@
 """CLI entrypoints for python-rasenmaeher-api"""
 
-from typing import Dict, Any
-import logging
-import json
 import asyncio
+import json
+import logging
 import pprint
 import uuid
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 import click
@@ -14,12 +14,12 @@ from libadvian.logging import init_logging
 from multikeyjwt import Issuer
 
 from rasenmaeher_api import __version__
+from rasenmaeher_api.db import LoginCode, Person, init_db
+from rasenmaeher_api.db.config import DBConfig
+from rasenmaeher_api.db.errors import NotFound
+from rasenmaeher_api.db.middleware import DBWrapper
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.testhelpers import create_test_users
-from rasenmaeher_api.db import LoginCode, init_db, Person
-from rasenmaeher_api.db.config import DBConfig
-from rasenmaeher_api.db.middleware import DBWrapper
-from rasenmaeher_api.db.errors import NotFound
 from rasenmaeher_api.web.application import get_app_no_init
 
 LOGGER = logging.getLogger(__name__)
@@ -73,17 +73,18 @@ def do_http_healthcheck(ctx: click.Context, host: str, port: int, timeout: float
         suffix = ""
         if services:
             suffix = "/services"
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session:
-            async with session.get(f"{host}:{port}/api/v1/healthcheck{suffix}") as resp:
-                if resp.status != 200:
-                    return int(resp.status)
-                payload = await resp.json()
-                click.echo(json.dumps(payload))
-                if services:
-                    if not payload["all_ok"]:
-                        return 1
-                if payload["healthcheck"] != "success":
-                    return 1
+        async with (
+            aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=timeout)) as session,
+            session.get(f"{host}:{port}/api/v1/healthcheck{suffix}") as resp,
+        ):
+            if resp.status != 200:
+                return int(resp.status)
+            payload = await resp.json()
+            click.echo(json.dumps(payload))
+            if services and not payload["all_ok"]:
+                return 1
+            if payload["healthcheck"] != "success":
+                return 1
         return 0
 
     ctx.exit(asyncio.run(doit()))
@@ -97,12 +98,12 @@ def add_code(ctx: click.Context, claims_json: str) -> None:
     Add new single-use login code
     """
     claims = json.loads(claims_json)
-    LOGGER.debug("Parsed claims={}".format(claims))
+    LOGGER.debug(f"Parsed claims={claims}")
     if not claims:
         click.echo("Must specify claims", err=True)
         ctx.exit(1)
 
-    async def call_backend(claims: Dict[str, Any]) -> int:
+    async def call_backend(claims: dict[str, Any]) -> int:
         """Call the backend"""
         nonlocal ctx
         await ctx.obj["dbwrapper"].app_startup_event()
@@ -173,12 +174,12 @@ def get_jwt(ctx: click.Context, claims_json: str, nonce: bool) -> None:
     claims = json.loads(claims_json)
     if nonce:
         claims["nonce"] = str(uuid.uuid4())
-    LOGGER.debug("Parsed claims={}".format(claims))
+    LOGGER.debug(f"Parsed claims={claims}")
     if not claims:
         click.echo("Must specify claims", err=True)
         ctx.exit(1)
 
-    async def call_backend(claims: Dict[str, Any]) -> int:
+    async def call_backend(claims: dict[str, Any]) -> int:
         """Call the backend"""
         await jwt_init()
         token = Issuer.singleton().issue(claims)
@@ -196,12 +197,12 @@ def get_adminjwt(ctx: click.Context, claims_json: str) -> None:
     Get RASENMAEHER signed admin user JWT
     """
     claims = json.loads(claims_json)
-    LOGGER.debug("Parsed claims={}".format(claims))
+    LOGGER.debug(f"Parsed claims={claims}")
     if not claims:
         click.echo("Must specify claims", err=True)
         ctx.exit(1)
 
-    async def call_backend(claims: Dict[str, Any]) -> int:
+    async def call_backend(claims: dict[str, Any]) -> int:
         """Call the backend"""
         await jwt_init()
         token = Issuer.singleton().issue(claims)

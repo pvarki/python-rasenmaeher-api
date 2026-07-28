@@ -1,41 +1,39 @@
 """Private apis"""
 
-from typing import Union, Optional, Any, Dict
 import asyncio
-import logging
 import binascii
+import logging
 from pathlib import Path
+from typing import Any
 
 import aiohttp
 import cryptography.x509
 from libadvian.tasks import TaskMaster
 
-from .base import base_url, get_result_cert, CFSSLError, get_result, NoResult, ocsprest_base, DBLocked, default_timeout
-from .mtls import mtls_session
 from ...rmsettings import RMSettings
+from .base import CFSSLError, DBLocked, NoResult, base_url, default_timeout, get_result, get_result_cert, ocsprest_base
+from .mtls import mtls_session
 
 LOGGER = logging.getLogger(__name__)
 
 
-ReasonTypes = Union[cryptography.x509.ReasonFlags, str]
+ReasonTypes = cryptography.x509.ReasonFlags | str
 
 
-async def post_ocsprest(
-    url: str, send_payload: Optional[Dict[str, Any]] = None, timeout: Optional[float] = None
-) -> None:
+async def post_ocsprest(url: str, send_payload: dict[str, Any] | None = None, timeout: float | None = None) -> None:
     """Do a POST with the mTLS client"""
     if timeout is None:
         timeout = RMSettings.singleton().cfssl_timeout
     async with await mtls_session() as session:
         try:
-            LOGGER.debug("POSTing to {}, payload={}".format(url, send_payload))
+            LOGGER.debug(f"POSTing to {url}, payload={send_payload}")
             async with session.post(url, data=send_payload, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
                 resp_payload = await response.json()
-                LOGGER.debug("resp_payload={}".format(resp_payload))
+                LOGGER.debug(f"resp_payload={resp_payload}")
                 if not resp_payload["success"]:
-                    raise CFSSLError("Failure from {}: {}".format(url, resp_payload))
+                    raise CFSSLError(f"Failure from {url}: {resp_payload}")
         except aiohttp.ClientError as exc:
-            raise CFSSLError(f"{url} raised {str(exc)}") from exc
+            raise CFSSLError(f"{url} raised {exc!s}") from exc
 
 
 async def dump_crlfiles() -> None:
@@ -58,7 +56,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
         url = f"{ocsprest_base()}/api/v1/csr/sign"
         payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
         try:
-            LOGGER.debug("Calling {}".format(url))
+            LOGGER.debug(f"Calling {url}")
             async with session.post(url, json=payload, timeout=default_timeout()) as response:
                 resp = await get_result_cert(response)
                 TaskMaster.singleton().create_task(refresh_ocsp())
@@ -95,15 +93,15 @@ def validate_reason(reason: ReasonTypes) -> cryptography.x509.ReasonFlags:
     if isinstance(reason, str):
         by_val = str_reasons.get(reason)
         if by_val is None:
-            LOGGER.debug("reason '{}' not in {}".format(reason, str_reasons))
-            raise ValueError(f"Could not resolve '{reason}' into cryptography.x509.ReasonFlags")
+            LOGGER.debug(f"reason '{reason}' not in {str_reasons}")
+            raise TypeError(f"Could not resolve '{reason}' into cryptography.x509.ReasonFlags")
         return by_val
     if not isinstance(reason, cryptography.x509.ReasonFlags):
-        raise ValueError(f"{reason} is not valid cryptography.x509.ReasonFlags (or string version of the value)")
+        raise TypeError(f"{reason} is not valid cryptography.x509.ReasonFlags (or string version of the value)")
     return reason
 
 
-async def revoke_pem(pem: Union[str, Path], reason: ReasonTypes) -> None:
+async def revoke_pem(pem: str | Path, reason: ReasonTypes) -> None:
     """Read the serial number from the PEM cert and call revoke_serial
     Reason must be one of the enumerations of cryptography.x509.ReasonFlags
 
@@ -112,7 +110,7 @@ async def revoke_pem(pem: Union[str, Path], reason: ReasonTypes) -> None:
     if isinstance(pem, Path):
         pem = pem.read_text("utf-8")
     cert = cryptography.x509.load_pem_x509_certificate(pem.encode("utf-8"))
-    kid: Optional[str] = None
+    kid: str | None = None
     for extension in cert.extensions:
         if extension.oid.dotted_string != "2.5.29.35":  # oid=2.5.29.35, name=authorityKeyIdentifier
             continue
@@ -151,7 +149,7 @@ async def revoke_serial(serialno: str, authority_key_id: str, reason: ReasonType
             raise CFSSLError(str(exc)) from exc
 
 
-async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
+async def certadd_pem(pem: str | Path, status: str = "good") -> Any:
     """Read the serial number from the PEM cert and call certadd
     endpoint
 
@@ -160,7 +158,7 @@ async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
     if isinstance(pem, Path):
         pem = pem.read_text("utf-8")
     cert = cryptography.x509.load_pem_x509_certificate(pem.encode("utf-8"))
-    kid: Optional[str] = None
+    kid: str | None = None
     for extension in cert.extensions:
         if extension.oid.dotted_string != "2.5.29.35":  # oid=2.5.29.35, name=authorityKeyIdentifier
             continue
@@ -178,7 +176,7 @@ async def certadd_pem(pem: Union[str, Path], status: str = "good") -> Any:
             "expiry": cert.not_valid_after.isoformat() + "Z",
         }
         try:
-            LOGGER.debug("POSTing {} to {}".format(payload, url))
+            LOGGER.debug(f"POSTing {payload} to {url}")
             async with session.post(url, json=payload, timeout=default_timeout()) as response:
                 return await get_result(response)
         except aiohttp.ClientError as exc:

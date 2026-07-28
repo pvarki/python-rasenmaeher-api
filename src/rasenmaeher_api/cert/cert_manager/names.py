@@ -2,10 +2,9 @@
 
 import hashlib
 import re
-from typing import Optional
 
 
-def cr_name(csr: str, callsign: Optional[str]) -> str:
+def cr_name(csr: str, callsign: str | None) -> str:
     """Derive a Kubernetes resource name for a callsign's CertificateRequest.
 
     Callsigns can include characters outside the k8s ``[a-z0-9-]{1,253}`` set,

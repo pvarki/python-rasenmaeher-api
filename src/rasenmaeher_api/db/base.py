@@ -1,17 +1,16 @@
 """The Gino baseclass with db connection wrapping"""
 
-from typing import Self, Union
-import uuid
-import logging
 import datetime
+import logging
+import uuid
+from typing import Self
 
-
-from libadvian.binpackers import b64_to_uuid, ensure_utf8, ensure_str
-from sqlmodel import Field, SQLModel, select
 import sqlalchemy as sa
+from libadvian.binpackers import b64_to_uuid, ensure_str, ensure_utf8
+from sqlmodel import Field, SQLModel, select
 
-from .errors import NotFound, Deleted
 from .engine import EngineWrapper
+from .errors import Deleted, NotFound
 
 utcnow = sa.func.current_timestamp()
 
@@ -29,7 +28,7 @@ class ORMBaseModel(SQLModel, table=False):
     deleted: datetime.datetime = Field(nullable=True)
 
     @classmethod
-    async def by_pk(cls, pkin: Union[str, uuid.UUID], allow_deleted: bool = False) -> Self:
+    async def by_pk(cls, pkin: str | uuid.UUID, allow_deleted: bool = False) -> Self:
         """Get by pk"""
         if isinstance(pkin, uuid.UUID):
             getpk = pkin

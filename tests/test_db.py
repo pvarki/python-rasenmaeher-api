@@ -5,36 +5,36 @@ import logging
 import uuid
 from pathlib import Path
 
+import cryptography.hazmat.primitives.serialization.pkcs12
+import cryptography.x509
 import pytest
 from flaky import flaky  # type: ignore[import-untyped]
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
-import cryptography.x509
-import cryptography.hazmat.primitives.serialization.pkcs12
 
+from rasenmaeher_api.cert.backend import get_crl
 from rasenmaeher_api.db import (
     DBConfig,
-    Person,
-    Enrollment,
-    EnrollmentState,
-    EnrollmentPool,
-    SeenToken,
-    LoginCode,
     EngineWrapper,
+    Enrollment,
+    EnrollmentPool,
+    EnrollmentState,
+    LoginCode,
+    Person,
+    SeenToken,
 )
 from rasenmaeher_api.db.errors import (
-    NotFound,
-    Deleted,
+    BackendError,
     CallsignReserved,
+    Deleted,
     ForbiddenOperation,
+    NotFound,
     PoolInactive,
     TokenReuse,
-    BackendError,
 )
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
-from rasenmaeher_api.rmsettings import switchme_to_singleton_call, RMSettings
-from rasenmaeher_api.cert.backend import get_crl
+from rasenmaeher_api.rmsettings import RMSettings, switchme_to_singleton_call
 
 LOGGER = logging.getLogger(__name__)
 
@@ -328,7 +328,7 @@ async def test_logincodes_crud(ginosession: None) -> None:
     obj2 = await LoginCode.by_code(code)
     assert obj2.used_on
     claims = Verifier.singleton().decode(jwt)
-    LOGGER.debug("claims={}".format(claims))
+    LOGGER.debug(f"claims={claims}")
     assert "sub" in claims
     assert claims["sub"] == "sotakoira"
 
@@ -354,7 +354,7 @@ async def test_person_with_cert(ginosession: None) -> None:
     await person.revoke("key_compromise")
     new_crl = cryptography.x509.load_der_x509_crl(await get_crl())
     new_crl_serials = {revcert.serial_number for revcert in new_crl}
-    LOGGER.debug("old_crl={} new_crl={}".format(old_crl_serials, new_crl_serials))
+    LOGGER.debug(f"old_crl={old_crl_serials} new_crl={new_crl_serials}")
     assert old_crl_serials != new_crl_serials
     refresh = await Person.by_callsign("BINGO01a", allow_deleted=True)
     assert refresh.deleted

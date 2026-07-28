@@ -5,20 +5,19 @@ cert-manager ``kubernetes.io/tls`` Secret via cloudcoil (rmapi has a pinned
 RBAC grant for it).
 """
 
-from typing import Dict, Optional
-from dataclasses import dataclass, field
 import asyncio
 import base64
 import logging
 import time
+from dataclasses import dataclass, field
 
 from cloudcoil.models.kubernetes.core.v1 import Secret
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
-from rasenmaeher_api.rmsettings import RMSettings
 from rasenmaeher_api.cert.cert_manager.base import CertManagerError
+from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,8 +34,8 @@ class SignerMaterial:
 
     cert: x509.Certificate
     key: ec.EllipticCurvePrivateKey
-    name_hashes: Dict[str, bytes] = field(init=False)
-    key_hashes: Dict[str, bytes] = field(init=False)
+    name_hashes: dict[str, bytes] = field(init=False)
+    key_hashes: dict[str, bytes] = field(init=False)
     fetched: float = field(default_factory=time.monotonic)
 
     def __post_init__(self) -> None:
@@ -74,7 +73,7 @@ def _load_material(cert_pem: bytes, key_pem: bytes) -> SignerMaterial:
 
 async def _fetch_secret(name: str, namespace: str) -> SignerMaterial:
     """Load signing material from the cert-manager tls Secret via the k8s API"""
-    LOGGER.debug("Fetching OCSP signing material from secret {}/{}".format(namespace, name))
+    LOGGER.debug(f"Fetching OCSP signing material from secret {namespace}/{name}")
     secret = await Secret.async_get(name, namespace)
     data = secret.data or {}
     try:
@@ -85,7 +84,7 @@ async def _fetch_secret(name: str, namespace: str) -> SignerMaterial:
     return _load_material(cert_pem, key_pem)
 
 
-_CACHED: Optional[SignerMaterial] = None
+_CACHED: SignerMaterial | None = None
 _LOCK = asyncio.Lock()
 
 

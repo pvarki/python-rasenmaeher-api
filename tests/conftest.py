@@ -1,32 +1,31 @@
 """pytest automagics"""
 
 import asyncio
-from typing import Dict, Any, AsyncGenerator, Generator, Tuple, List
-import logging
-from pathlib import Path
-import uuid
 import json
+import logging
 import random
+import uuid
+from collections.abc import AsyncGenerator, Generator
+from pathlib import Path
+from typing import Any
 
-from fastapi import FastAPI
-from multikeyjwt import Issuer, Verifier
-from multikeyjwt.config import Secret
-from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 import pytest
+import pytest_asyncio
+from aiohttp import web
+from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
+from fastapi import FastAPI
 from libadvian.logging import init_logging
 from libadvian.tasks import TaskMaster
+from multikeyjwt import Issuer, Verifier
+from multikeyjwt.config import Secret
 from pytest_docker.plugin import Services  # type: ignore[import-untyped]
-from aiohttp import web
 
-
-import pytest_asyncio
-
-from rasenmaeher_api.rmsettings import switchme_to_singleton_call
-from rasenmaeher_api.productapihelpers import check_kraftwerk_manifest
-from rasenmaeher_api.testhelpers import create_test_users
-from rasenmaeher_api.mtlsinit import check_settings_clientpaths, CERT_NAME_PREFIX
 from rasenmaeher_api.db.dbinit import init_db
 from rasenmaeher_api.db.people import Person
+from rasenmaeher_api.mtlsinit import CERT_NAME_PREFIX, check_settings_clientpaths
+from rasenmaeher_api.productapihelpers import check_kraftwerk_manifest
+from rasenmaeher_api.rmsettings import switchme_to_singleton_call
+from rasenmaeher_api.testhelpers import create_test_users
 
 # Register libadvian fixtures (nice_tmpdir, monkeysession, ...) as a pytest plugin
 # so they're available by name in tests without needing explicit imports.
@@ -47,7 +46,7 @@ async def tms_wait() -> None:
             await asyncio.sleep(0.1)
         except asyncio.CancelledError:
             LOGGER.warning("Waiting for tasks cancelled")
-            LOGGER.debug("Remaining tasks: {}".format(tma._tasks))
+            LOGGER.debug(f"Remaining tasks: {tma._tasks}")
             return
 
 
@@ -66,7 +65,7 @@ async def taskmaster() -> AsyncGenerator[None, None]:
     yield
     try:
         await asyncio.wait_for(tms_wait(), timeout=10.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         LOGGER.warning("Taskmaster wait timed out")
 
 
@@ -133,7 +132,7 @@ def session_env_config(
         if fpath.name.endswith(".pub"):
             tgtpath = pubkeydir / fpath.name
         else:
-            LOGGER.warning("Don't know what to do with {}".format(fpath))
+            LOGGER.warning(f"Don't know what to do with {fpath}")
             continue
         tgtpath.write_bytes(fpath.read_bytes())
 
@@ -226,7 +225,7 @@ async def user_mtls_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, 
         await Person.create_with_cert(user_uuid)
         try:
             await asyncio.wait_for(tms_wait(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             LOGGER.warning("Taskmaster wait timed out")
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
         yield instance
@@ -241,7 +240,7 @@ async def user_mtls_admin_client(app_instance: FastAPI) -> AsyncGenerator[TestCl
         await (await Person.by_callsign(user_uuid)).assign_role("admin")
         try:
             await asyncio.wait_for(tms_wait(), timeout=10.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             LOGGER.warning("Taskmaster wait timed out")
         instance.headers.update({"X-ClientCert-DN": f"CN={user_uuid},O=N/A"})
         yield instance
@@ -287,7 +286,7 @@ def issuer_cl() -> Issuer:
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_admin_client(
-    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]], app_instance: FastAPI
+    issuer_cl: Issuer, test_user_secrets: tuple[list[str], list[str]], app_instance: FastAPI
 ) -> AsyncGenerator[TestClient, None]:
     """Client with admin JWT"""
     async with TestClient(app_instance) as instance:
@@ -305,7 +304,7 @@ async def tilauspalvelu_jwt_admin_client(
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_client(
-    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]], app_instance: FastAPI
+    issuer_cl: Issuer, test_user_secrets: tuple[list[str], list[str]], app_instance: FastAPI
 ) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
     async with TestClient(app_instance) as instance:
@@ -339,7 +338,7 @@ async def tilauspalvelu_jwt_without_proper_user_client(
 
 @pytest_asyncio.fixture(scope="session")
 async def tilauspalvelu_jwt_user_koira_client(
-    issuer_cl: Issuer, test_user_secrets: Tuple[List[str], List[str]], app_instance: FastAPI
+    issuer_cl: Issuer, test_user_secrets: tuple[list[str], list[str]], app_instance: FastAPI
 ) -> AsyncGenerator[TestClient, None]:
     """Client with normal user JWT"""
     async with TestClient(app_instance) as instance:
@@ -355,7 +354,7 @@ async def tilauspalvelu_jwt_user_koira_client(
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_user_secrets(session_env_config: None) -> Tuple[List[str], List[str]]:
+async def test_user_secrets(session_env_config: None) -> tuple[list[str], list[str]]:
     """Create a few test users and work ids returns
     list of work-ids and their corresponding "hashes"
 
@@ -371,12 +370,12 @@ async def announce_server() -> AsyncGenerator[str, None]:
     bind_port = random.randint(1000, 64000)
     hostname = "localmaeher.dev.pvarki.fi"
 
-    request_payloads: List[Dict[str, Any]] = []
+    request_payloads: list[dict[str, Any]] = []
 
     async def handle_announce(request: web.Request) -> web.Response:
         """Handle the POST"""
         nonlocal request_payloads
-        LOGGER.debug("request={}".format(request))
+        LOGGER.debug(f"request={request}")
         payload = await request.json()
         request_payloads.append(payload)
         return web.json_response(payload)
@@ -384,7 +383,7 @@ async def announce_server() -> AsyncGenerator[str, None]:
     async def handle_log(request: web.Request) -> web.Response:
         """Return payload log"""
         nonlocal request_payloads
-        LOGGER.debug("request={}".format(request))
+        LOGGER.debug(f"request={request}")
         return web.json_response({"payloads": request_payloads})
 
     app = web.Application()
@@ -397,7 +396,7 @@ async def announce_server() -> AsyncGenerator[str, None]:
     await site.start()
 
     uri = f"http://{hostname}:{bind_port}"
-    LOGGER.debug("yielding {}".format(uri))
+    LOGGER.debug(f"yielding {uri}")
     yield uri
 
     LOGGER.debug("Stopping the async server task(s)")

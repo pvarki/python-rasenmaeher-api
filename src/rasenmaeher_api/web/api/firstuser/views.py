@@ -2,22 +2,21 @@
 
 import asyncio
 import logging
-from fastapi import APIRouter, Request, Body, Depends, HTTPException
 
-from multikeyjwt.middleware import JWTBearer, JWTPayload
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from libadvian.tasks import TaskMaster
+from multikeyjwt.middleware import JWTBearer, JWTPayload
 
 from rasenmaeher_api.web.api.firstuser.schema import (
-    FirstuserCheckCodeIn,
-    FirstuserCheckCodeOut,
     FirstuserAddAdminIn,
     FirstuserAddAdminOut,
+    FirstuserCheckCodeIn,
+    FirstuserCheckCodeOut,
 )
-from ..utils.auditcontext import build_audit_extra
-from ....db import Person
-from ....db import LoginCode
-from ....db import Enrollment
+
+from ....db import Enrollment, LoginCode, Person
 from ....db.errors import NotFound
+from ..utils.auditcontext import build_audit_extra
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ async def get_check_code(
             ),
         )
         _reason = "Error. Undefined backend error q_ssjsfjwe1"
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=500, detail=_reason)
 
     # Code already used err.
@@ -67,7 +66,7 @@ async def get_check_code(
             ),
         )
         _reason = "Code already used"
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=403, detail=_reason)
 
     LOGGER.audit(
@@ -139,7 +138,7 @@ async def post_admin_add(
 
     try:
         await asyncio.wait_for(tms_wait(), timeout=3.0)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         LOGGER.warning("Timed out while waiting for background tasks, continuing anyway")
     role_add_success = await new_admin.assign_role(role="admin")
 
@@ -155,7 +154,7 @@ async def post_admin_add(
             ),
         )
         reason = "Error. User already admin. This shouldn't happen..."
-        LOGGER.error("{} : {}".format(request.url, reason))
+        LOGGER.error(f"{request.url} : {reason}")
         raise HTTPException(status_code=400, detail=reason)
 
     # Create JWT token for new admin user
