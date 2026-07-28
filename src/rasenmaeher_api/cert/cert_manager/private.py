@@ -243,7 +243,7 @@ def validate_reason(reason: ReasonTypes) -> cryptography.x509.ReasonFlags:
     if isinstance(reason, str):
         by_val = str_reasons.get(reason)
         if by_val is None:
-            raise TypeError(f"Could not resolve '{reason}' into cryptography.x509.ReasonFlags")
+            raise ValueError(f"Could not resolve '{reason}' into cryptography.x509.ReasonFlags")
         return by_val
     if not isinstance(reason, cryptography.x509.ReasonFlags):
         raise TypeError(f"{reason} is not valid cryptography.x509.ReasonFlags (or string version of the value)")

@@ -41,4 +41,4 @@ if __name__ == "__main__":
     init_logging(loglevel)
     LOGGER.setLevel(loglevel)
     LOGGER.debug("Calling main()")
-    sys.exit(asyncio.get_event_loop().run_until_complete(main()))
+    sys.exit(asyncio.run(main()))

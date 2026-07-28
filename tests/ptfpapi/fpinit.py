@@ -36,7 +36,7 @@ async def get_ca() -> str:
 
         # FIXME: Why does this need to be a POST ??
         async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
-            data = cast(Mapping[str, Any | Mapping[str, Any]], await response.json())
+            data = cast(Mapping[str, Any], await response.json())
             result = data.get("result")
             if not result:
                 raise ValueError("CFSSL did not return result")
@@ -59,7 +59,7 @@ async def sign_csr(csr: str) -> str:
         url = f"{cfssl_host}:{cfssl_port}/api/v1/cfssl/sign"
         payload = {"certificate_request": csr}
         async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=2.0)) as response:
-            data = cast(Mapping[str, Any | Mapping[str, Any]], await response.json())
+            data = cast(Mapping[str, Any], await response.json())
             result = data.get("result")
             if not result:
                 raise ValueError("CFSSL did not return result")
@@ -105,4 +105,4 @@ if __name__ == "__main__":
     loglevel = int(environ.get("LOG_LEVEL", "10"))
     init_logging(loglevel)
     LOGGER.setLevel(loglevel)
-    sys.exit(asyncio.get_event_loop().run_until_complete(main()))
+    sys.exit(asyncio.run(main()))
