@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.1.7-experimental
-FROM python:3.9-bookworm as base
+FROM python:3.14-trixie as base
 COPY requirements.txt /pysetup/
 RUN pip3 install -r /pysetup/requirements.txt
 
