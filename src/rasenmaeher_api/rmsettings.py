@@ -143,8 +143,8 @@ class RMSettings(BaseSettings):
     kc_enabled: bool = True  # Whether to use KC or not (mainly so that unit tests have less dependencies for now)
 
     # JOKE feedback ingest integration
-    joke_ingest_url: Optional[str] = None
-    joke_ingest_key: Optional[str] = None
+    joke_ingest_url: str | None = None
+    joke_ingest_key: str | None = None
     joke_timeout: float = 5.0
 
     # Enrollment code generation related

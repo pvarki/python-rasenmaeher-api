@@ -4,18 +4,17 @@ Proxies the app's feedback dialog to JOKE so the ingest URL and secret stay
 server-side and are never shipped in the frontend bundle.
 """
 
-from typing import Optional
-from uuid import uuid4
 import logging
+from uuid import uuid4
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
 
-from .schema import FeedbackIn, FeedbackOut
-from ..middleware.user import ValidUser
-from ..utils.auditcontext import build_audit_extra, get_audit_request_context
 from ....db.people import Person
 from ....rmsettings import RMSettings
+from ..middleware.user import ValidUser
+from ..utils.auditcontext import build_audit_extra, get_audit_request_context
+from .schema import FeedbackIn, FeedbackOut
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +24,7 @@ LOGGER = logging.getLogger(__name__)
 async def submit_feedback(
     feedback: FeedbackIn,
     request: Request,
-    person: Optional[Person] = Depends(ValidUser(auto_error=False)),
+    person: Person | None = Depends(ValidUser(auto_error=False)),
 ) -> FeedbackOut:
     """Forward a feedback submission to JOKE."""
     conf = RMSettings.singleton()
