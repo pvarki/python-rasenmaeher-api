@@ -1,9 +1,8 @@
 """Serial number -> certificate status lookup against the DB."""
 
-from typing import Optional
+import logging
 from dataclasses import dataclass
 from datetime import datetime
-import logging
 
 from cryptography import x509
 from cryptography.x509 import ocsp
@@ -23,8 +22,8 @@ class CertStatusResult:
     """Verdict for a single serial"""
 
     status: ocsp.OCSPCertStatus
-    revocation_time: Optional[datetime] = None  # required when REVOKED
-    revocation_reason: Optional[x509.ReasonFlags] = None
+    revocation_time: datetime | None = None  # required when REVOKED
+    revocation_reason: x509.ReasonFlags | None = None
 
 
 async def lookup_status(serial: int) -> CertStatusResult:

@@ -1,10 +1,10 @@
 """Application settings."""
 
-from typing import Optional, Any, Dict, ClassVar, List
 import enum
-from pathlib import Path
-import logging
 import json
+import logging
+from pathlib import Path
+from typing import Any, ClassVar, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -73,7 +73,7 @@ class RMSettings(BaseSettings):
     integration_api_port: int = 4625
     kraftwerk_manifest_path: str = "/pvarki/kraftwerk-rasenmaeher-init.json"
     kraftwerk_manifest_bool: bool = False
-    kraftwerk_manifest_dict: Dict[Any, Any] = {}
+    kraftwerk_manifest_dict: dict[Any, Any] = {}
     integration_api_timeout: float = 3.0
 
     # Api access management
@@ -84,7 +84,7 @@ class RMSettings(BaseSettings):
     api_healthcheck_headers: str = '{"probably":"not_needed"}'
 
     # Sentry's configuration.
-    sentry_dsn: Optional[str] = None
+    sentry_dsn: str | None = None
     sentry_sample_rate: float = 1.0
 
     # Certificate backend selection
@@ -115,29 +115,29 @@ class RMSettings(BaseSettings):
     # Shared secret used by the Traefik callsign-validity plugin to auth to the
     # internal websocket. Optional — if unset, the websocket accepts any caller
     # (suitable for in-cluster-only Service exposure during local dev).
-    callsign_validity_secret: Optional[str] = None
+    callsign_validity_secret: str | None = None
 
     persistent_data_dir: str = "/data/persistent"
 
     # mtls
-    mtls_client_cert_path: Optional[str] = None
-    mtls_client_key_path: Optional[str] = None
+    mtls_client_cert_path: str | None = None
+    mtls_client_key_path: str | None = None
     mtls_client_cert_cn: str = "rasenmaeher"
 
     # LDAP configuration
-    ldap_conn_string: Optional[str] = None
-    ldap_username: Optional[str] = None
-    ldap_client_secret: Optional[str] = None
+    ldap_conn_string: str | None = None
+    ldap_username: str | None = None
+    ldap_client_secret: str | None = None
 
     # Tilauspalvelu integration
     tilauspalvelu_jwt: str = "https://tilaa.pvarki.fi/api/v1/config/jwtPublicKey.pem"
-    kraftwerk_announce: Optional[str] = None  # When KRAFTWERK actually exists
+    kraftwerk_announce: str | None = None  # When KRAFTWERK actually exists
     kraftwerk_timeout: float = 2.0
 
     # keycloak integration
     kc_url: str = "http://keycloak:8080"
     kc_username: str = "admin"
-    kc_password: Optional[str] = None
+    kc_password: str | None = None
     kc_user_realm: str = "master"  # Which realm to use to auth the user
     kc_realm: str = "RASENMAEHER"  # In which realm the real users are
     kc_enabled: bool = True  # Whether to use KC or not (mainly so that unit tests have less dependencies for now)
@@ -161,7 +161,7 @@ class RMSettings(BaseSettings):
             RMSettings._singleton = RMSettings()
         return RMSettings._singleton
 
-    def __init__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> None:
+    def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
         super().__init__(*args, **kwargs)  # type: ignore[arg-type]
         # FIXME: When the switchme_to_singleton_call has been removed call load_manifest here
 
@@ -187,7 +187,7 @@ class RMSettings(BaseSettings):
         return "undefined"
 
     @property
-    def valid_product_cns(self) -> List[str]:
+    def valid_product_cns(self) -> list[str]:
         """Get valid CNs for productapi certs"""
         self.load_manifest()
         return [product["certcn"] for product in self.kraftwerk_manifest_dict["products"].values()]

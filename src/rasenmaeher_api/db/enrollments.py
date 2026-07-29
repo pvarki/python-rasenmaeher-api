@@ -1,24 +1,25 @@
 """Abstractions for enrollments"""
 
-from typing import Dict, Any, Optional, AsyncGenerator, Union
-import string
-import secrets
-import logging
-import enum
-import warnings
-import uuid
 import datetime
+import enum
+import logging
+import secrets
+import string
+import uuid
+import warnings
+from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 from sqlmodel import Field, select
 
-from .base import ORMBaseModel
-from .people import Person
-from .errors import ForbiddenOperation, CallsignReserved, NotFound, Deleted, PoolInactive
 from ..rmsettings import RMSettings
-from .engine import EngineWrapper
 from ..web.api.utils.csr_utils import verify_csr
+from .base import ORMBaseModel
+from .engine import EngineWrapper
+from .errors import CallsignReserved, Deleted, ForbiddenOperation, NotFound, PoolInactive
+from .people import Person
 
 LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = string.ascii_uppercase + string.digits
@@ -41,18 +42,18 @@ class EnrollmentPool(ORMBaseModel, table=True):
 
     owner: uuid.UUID = Field(f"{ORMBaseModel.__table_args__['schema']}.users.pk", nullable=False)
     active: bool = Field(nullable=False, default=True)
-    extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    extra: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
     invitecode: str = Field(nullable=False, index=True, unique=True)
 
     @classmethod
-    async def by_pk_or_invitecode(cls, inval: Union[str, uuid.UUID], allow_deleted: bool = False) -> "EnrollmentPool":
+    async def by_pk_or_invitecode(cls, inval: str | uuid.UUID, allow_deleted: bool = False) -> "EnrollmentPool":
         """Get pool by pk or by invitecode"""
         try:
             return await cls.by_pk(inval, allow_deleted)
         except ValueError:
             return await cls.by_invitecode(str(inval), allow_deleted)
 
-    async def create_enrollment(self, callsign: str, csr: Optional[str] = None) -> "Enrollment":
+    async def create_enrollment(self, callsign: str, csr: str | None = None) -> "Enrollment":
         """Create enrollment from this pool"""
         if not self.active:
             raise PoolInactive()
@@ -72,7 +73,7 @@ class EnrollmentPool(ORMBaseModel, table=True):
     @classmethod
     async def list(
         cls,
-        by_owner: Optional[Person] = None,
+        by_owner: Person | None = None,
         include_deleted: bool = False,
     ) -> AsyncGenerator["EnrollmentPool", None]:
         """List pools, optionally by owner or including deleted pools"""
@@ -81,9 +82,7 @@ class EnrollmentPool(ORMBaseModel, table=True):
             if by_owner:
                 statement = statement.where(cls.owner == by_owner.pk)
             if not include_deleted:
-                statement = statement.where(
-                    cls.deleted == None  # noqa: E711
-                )
+                statement = statement.where(cls.deleted == None)
             results = session.exec(statement)
             for result in results:
                 yield result
@@ -105,7 +104,7 @@ class EnrollmentPool(ORMBaseModel, table=True):
         return code
 
     @classmethod
-    async def create_for_owner(cls, person: Person, extra: Optional[Dict[str, Any]] = None) -> "EnrollmentPool":
+    async def create_for_owner(cls, person: Person, extra: dict[str, Any] | None = None) -> "EnrollmentPool":
         """Creates one for given owner"""
         with EngineWrapper.get_session() as session:
             code = await cls._generate_unused_code()
@@ -168,11 +167,11 @@ class Enrollment(ORMBaseModel, table=True):
         foreign_key=f"{ORMBaseModel.__table_args__['schema']}.enrollmentpools.pk", nullable=True, default=None
     )
     state: int = Field(nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
-    extra: Dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
-    csr: Optional[str] = Field(default=None, nullable=True)
+    extra: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    csr: str | None = Field(default=None, nullable=True)
 
     @classmethod
-    async def by_pk_or_callsign(cls, inval: Union[str, uuid.UUID]) -> "Enrollment":
+    async def by_pk_or_callsign(cls, inval: str | uuid.UUID) -> "Enrollment":
         """Get enrollment by pk or by callsign"""
         try:
             return await cls.by_pk(inval)
@@ -203,7 +202,7 @@ class Enrollment(ORMBaseModel, table=True):
             session.refresh(self)
 
     @classmethod
-    async def list(cls, by_pool: Optional[EnrollmentPool] = None) -> AsyncGenerator["Enrollment", None]:
+    async def list(cls, by_pool: EnrollmentPool | None = None) -> AsyncGenerator["Enrollment", None]:
         """List enrollments, optionally by pool (enrollment deletion is not allowed, they can only be rejected)"""
         with EngineWrapper.get_session() as session:
             statement = select(Enrollment)
@@ -222,7 +221,7 @@ class Enrollment(ORMBaseModel, table=True):
         if not obj:
             raise NotFound()
         if obj.deleted:
-            LOGGER.error("Got a deleted enrollment {}, this should not be possible".format(obj.pk))
+            LOGGER.error(f"Got a deleted enrollment {obj.pk}, this should not be possible")
             raise Deleted()  # This should *not* be happening
         return obj
 
@@ -235,7 +234,7 @@ class Enrollment(ORMBaseModel, table=True):
         if not obj:
             raise NotFound()
         if obj.deleted:
-            LOGGER.error("Got a deleted enrollment {}, this should not be possible".format(obj.pk))
+            LOGGER.error(f"Got a deleted enrollment {obj.pk}, this should not be possible")
             raise Deleted()  # This should *not* be happening
         return obj
 
@@ -277,9 +276,9 @@ class Enrollment(ORMBaseModel, table=True):
     async def create_for_callsign(
         cls,
         callsign: str,
-        pool: Optional[EnrollmentPool] = None,
-        extra: Optional[Dict[str, Any]] = None,
-        csr: Optional[str] = None,
+        pool: EnrollmentPool | None = None,
+        extra: dict[str, Any] | None = None,
+        csr: str | None = None,
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
         if callsign in RMSettings.singleton().valid_product_cns:

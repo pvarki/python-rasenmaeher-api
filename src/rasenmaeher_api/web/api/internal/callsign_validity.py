@@ -25,16 +25,14 @@ cannot load ``golang.org/x/net/websocket``, so the plugin was switched to
 stdlib ``net/http``. The per-request semantics are identical.
 """
 
-from typing import Optional
 import logging
 
 from fastapi import APIRouter, Header, HTTPException, status
 from pydantic import BaseModel
 
-from ....db.errors import NotFound, Deleted
+from ....db.errors import Deleted, NotFound
 from ....db.people import Person
 from ....rmsettings import RMSettings
-
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
@@ -48,7 +46,7 @@ class CheckResponse(BaseModel):
     valid: bool
 
 
-def _check_secret(provided: Optional[str]) -> None:
+def _check_secret(provided: str | None) -> None:
     expected = RMSettings.singleton().callsign_validity_secret
     if not expected:
         return
@@ -78,7 +76,7 @@ async def _is_valid(callsign: str) -> bool:
 @router.post("/check", response_model=CheckResponse)
 async def callsign_validity_check(
     req: CheckRequest,
-    validity_secret: Optional[str] = Header(default=None, alias="Validity-Secret"),
+    validity_secret: str | None = Header(default=None, alias="Validity-Secret"),
 ) -> CheckResponse:
     """Return whether the given callsign is currently valid."""
     _check_secret(validity_secret)

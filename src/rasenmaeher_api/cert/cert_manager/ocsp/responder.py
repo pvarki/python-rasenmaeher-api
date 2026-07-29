@@ -1,13 +1,12 @@
 """RFC 6960 OCSP responder core: DER request in, DER response out."""
 
-from typing import Optional, Tuple
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-import logging
 
 from cryptography import x509
-from cryptography.x509 import ocsp
 from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.x509 import ocsp
 
 from rasenmaeher_api.rmsettings import RMSettings
 
@@ -23,17 +22,17 @@ MAX_NONCE_BYTES = 32  # RFC 8954
 class ResponseMeta:
     success: bool
     nonce: bool = False
-    this_update: Optional[datetime] = None
-    next_update: Optional[datetime] = None
+    this_update: datetime | None = None
+    next_update: datetime | None = None
 
 
-def unsuccessful(status: ocsp.OCSPResponseStatus) -> Tuple[bytes, ResponseMeta]:
+def unsuccessful(status: ocsp.OCSPResponseStatus) -> tuple[bytes, ResponseMeta]:
     """Build an unsigned OCSP error response"""
     der = ocsp.OCSPResponseBuilder.build_unsuccessful(status).public_bytes(serialization.Encoding.DER)
     return der, ResponseMeta(success=False)
 
 
-async def build_ocsp_response(der: bytes) -> Tuple[bytes, ResponseMeta]:
+async def build_ocsp_response(der: bytes) -> tuple[bytes, ResponseMeta]:
     """Handle one OCSP request; never raises, errors become OCSP error responses"""
     try:
         req = ocsp.load_der_ocsp_request(der)

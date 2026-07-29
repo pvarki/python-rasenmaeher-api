@@ -1,31 +1,32 @@
 """Base helpers etc"""
 
-from typing import Any, Mapping, Union, List, cast
 import json
 import logging
 import ssl
+from collections.abc import Mapping
+from typing import Any, cast
 
 import aiohttp
 from libpvarki.mtlshelp.context import get_ca_context
 
 from ...rmsettings import RMSettings
-from ..errors import CertError, NoResult, ErrorResult, DBLocked, NoValue
+from ..errors import CertError, DBLocked, ErrorResult, NoResult, NoValue
 
 LOGGER = logging.getLogger(__name__)
 
 __all__ = [
     "CFSSLError",
-    "NoResult",
-    "ErrorResult",
     "DBLocked",
+    "ErrorResult",
+    "NoResult",
     "NoValue",
+    "anon_session",
+    "base_url",
     "default_timeout",
     "get_result",
-    "get_result_cert",
     "get_result_bundle",
-    "base_url",
+    "get_result_cert",
     "ocsprest_base",
-    "anon_session",
 ]
 
 # Backward compatibility alias
@@ -41,28 +42,24 @@ async def get_result(response: aiohttp.ClientResponse) -> Any:
     """Get the result part"""
     body = await response.text()
     try:
-        data = cast(Mapping[str, Union[Any, Mapping[str, Any]]], json.loads(body) if body else {})
+        data = cast(Mapping[str, Any | Mapping[str, Any]], json.loads(body) if body else {})
     except json.JSONDecodeError as exc:
         LOGGER.error(
-            "Non-JSON response from {} (HTTP {} {}): {!r}".format(
-                response.url, response.status, response.reason, body[:1000]
-            )
+            f"Non-JSON response from {response.url} (HTTP {response.status} {response.reason}): {body[:1000]!r}"
         )
         raise CFSSLError(
-            "HTTP {} {} from {} with non-JSON body: {!r}".format(
-                response.status, response.reason, response.url, body[:500]
-            )
+            f"HTTP {response.status} {response.reason} from {response.url} with non-JSON body: {body[:500]!r}"
         ) from exc
-    LOGGER.debug("data={}".format(data))
+    LOGGER.debug(f"data={data}")
     if not data:
-        LOGGER.error("Empty body from {} (HTTP {} {})".format(response.url, response.status, response.reason))
-        raise CFSSLError("Empty response from {} (HTTP {} {})".format(response.url, response.status, response.reason))
+        LOGGER.error(f"Empty body from {response.url} (HTTP {response.status} {response.reason})")
+        raise CFSSLError(f"Empty response from {response.url} (HTTP {response.status} {response.reason})")
     if errors := data.get("errors"):
-        errors = cast(List[Mapping[str, Any]], errors)
+        errors = cast(list[Mapping[str, Any]], errors)
         for error in errors:
             if error["code"] == 11000:
-                raise DBLocked("CFSSL returned following errors: {}".format(errors))
-        raise ErrorResult("CFSSL returned following errors: {}".format(errors))
+                raise DBLocked(f"CFSSL returned following errors: {errors}")
+        raise ErrorResult(f"CFSSL returned following errors: {errors}")
     result = data.get("result")
     if not result:
         raise NoResult()

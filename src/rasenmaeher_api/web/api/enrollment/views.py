@@ -1,45 +1,43 @@
 """Enrollment API views."""
 
-from typing import Dict, List, Any, Optional
 import logging
 import uuid
+from typing import Any
 
-
-from fastapi import APIRouter, Request, Body, Depends, HTTPException, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
+from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
-from libpvarki.schemas.generic import OperationResultResponse
-from .schema import (
-    EnrollmentStatusIn,
-    EnrollmentStatusOut,
-    EnrollmentAcceptIn,
-    EnrollmentGenVerifiOut,
-    EnrollmentShowVerificationCodeIn,
-    EnrollmentShowVerificationCodeOut,
-    EnrollmentHaveIBeenAcceptedOut,
-    EnrollmentListOut,
-    EnrollmentPromoteIn,
-    EnrollmentInitIn,
-    EnrollmentInitOut,
-    EnrollmentDemoteIn,
-    EnrollmentLockIn,
-    EnrollmentIsInvitecodeActiveIn,
-    EnrollmentIsInvitecodeActiveOut,
-    EnrollmentInviteCodeCreateOut,
-    EnrollmentInviteCodeEnrollIn,
-    EnrollmentInviteCodeActivateIn,
-    EnrollmentInviteCodeDeactivateIn,
-    EnrollmentPoolListOut,
-    EnrollmentPoolListItem,
-)
+from ....db import Enrollment, EnrollmentPool, Person
+from ....db.errors import NotFound
+from ....rmsettings import RMSettings
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
-from ....db import Person
-from ....db import Enrollment, EnrollmentPool
-from ....db.errors import NotFound
-from ....rmsettings import RMSettings
+from .schema import (
+    EnrollmentAcceptIn,
+    EnrollmentDemoteIn,
+    EnrollmentGenVerifiOut,
+    EnrollmentHaveIBeenAcceptedOut,
+    EnrollmentInitIn,
+    EnrollmentInitOut,
+    EnrollmentInviteCodeActivateIn,
+    EnrollmentInviteCodeCreateOut,
+    EnrollmentInviteCodeDeactivateIn,
+    EnrollmentInviteCodeEnrollIn,
+    EnrollmentIsInvitecodeActiveIn,
+    EnrollmentIsInvitecodeActiveOut,
+    EnrollmentListOut,
+    EnrollmentLockIn,
+    EnrollmentPoolListItem,
+    EnrollmentPoolListOut,
+    EnrollmentPromoteIn,
+    EnrollmentShowVerificationCodeIn,
+    EnrollmentShowVerificationCodeOut,
+    EnrollmentStatusIn,
+    EnrollmentStatusOut,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -52,13 +50,13 @@ NO_JWT_ENROLLMENT_ROUTER = APIRouter()
     response_model=EnrollmentPoolListOut,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def list_pools(owner_cs: Optional[str] = None) -> EnrollmentPoolListOut:
+async def list_pools(owner_cs: str | None = None) -> EnrollmentPoolListOut:
     """List EnrollmentPools (aka invitecodes)"""
-    owner: Optional[Person] = None
+    owner: Person | None = None
     if owner_cs:
         owner = await Person.by_callsign(owner_cs)
-    pools: List[EnrollmentPoolListItem] = []
-    owner_cache: Dict[uuid.UUID, Person] = {}
+    pools: list[EnrollmentPoolListItem] = []
+    owner_cache: dict[uuid.UUID, Person] = {}
     async for pool in EnrollmentPool.list(owner):
         if pool.owner not in owner_cache:
             owner_cache[pool.owner] = await Person.by_pk(pool.owner, allow_deleted=True)
@@ -113,7 +111,7 @@ async def request_show_verification_code(
 
     if params.verification_code in ("na", ""):
         _reason = "Verification code cannot be empty or na"
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=400, detail=_reason)
 
     obj = await Enrollment.by_approvecode(code=params.verification_code)
@@ -166,7 +164,7 @@ async def request_enrolment_status(
     response_model=EnrollmentListOut,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListOut:
+async def request_enrollment_list(code: str | None = None) -> EnrollmentListOut:
     """
     /list
     Return users/callsign/enrollments. If 'accepted' has something else than '', it has been accepted.
@@ -174,7 +172,7 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
     if ?code= is given the results are filtered by that approvecode
     """
 
-    result_list: List[Dict[Any, Any]] = []
+    result_list: list[dict[Any, Any]] = []
     if code:
         try:
             enrollment = await Enrollment.by_approvecode(code)
@@ -188,7 +186,7 @@ async def request_enrollment_list(code: Optional[str] = None) -> EnrollmentListO
     return EnrollmentListOut(callsign_list=result_list)
 
 
-def issue_enrollment_jwt(response: Response, claims: Dict[str, Any]) -> str:
+def issue_enrollment_jwt(response: Response, claims: dict[str, Any]) -> str:
     """Issue longer lived JWT and set persistent cookie"""
     enroll_issuer = Issuer()
     enroll_issuer.config.lifetime = RMSettings.singleton().enrollment_lifetime
@@ -292,7 +290,7 @@ async def request_enrollment_promote(
         ),
     )
     reason = "Given callsign/callsign already has elevated permissions."
-    LOGGER.error("{} : {}".format(request.url, reason))
+    LOGGER.error(f"{request.url} : {reason}")
     raise HTTPException(status_code=400, detail=reason)
 
 
@@ -349,7 +347,7 @@ async def request_enrollment_demote(
         ),
     )
     _reason = "Given callsign/callsign_hash doesn't have 'admin' privileges to take away."
-    LOGGER.error("{} : {}".format(request.url, _reason))
+    LOGGER.error(f"{request.url} : {_reason}")
     raise HTTPException(status_code=400, detail=_reason)
 
 
@@ -531,7 +529,7 @@ async def put_activate_invite_code(
         ),
     )
     _reason = "Error. Unable to activate given invitecode."
-    LOGGER.error("{} : {}".format(request.url, _reason))
+    LOGGER.error(f"{request.url} : {_reason}")
     raise HTTPException(status_code=500, detail=_reason)
 
 
@@ -583,7 +581,7 @@ async def put_deactivate_invite_code(
         ),
     )
     _reason = "Error. Unable to deactivate given invitecode."
-    LOGGER.error("{} : {}".format(request.url, _reason))
+    LOGGER.error(f"{request.url} : {_reason}")
     raise HTTPException(status_code=500, detail=_reason)
 
 
@@ -684,7 +682,7 @@ async def post_enroll_invite_code(
             ),
         )
         _reason = "Error. invitecode disabled."
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=400, detail=_reason)
 
     # CHECK THAT THE CALLSIGN CAN BE USED
@@ -702,7 +700,7 @@ async def post_enroll_invite_code(
             ),
         )
         _reason = "Error. callsign/callsign already taken."
-        LOGGER.error("{} : {}".format(request.url, _reason))
+        LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=400, detail=_reason)
     except NotFound:
         pass

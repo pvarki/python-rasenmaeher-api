@@ -14,8 +14,8 @@ Assumes nginx overwrites the relevant headers:
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
 import logging
+from typing import Any
 
 from cryptography import x509
 from fastapi import Request
@@ -25,7 +25,7 @@ _MAX_FINGERPRINT_LEN = 128
 LOGGER = logging.getLogger(__name__)
 
 
-def _clean_header(value: Optional[str], *, max_len: int = _MAX_HEADER_LEN) -> str:
+def _clean_header(value: str | None, *, max_len: int = _MAX_HEADER_LEN) -> str:
     """Trim and clamp header values to avoid log injection / runaway payloads."""
     if not value:
         return ""
@@ -83,7 +83,7 @@ def get_audit_request_context(
     request: Request,
     *,
     trust_proxy_headers: bool = True,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     """Extract request context for audit logging.
 
     Returns the following ECS 1.6.0 compliant keys:
@@ -108,7 +108,7 @@ def get_audit_request_context(
     if source_ip == "unknown":
         source_ip = client_ip
 
-    ctx: Dict[str, str] = {
+    ctx: dict[str, str] = {
         "source.ip": source_ip,
         "client.ip": client_ip,
     }
@@ -135,7 +135,7 @@ def get_audit_request_context(
     return ctx
 
 
-def format_audit_request_context(ctx: Dict[str, str]) -> str:
+def format_audit_request_context(ctx: dict[str, str]) -> str:
     """Format request context as a stable, log-friendly string.
 
     Useful when extra fields aren't ingested into JSON by the log pipeline.
@@ -162,12 +162,12 @@ def build_audit_extra(
     *,
     action: str,
     outcome: str,
-    actor: Optional[str] = None,
-    target: Optional[str] = None,
-    request: Optional[Request] = None,
+    actor: str | None = None,
+    target: str | None = None,
+    request: Request | None = None,
     trust_proxy_headers: bool = True,
     **extra_fields: Any,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build ECS 1.6.0 compliant extra dict for audit logging.
 
     Produces:
@@ -187,7 +187,7 @@ def build_audit_extra(
     if normalized_outcome not in ("success", "failure", "unknown"):
         normalized_outcome = "unknown"
 
-    extra: Dict[str, Any] = {
+    extra: dict[str, Any] = {
         "event.action": action,
         "event.outcome": normalized_outcome,
     }

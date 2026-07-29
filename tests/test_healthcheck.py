@@ -1,7 +1,7 @@
 """Test healthcheck endpoint"""
 
 import logging
-from typing import Dict, Any
+from typing import Any
 
 import pytest
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
@@ -19,7 +19,7 @@ async def test_get_healthcheck(unauth_client_session: TestClient) -> None:
     healthcheck should be success
     """
     resp = await unauth_client_session.get("/api/v1/healthcheck")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert resp_dict["healthcheck"] == "success"
     assert resp_dict["dns"] != ""
@@ -38,7 +38,7 @@ async def test_get_healthcheck_services(unauth_client_session: TestClient) -> No
     assert resp.status_code == 200
     payload = resp.json()
     parsed = AllProductsHealthCheckResponse.parse_obj(payload)
-    LOGGER.debug("parsed={}".format(parsed))
+    LOGGER.debug(f"parsed={parsed}")
     assert parsed.all_ok is False
     assert parsed.products["fake"] is True
     assert parsed.products["nonexistent"] is False

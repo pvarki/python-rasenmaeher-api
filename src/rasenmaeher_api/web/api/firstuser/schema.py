@@ -1,8 +1,6 @@
 """Schema for enrollment."""
 
-from typing import Optional
-
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FirstuserCheckCodeIn(BaseModel):
@@ -73,7 +71,7 @@ class FirstuserAddAdminIn(BaseModel):
 
     # temp_admin_code: str
     callsign: str
-    csr: Optional[str] = Field(default=None, description="CSR for mTLS key in PEM format")
+    csr: str | None = Field(default=None, description="CSR for mTLS key in PEM format")
 
 
 class FirstuserAddAdminOut(BaseModel):

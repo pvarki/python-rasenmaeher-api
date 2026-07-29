@@ -1,8 +1,8 @@
 """Schema for enrollment."""
 
-from typing import List, Dict, Any, Optional
+from typing import Any
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class EnrollmentGenVerifiOut(BaseModel):
@@ -116,7 +116,7 @@ class EnrollmentInitIn(BaseModel):
     )
 
     callsign: str = Field(description="Callsign to create enrollment for")
-    csr: Optional[str] = Field(description="CSR for mTLS key in PEM format", default=None)
+    csr: str | None = Field(description="CSR for mTLS key in PEM format", default=None)
 
 
 class EnrollmentInitOut(BaseModel):
@@ -334,7 +334,7 @@ class EnrollmentIsInvitecodeActiveOut(BaseModel):
 class EnrollmentListOut(BaseModel, extra="forbid"):
     """Enrollment list out response schema"""
 
-    callsign_list: List[Dict[Any, Any]]
+    callsign_list: list[dict[Any, Any]]
 
 
 class EnrollmentPoolListItem(BaseModel, extra="forbid"):
@@ -349,7 +349,7 @@ class EnrollmentPoolListItem(BaseModel, extra="forbid"):
 class EnrollmentPoolListOut(BaseModel, extra="forbid"):
     """Enrollment pools list out response schema"""
 
-    pools: List[EnrollmentPoolListItem] = Field(description="The pools")
+    pools: list[EnrollmentPoolListItem] = Field(description="The pools")
 
 
 class EnrollmentInviteCodeCreateOut(BaseModel, extra="forbid"):
@@ -417,7 +417,7 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
 
     invite_code: str
     callsign: str
-    csr: Optional[str] = Field(description="CSR for mTLS key in PEM format", default=None)
+    csr: str | None = Field(description="CSR for mTLS key in PEM format", default=None)
 
 
 class EnrollmentInviteCodeDeleteIn(BaseModel):

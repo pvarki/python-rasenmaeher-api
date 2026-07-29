@@ -1,8 +1,8 @@
 """Engine stuff"""
 
-from typing import ClassVar, Optional, Any
 import logging
 from dataclasses import dataclass, field
+from typing import Any, ClassVar, Optional
 
 from sqlmodel import Session, create_engine
 
@@ -17,7 +17,7 @@ class EngineWrapper:
 
     config: DBConfig = field(default_factory=DBConfig.singleton)
     # FIXME: correct typing
-    engine: Optional[Any] = field(default=None)
+    engine: Any | None = field(default=None)
 
     _singleton: ClassVar[Optional["EngineWrapper"]] = None
 

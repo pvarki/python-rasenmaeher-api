@@ -1,6 +1,6 @@
 """Schema for product mTLS cert signing"""
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CertificatesResponse(BaseModel):

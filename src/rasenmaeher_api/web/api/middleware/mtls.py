@@ -1,13 +1,13 @@
 """Middleware to handle mTLS or JWT auth"""
 
-from typing import Optional, Sequence, cast
 import logging
+from collections.abc import Sequence
+from typing import cast
 
-from multikeyjwt.middleware.jwtbearer import JWTBearer
-from libpvarki.middleware.mtlsheader import MTLSHeader
-from fastapi import Request, HTTPException
+from fastapi import HTTPException, Request
 from fastapi.security.http import HTTPBase
-
+from libpvarki.middleware.mtlsheader import MTLSHeader
+from multikeyjwt.middleware.jwtbearer import JWTBearer
 
 from .datatypes import MTLSorJWTPayload, MTLSorJWTPayloadType
 
@@ -21,8 +21,8 @@ class MTLSorJWT(HTTPBase):
         self,
         *,
         scheme: str = "header",
-        scheme_name: Optional[str] = None,
-        description: Optional[str] = None,
+        scheme_name: str | None = None,
+        description: str | None = None,
         auto_error: bool = True,
         disallow_jwt_sub: Sequence[str] = ("tpadminsession",),  # disallow TILAUSPALVELU sessions by default
     ):
@@ -32,7 +32,7 @@ class MTLSorJWT(HTTPBase):
         self.auto_error = auto_error
         self.disallow_jwt_sub = disallow_jwt_sub
 
-    async def __call__(self, request: Request) -> Optional[MTLSorJWTPayload]:  # type: ignore[override]
+    async def __call__(self, request: Request) -> MTLSorJWTPayload | None:  # type: ignore[override]
         jwtdep = JWTBearer(auto_error=False)
         mtlsdep = MTLSHeader(auto_error=False)
         if mtlsrep := await mtlsdep(request=request):

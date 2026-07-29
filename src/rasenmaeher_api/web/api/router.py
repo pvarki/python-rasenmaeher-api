@@ -4,19 +4,19 @@ from fastapi.routing import APIRouter
 
 from rasenmaeher_api.rmsettings import CertBackend, RMSettings
 from rasenmaeher_api.web.api import (
-    healthcheck,
-    product,
     checkauth,
+    descriptions,
     enduserpfx,
-    utils,
     enrollment,
     firstuser,
-    tokens,
+    healthcheck,
     instructions,
-    people,
-    descriptions,
-    internal,
     feedback,
+    internal,
+    people,
+    product,
+    tokens,
+    utils,
 )
 
 api_router = APIRouter()

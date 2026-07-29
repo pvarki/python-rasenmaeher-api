@@ -3,19 +3,18 @@
 No auth dependencies: OCSP clients are anonymous, responses are self-authenticating.
 """
 
-from typing import Tuple
-from datetime import datetime, UTC
 import base64
 import binascii
 import email.utils
 import hashlib
 import logging
 import urllib.parse
+from datetime import UTC, datetime
 
+from cryptography.x509 import ocsp
 from fastapi import APIRouter, Request, Response
 
 from .responder import ResponseMeta, build_ocsp_response, unsuccessful
-from cryptography.x509 import ocsp
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
@@ -34,12 +33,12 @@ def _to_http(der: bytes, meta: ResponseMeta) -> Response:
             headers["Cache-Control"] = f"max-age={max_age},public,no-transform,must-revalidate"
             headers["Last-Modified"] = email.utils.format_datetime(meta.this_update, usegmt=True)
             headers["Expires"] = email.utils.format_datetime(meta.next_update, usegmt=True)
-            headers["ETag"] = '"{}"'.format(hashlib.sha1(der, usedforsecurity=False).hexdigest())
+            headers["ETag"] = f'"{hashlib.sha1(der, usedforsecurity=False).hexdigest()}"'
     # OCSP-level errors still ride HTTP 200
     return Response(content=der, media_type="application/ocsp-response", headers=headers)
 
 
-def _malformed() -> Tuple[bytes, ResponseMeta]:
+def _malformed() -> tuple[bytes, ResponseMeta]:
     return unsuccessful(ocsp.OCSPResponseStatus.MALFORMED_REQUEST)
 
 

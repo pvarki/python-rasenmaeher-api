@@ -1,11 +1,10 @@
 """Quick client to test the fprun server"""
 
-import logging
-from os import environ
-import sys
-from pathlib import Path
 import asyncio
-
+import logging
+import sys
+from os import environ
+from pathlib import Path
 
 from libadvian.logging import init_logging
 from libpvarki.mtlshelp import get_session
@@ -17,7 +16,7 @@ async def main() -> int:
     """Main entrypoint"""
     LOGGER.debug("Called")
     hostname = environ.get("FPAPI_HOST_NAME", "fake.localmaeher.dev.pvarki.fi")
-    api_port = int(environ.get("FPAPI_PORT", 7788))
+    api_port = int(environ.get("FPAPI_PORT", "7788"))
     url_base = f"https://{hostname}:{api_port}/"
 
     persistentdir = Path(environ.get("PERSISTENT_DATA_PATH", "/data/persistent"))
@@ -27,11 +26,11 @@ async def main() -> int:
     session = get_session(client_cert, extra_ca_certs_path)
 
     async with session as client:
-        LOGGER.info("GETting {}".format(url_base))
+        LOGGER.info(f"GETting {url_base}")
         resp = await client.get(url_base)
         resp.raise_for_status()
         body = await resp.text()
-        LOGGER.info("got {}".format(body))
+        LOGGER.info(f"got {body}")
 
     LOGGER.info("All done")
     return 0
@@ -42,4 +41,4 @@ if __name__ == "__main__":
     init_logging(loglevel)
     LOGGER.setLevel(loglevel)
     LOGGER.debug("Calling main()")
-    sys.exit(asyncio.get_event_loop().run_until_complete(main()))
+    sys.exit(asyncio.run(main()))

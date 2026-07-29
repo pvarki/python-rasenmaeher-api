@@ -1,12 +1,14 @@
 """product descriptions endpoints"""
 
-from typing import Literal, Optional, List, cast
 import logging
+from typing import Literal, cast
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field, ConfigDict, RootModel
 from libpvarki.middleware import MTLSHeader
+from pydantic import BaseModel, ConfigDict, Field, RootModel
+
 from rasenmaeher_api.web.api.middleware.user import ValidUser
+
 from ...productapihelpers import get_from_all_products, get_from_product
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +27,7 @@ class ProductDescription(BaseModel):
 
     shortname: str = Field(description="Short name for the product, used as slug/key in dicts and urls")
     title: str = Field(description="Fancy name for the product")
-    icon: Optional[str] = Field(description="URL for icon")
+    icon: str | None = Field(description="URL for icon")
     description: str = Field(description="Short-ish description of the product")
     language: str = Field(description="Language of this response")
 
@@ -44,18 +46,18 @@ class ProductDescriptionExtended(BaseModel):
 
     shortname: str = Field(description="Short name for the product, used as slug/key in dicts and urls")
     title: str = Field(description="Fancy name for the product")
-    icon: Optional[str] = Field(description="URL for icon")
+    icon: str | None = Field(description="URL for icon")
     description: str = Field(description="Short-ish description of the product")
     language: str = Field(description="Language of this response")
-    docs: Optional[str] = Field(description="Link to documentation")
+    docs: str | None = Field(description="Link to documentation")
     component: ProductComponent = Field(description="Component type and ref")
 
 
-class ProductDescriptionList(RootModel[List[ProductDescription]]):
+class ProductDescriptionList(RootModel[list[ProductDescription]]):
     """List of product descriptions"""
 
 
-class ProductDescriptionExtendedList(RootModel[List[ProductDescriptionExtended]]):
+class ProductDescriptionExtendedList(RootModel[list[ProductDescriptionExtended]]):
     """List of product descriptions"""
 
 
@@ -75,7 +77,7 @@ async def list_product_descriptions(language: str) -> ProductDescriptionList:
     "/{product}/{language}",
     response_model=ProductDescription,
 )
-async def get_product_description(language: str, product: str) -> Optional[ProductDescription]:
+async def get_product_description(language: str, product: str) -> ProductDescription | None:
     """Fetch description from given product in manifest"""
     response = await get_from_product(product, f"api/v1/description/{language}", ProductDescription)
     if response is None:
@@ -101,7 +103,7 @@ async def list_product_descriptions_extended(language: str) -> ProductDescriptio
     "/{product}/{language}",
     response_model=ProductDescriptionExtended,
 )
-async def get_product_description_extended(language: str, product: str) -> Optional[ProductDescriptionExtended]:
+async def get_product_description_extended(language: str, product: str) -> ProductDescriptionExtended | None:
     """Fetch description from given product in manifest"""
     response = await get_from_product(product, f"api/v2/description/{language}", ProductDescriptionExtended)
 
@@ -130,7 +132,7 @@ async def list_admin_product_descriptions_extended(language: str) -> ProductDesc
     response_model=ProductDescriptionExtended,
     dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
 )
-async def get_admin_product_description_extended(language: str, product: str) -> Optional[ProductDescriptionExtended]:
+async def get_admin_product_description_extended(language: str, product: str) -> ProductDescriptionExtended | None:
     """Fetch admin description from given product in manifest"""
     response = await get_from_product(product, f"api/v2/admin/description/{language}", ProductDescriptionExtended)
 

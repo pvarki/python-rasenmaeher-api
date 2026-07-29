@@ -1,14 +1,13 @@
 """Package level tests"""
 
-from typing import Any, Dict
 from pathlib import Path
+from typing import Any
 
+import aiohttp
 import pytest
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
-import aiohttp
 from multikeyjwt.jwt.issuer import Issuer
 from multikeyjwt.jwt.verifier import Verifier
-
 
 from rasenmaeher_api import __version__
 from rasenmaeher_api.rmsettings import RMSettings
@@ -16,14 +15,14 @@ from rasenmaeher_api.rmsettings import RMSettings
 
 def test_version() -> None:
     """Make sure version matches expected"""
-    assert __version__ == "1.18.0+260715"
+    assert __version__ == "1.18.1+260728"
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_get_openapi_json(unauth_client_session: TestClient) -> None:
     """Check that we can get the openapi spec"""
     resp = await unauth_client_session.get("/api/openapi.json")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     assert resp.status_code == 200
     assert len(resp_dict) > 0
 
@@ -42,12 +41,11 @@ async def test_announce(unauth_client_session: TestClient, announce_server: str)
     # Make a request to make sure the app spins up
     resp = await unauth_client_session.get("/api/v1/healthcheck")
     assert resp
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"{announce_server}/log") as response:
-            response.raise_for_status()
-            resp_json = await response.json()
-            assert resp_json["payloads"]
-            assert resp_json["payloads"][0]["version"] == __version__
+    async with aiohttp.ClientSession() as session, session.get(f"{announce_server}/log") as response:
+        response.raise_for_status()
+        resp_json = await response.json()
+        assert resp_json["payloads"]
+        assert resp_json["payloads"][0]["version"] == __version__
 
 
 @pytest.mark.asyncio(loop_scope="session")

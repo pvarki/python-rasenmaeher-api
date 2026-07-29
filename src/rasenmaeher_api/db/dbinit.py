@@ -1,20 +1,19 @@
 """Ensure all models are defined and then create tables"""
 
-import logging
-from pathlib import Path
-import tempfile
 import asyncio
+import logging
 import random
+import tempfile
+from pathlib import Path
 
 import filelock
-from sqlmodel import SQLModel
 import sqlalchemy as sa
 from sqlalchemy.schema import CreateSchema
-
-from .engine import EngineWrapper
+from sqlmodel import SQLModel
 
 # Import all models to ensure ORM can create all tables
 from .base import ORMBaseModel
+from .engine import EngineWrapper
 from .enrollments import Enrollment, EnrollmentPool
 from .issuedcerts import IssuedCert
 from .logincodes import LoginCode
@@ -45,7 +44,7 @@ async def init_db() -> None:
             SQLModel.metadata.create_all(connection)
             connection.commit()
     except filelock.Timeout:
-        LOGGER.warning("Someone has already locked {}".format(lockpath))
+        LOGGER.warning(f"Someone has already locked {lockpath}")
         LOGGER.debug("Sleeping for ~5s and then recursing")
         await asyncio.sleep(5.0 + random.random())  # nosec B311
         return await init_db()

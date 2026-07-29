@@ -1,24 +1,22 @@
 """Test enrollment endpoint"""
 
-from typing import Dict, Any
 import logging
-from pathlib import Path
 import uuid
+from pathlib import Path
+from typing import Any
 
-
-import pytest
 import cryptography.hazmat.primitives.serialization.pkcs12
+import pytest
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
-from libpvarki.mtlshelp.csr import async_create_keypair, async_create_client_csr
 from cryptography import x509
+from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair
 
-from rasenmaeher_api.rmsettings import RMSettings
 from rasenmaeher_api.db import (
-    Person,
-    EnrollmentPool,
     EngineWrapper,
+    EnrollmentPool,
+    Person,
 )
-
+from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +29,7 @@ async def test_enroll_verif_code(tilauspalvelu_jwt_admin_client: TestClient) -> 
     Test - verification code should succeed
     """
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/generate-verification-code")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
 
     assert resp.status_code == 200
@@ -46,7 +44,7 @@ async def test_enroll_verif_code_fail_no_jwt(unauth_client_session: TestClient) 
 
     resp = await unauth_client_session.post("/api/v1/enrollment/generate-verification-code")
 
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code != 200
 
@@ -59,7 +57,7 @@ async def test_enroll_show_verif_code(tilauspalvelu_jwt_admin_client: TestClient
     Test - show verification code info
     """
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/generate-verification-code")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     _code: str = resp_dict["verification_code"]
 
@@ -84,7 +82,7 @@ async def test_enroll_show_verifcode_bad_code(tilauspalvelu_jwt_admin_client: Te
     resp = await tilauspalvelu_jwt_admin_client.get(
         "/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode"
     )
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
 
     assert resp.status_code == 404
@@ -108,7 +106,7 @@ async def test_show_verifcode_no_jwt(unauth_client_session: TestClient) -> None:
     resp = await unauth_client_session.get(
         "/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode"
     )
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -123,7 +121,7 @@ async def test_show_verifcode_no_permission(tilauspalvelu_jwt_user_client: TestC
     resp = await tilauspalvelu_jwt_user_client.get(
         "/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode"
     )
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -138,7 +136,7 @@ async def test_show_verifcode_sub_is_bonkers(tilauspalvelu_jwt_without_proper_us
     resp = await tilauspalvelu_jwt_without_proper_user_client.get(
         "/api/v1/enrollment/show-verification-code-info?verification_code=nosuchcode"
     )
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -151,7 +149,7 @@ async def test_have_i_been_accepted_yes(tilauspalvelu_jwt_user_client: TestClien
     Test - have i been accepted, yes
     """
     resp = await tilauspalvelu_jwt_user_client.get("/api/v1/enrollment/have-i-been-accepted")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["have_i_been_accepted"] is True
     assert resp.status_code == 200
@@ -164,7 +162,7 @@ async def test_have_i_been_accepted_no(tilauspalvelu_jwt_user_koira_client: Test
     Test - have i been accepted, no
     """
     resp = await tilauspalvelu_jwt_user_koira_client.get("/api/v1/enrollment/have-i-been-accepted")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["have_i_been_accepted"] is False
     assert resp.status_code == 200
@@ -178,7 +176,7 @@ async def test_have_i_been_accepted_no_jwt(unauth_client_session: TestClient) ->
     """
     unauth_client_session.headers.clear()
     resp = await unauth_client_session.get("/api/v1/enrollment/have-i-been-accepted")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -191,7 +189,7 @@ async def test_status_koira(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     Test - get status
     """
     resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/status?callsign=koira")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
 
@@ -203,7 +201,7 @@ async def test_status_not_found(tilauspalvelu_jwt_admin_client: TestClient) -> N
     Test - no such status
     """
     resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/status?callsign=ponikadoksissa")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
 
     assert resp.status_code == 200
@@ -216,7 +214,7 @@ async def test_list_as_adm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     Test - list enrollments
     """
     resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["callsign_list"] is not None
     assert resp_dict["callsign_list"][0]["callsign"]
@@ -231,7 +229,7 @@ async def test_list_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     Test - list enrollments as normal user
     """
     resp = await tilauspalvelu_jwt_user_client.get("/api/v1/enrollment/list")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -244,9 +242,9 @@ async def test_post_init(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - init new user
     """
-    json_dict: Dict[Any, Any] = {"callsign": "superjuusto"}
+    json_dict: dict[Any, Any] = {"callsign": "superjuusto"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
     assert resp_dict["callsign"] != ""
@@ -265,9 +263,9 @@ async def test_init_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - init as normal user --> fail
     """
-    json_dict: Dict[Any, Any] = {"callsign": "superkayra"}
+    json_dict: dict[Any, Any] = {"callsign": "superkayra"}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/list", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 405
@@ -280,9 +278,9 @@ async def test_promote_demote(tilauspalvelu_jwt_admin_client: TestClient) -> Non
     """
     Test - promote user
     """
-    json_dict: Dict[Any, Any] = {"callsign": "kissa"}
+    json_dict: dict[Any, Any] = {"callsign": "kissa"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/promote", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
 
@@ -307,9 +305,9 @@ async def test_promote_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None
     """
     Test - promote user, no permissions
     """
-    json_dict: Dict[Any, Any] = {"callsign": "superkayra"}
+    json_dict: dict[Any, Any] = {"callsign": "superkayra"}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/promote", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -323,13 +321,13 @@ async def test_lock(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - lock
     """
-    json_dict: Dict[Any, Any] = {"callsign": "lockme"}
+    json_dict: dict[Any, Any] = {"callsign": "lockme"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json=json_dict)
     assert resp.status_code == 200
 
     json_dict = {"callsign": "lockme", "lock_reason": "pytest"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/lock", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
 
@@ -340,9 +338,9 @@ async def test_lock_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - lock as normal use
     """
-    json_dict: Dict[Any, Any] = {"callsign": "secondadmin"}
+    json_dict: dict[Any, Any] = {"callsign": "secondadmin"}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/lock", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -356,9 +354,9 @@ async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - accept enrollment
     """
-    json_dict: Dict[Any, Any] = {"callsign": "acceptme"}
+    json_dict: dict[Any, Any] = {"callsign": "acceptme"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
     assert "approvecode" in resp_dict
@@ -382,9 +380,9 @@ async def test_accept_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - accept, no permissions -> fail
     """
-    json_dict: Dict[Any, Any] = {"callsign": "koira", "approvecode": "nocode"}
+    json_dict: dict[Any, Any] = {"callsign": "koira", "approvecode": "nocode"}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/accept", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -397,9 +395,9 @@ async def test_accept_no_such_user(tilauspalvelu_jwt_admin_client: TestClient) -
     """
     Test - accept a ghost
     """
-    json_dict: Dict[Any, Any] = {"callsign": "duhnosuchuser", "approvecode": "nosuchcode"}
+    json_dict: dict[Any, Any] = {"callsign": "duhnosuchuser", "approvecode": "nosuchcode"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 404
     assert resp_dict["detail"] != ""
@@ -414,7 +412,7 @@ async def test_invitecode_create(tilauspalvelu_jwt_admin_client: TestClient) -> 
     """
     # json_dict: Dict[Any, Any] = {"callsign": "duhnosuchuser"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     _inv_code = resp_dict["invite_code"]
     assert resp.status_code == 200
@@ -434,7 +432,7 @@ async def test_create_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     Test - normal user create invite code --> fail
     """
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp_dict["detail"] != ""
     assert resp.status_code == 403
@@ -448,13 +446,13 @@ async def test_invitecode_deactivate(tilauspalvelu_jwt_admin_client: TestClient)
     Test - deactivate invite code
     """
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     _inv_code = resp_dict["invite_code"]
     assert resp.status_code == 200
     assert _inv_code != ""
 
-    json_dict: Dict[Any, Any] = {"invite_code": _inv_code}
+    json_dict: dict[Any, Any] = {"invite_code": _inv_code}
     resp = await tilauspalvelu_jwt_admin_client.put("/api/v1/enrollment/invitecode/deactivate", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -476,13 +474,13 @@ async def test_invitecode_activate(tilauspalvelu_jwt_admin_client: TestClient) -
     Test - activate invite code
     """
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     _inv_code = resp_dict["invite_code"]
     assert resp.status_code == 200
     assert _inv_code != ""
 
-    json_dict: Dict[Any, Any] = {"invite_code": _inv_code}
+    json_dict: dict[Any, Any] = {"invite_code": _inv_code}
     resp = await tilauspalvelu_jwt_admin_client.put("/api/v1/enrollment/invitecode/activate", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -503,7 +501,7 @@ async def test_invite_code(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     Test - check invite code
     """
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     _inv_code = resp_dict["invite_code"]
     assert resp.status_code == 200
@@ -532,13 +530,13 @@ async def test_enroll_with_invite_code(
     Test - enroll with invite code
     """
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     _inv_code = resp_dict["invite_code"]
     assert resp.status_code == 200
     assert _inv_code != ""
 
-    json_dict: Dict[Any, Any] = {"invite_code": _inv_code, "callsign": "enrollenrique"}
+    json_dict: dict[Any, Any] = {"invite_code": _inv_code, "callsign": "enrollenrique"}
     resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -603,12 +601,12 @@ async def test_enroll_with_invite_code(
 
     # Fetch also with alternative URLs
     pfxurl = "/api/v1/enduserpfx/enrollenrique.pfx"
-    LOGGER.debug("Trying: {}".format(pfxurl))
+    LOGGER.debug(f"Trying: {pfxurl}")
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(pfxurl)
     resp.raise_for_status()
     pfxurl2 = f"/api/v1/enduserpfx/enrollenrique_{RMSettings.singleton().deployment_name}.pfx"
-    LOGGER.debug("Trying: {}".format(pfxurl2))
+    LOGGER.debug(f"Trying: {pfxurl2}")
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(
         pfxurl2,
@@ -626,7 +624,7 @@ async def test_enroll_with_csr(
     """test enrolling with CSR"""
     tempdir = Path(nice_tmpdir)
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
-    resp_dict: Dict[Any, Any] = resp.json()
+    resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     inv_code = resp_dict["invite_code"]
     assert resp.status_code == 200
@@ -639,7 +637,7 @@ async def test_enroll_with_csr(
     ckp = await async_create_keypair(privkeyfile, pubkeyfile)
     csrpem = await async_create_client_csr(ckp, csrfile, {"CN": callsign})
 
-    json_dict: Dict[Any, Any] = {"invite_code": inv_code, "callsign": callsign, "csr": csrpem}
+    json_dict: dict[Any, Any] = {"invite_code": inv_code, "callsign": callsign, "csr": csrpem}
     resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -675,7 +673,7 @@ async def test_enroll_with_csr(
     certs = x509.load_pem_x509_certificates(resp.content)
     assert certs
     dn = certs[0].subject.rfc4514_string()
-    LOGGER.debug("DN={} callsign={}".format(dn, callsign))
+    LOGGER.debug(f"DN={dn} callsign={callsign}")
     assert f"CN={callsign}" in dn
     # TODO: check extensions
 

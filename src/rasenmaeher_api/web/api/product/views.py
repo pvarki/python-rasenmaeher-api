@@ -1,31 +1,30 @@
 """Product registration API views."""
 
-from typing import cast
 import logging
+from typing import cast
 
 import aiohttp
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from libadvian.binpackers import ensure_utf8, ensure_str
-from libpvarki.middleware.mtlsheader import MTLSHeader
-from libpvarki.schemas.generic import OperationResultResponse
-from libpvarki.schemas.product import ReadyRequest
-from libpvarki.schemas.product import UserCRUDRequest
-from multikeyjwt.middleware import JWTBearer
 from cryptography import x509
 from cryptography.x509.oid import NameOID
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from libadvian.binpackers import ensure_str, ensure_utf8
+from libpvarki.middleware.mtlsheader import MTLSHeader
+from libpvarki.schemas.generic import OperationResultResponse
+from libpvarki.schemas.product import ReadyRequest, UserCRUDRequest
+from multikeyjwt.middleware import JWTBearer
+
 from rasenmaeher_api.db.issuedcerts import record_issued_cert
 
-
-from .schema import CertificatesResponse, CertificatesRequest, RevokeRequest, KCClientToken, ProductAddRequest
-from ....db.nonces import SeenToken
-from ....db.errors import NotFound
+from ....cert.backend import CertError, get_bundle, get_ca, revoke_pem, sign_csr
 from ....db import Person
-from ....cert.backend import get_ca, get_bundle, sign_csr, revoke_pem, CertError
-from ....rmsettings import RMSettings
+from ....db.errors import NotFound
+from ....db.nonces import SeenToken
 from ....kchelpers import KCClient
-from ....productapihelpers import post_to_product
 from ....mtlsinit import get_session_winit
+from ....productapihelpers import post_to_product
+from ....rmsettings import RMSettings
 from ..middleware.user import ValidUser
+from .schema import CertificatesRequest, CertificatesResponse, KCClientToken, ProductAddRequest, RevokeRequest
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
@@ -96,7 +95,7 @@ async def revoke_cert(
         await revoke_pem(cert.cert, "unspecified")
         return OperationResultResponse(success=True)
     except CertError as exc:
-        LOGGER.error("Revoke failed: {}".format(exc))
+        LOGGER.error(f"Revoke failed: {exc}")
         return OperationResultResponse(success=False, error=str(exc))
 
 
@@ -189,7 +188,7 @@ async def get_product_proxy(
     if tgtproduct not in manifest["products"]:
         raise HTTPException(status_code=404, detail=f"Unknown product {tgtproduct}")
     if "api/v1/users" in tgtpath:
-        LOGGER.audit("User {} (pk: {}) tried to access CRUD integration endpoint".format(person.callsign, person.pk))  # type: ignore[attr-defined]
+        LOGGER.audit(f"User {person.callsign} (pk: {person.pk}) tried to access CRUD integration endpoint")  # type: ignore[attr-defined]
         raise HTTPException(status_code=403, detail="Accessing CRUD integration endpoints via proxy is forbidden")
     productconf = manifest["products"][tgtproduct]
     # We do not read the cert for these because it takes time and is not really needed
@@ -203,7 +202,7 @@ async def get_product_proxy(
     )
     async with session as client:
         url = f"{productconf['api']}{tgtpath}"
-        LOGGER.debug("calling POST({})".format(url))
+        LOGGER.debug(f"calling POST({url})")
         response = await client.post(
             url, json=user.model_dump(), timeout=aiohttp.ClientTimeout(total=rmconf.integration_api_timeout * 2)
         )
