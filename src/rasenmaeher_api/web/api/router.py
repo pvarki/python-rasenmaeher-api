@@ -16,6 +16,7 @@ from rasenmaeher_api.web.api import (
     people,
     descriptions,
     internal,
+    feedback,
 )
 
 api_router = APIRouter()
@@ -32,6 +33,7 @@ api_router.include_router(instructions.router, prefix="/instructions", tags=["in
 api_router.include_router(people.router, prefix="/people", tags=["people"])
 api_router.include_router(descriptions.router, prefix="/descriptions", tags=["descriptions"])
 api_router.include_router(internal.router, prefix="/internal", tags=["internal"])
+api_router.include_router(feedback.router, prefix="/feedback", tags=["feedback"])
 
 api_router_v2 = APIRouter()
 api_router_v2.include_router(descriptions.router_v2, prefix="/descriptions", tags=["descriptions"])

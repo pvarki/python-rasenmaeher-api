@@ -142,6 +142,11 @@ class RMSettings(BaseSettings):
     kc_realm: str = "RASENMAEHER"  # In which realm the real users are
     kc_enabled: bool = True  # Whether to use KC or not (mainly so that unit tests have less dependencies for now)
 
+    # JOKE feedback ingest integration
+    joke_ingest_url: Optional[str] = None
+    joke_ingest_key: Optional[str] = None
+    joke_timeout: float = 5.0
+
     # Enrollment code generation related
     code_size: int = 8
     code_avoid_confusion: bool = True  # Replace 1 and 0 with O and I to avoid confusion
