@@ -159,7 +159,8 @@ async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, sett
         LOGGER.debug("CertificateRequest: %s", certificate_request.model_dump_json())
 
         return await certificate_request.async_create()
-
+    except ResourceConflict:
+        raise  # Propagate to caller (ResourceConflict is an APIError)
     except APIError as exc:
         raise CertManagerError(f"Failed to create CertificateRequest {namespace}/{name}: {exc}") from exc
 
