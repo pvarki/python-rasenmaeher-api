@@ -10,7 +10,7 @@ import pytest
 from rasenmaeher_api.cert.cert_manager import public
 from rasenmaeher_api.cert.cert_manager.base import CertManagerError
 from rasenmaeher_api.rmsettings import RMSettings
-from tests.cert.conftest import FakePKI
+from tests.cert.helpers import FakePKI
 
 LOGGER = logging.getLogger(__name__)
 
