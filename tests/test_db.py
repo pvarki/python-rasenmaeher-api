@@ -3,11 +3,14 @@
 import asyncio
 import logging
 import uuid
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import cryptography.hazmat.primitives.serialization.pkcs12
 import cryptography.x509
 import pytest
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from flaky import flaky  # type: ignore[import-untyped]
 from libadvian.binpackers import uuid_to_b64
 from multikeyjwt import Verifier
@@ -32,6 +35,7 @@ from rasenmaeher_api.db.errors import (
     PoolInactive,
     TokenReuse,
 )
+from rasenmaeher_api.db.issuedcerts import IssuedCert, record_issued_cert
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
 from rasenmaeher_api.rmsettings import RMSettings, switchme_to_singleton_call
@@ -432,3 +436,36 @@ async def test_productcn_forbid(ginosession: None) -> None:
         await Person.create_with_cert("fake.localmaeher.dev.pvarki.fi")
     with pytest.raises(CallsignReserved):
         await Enrollment.create_for_callsign("fake.localmaeher.dev.pvarki.fi")
+
+
+def _self_signed_pem(common_name: str) -> str:
+    """Throwaway self-signed cert, enough for the issued-certs parser"""
+    key = ec.generate_private_key(ec.SECP256R1())
+    name = cryptography.x509.Name([cryptography.x509.NameAttribute(cryptography.x509.NameOID.COMMON_NAME, common_name)])
+    now = datetime.now(UTC)
+    cert = (
+        cryptography.x509.CertificateBuilder()
+        .subject_name(name)
+        .issuer_name(name)
+        .public_key(key.public_key())
+        .serial_number(cryptography.x509.random_serial_number())
+        .not_valid_before(now)
+        .not_valid_after(now + timedelta(days=1))
+        .sign(key, hashes.SHA256())
+    )
+    return cert.public_bytes(serialization.Encoding.PEM).decode("ascii")
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_record_issued_cert(ginosession: None) -> None:
+    """record_issued_cert parses and stores the leaf, is idempotent, never raises"""
+    _ = ginosession
+    common_name = "fake.localmaeher.dev.pvarki.fi"
+    pem = _self_signed_pem(common_name)
+    serial = cryptography.x509.load_pem_x509_certificate(pem.encode("ascii")).serial_number
+    await record_issued_cert(pem)
+    await record_issued_cert(pem)  # duplicate must be swallowed
+    row = await IssuedCert.by_serial(str(serial))
+    assert row is not None
+    assert row.cn == common_name
+    await record_issued_cert("not a pem at all")  # must not raise

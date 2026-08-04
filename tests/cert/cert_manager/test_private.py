@@ -22,7 +22,7 @@ from rasenmaeher_api.cert.cert_manager import private
 from rasenmaeher_api.cert.cert_manager.base import CertManagerError
 from rasenmaeher_api.cert.cert_manager.names import cr_name
 from rasenmaeher_api.rmsettings import RMSettings
-from tests.cert.conftest import CsrFactory, FakePKI, KeyUsageFactory
+from tests.cert.helpers import CsrFactory, FakePKI, KeyUsageFactory
 
 LOGGER = logging.getLogger(__name__)
 

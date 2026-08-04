@@ -6,7 +6,7 @@ import cryptography
 import pytest
 
 from rasenmaeher_api.cert.cert_manager.chain import lean_chain
-from tests.cert.conftest import FakePKI
+from tests.cert.helpers import FakePKI
 
 LOGGER = logging.getLogger(__name__)
 
