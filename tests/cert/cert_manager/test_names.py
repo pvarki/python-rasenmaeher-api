@@ -116,6 +116,6 @@ def test_serial_name_varies_with_serial() -> None:
 @pytest.mark.parametrize("serial", ("", "0A:1B:2C", "deadbeef", "1234567890" * 10))
 def test_serial_name_is_valid_k8s_name(serial: str) -> None:
     """Any serial format still produces a valid k8s name"""
-    out = cr_name(CSR, serial)
+    out = cr_name_for_serial(serial)
     assert len(out) <= K8S_NAME_MAX
     assert K8S_NAME_RE.fullmatch(out)
