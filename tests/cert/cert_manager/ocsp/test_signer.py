@@ -18,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric import ec, rsa
 
 from rasenmaeher_api.cert.cert_manager.base import CertManagerError
 from rasenmaeher_api.cert.cert_manager.ocsp import signer
+from rasenmaeher_api.rmsettings import RMSettings
 
 from .helpers import SigningCA
 
@@ -80,18 +81,26 @@ async def test_fetch_secret_missing_key_wrapped(monkeypatch: pytest.MonkeyPatch,
         await signer._fetch_secret("ca-tls", "test-ns")
 
 
+def _tls_secret(ocsp_ca: SigningCA) -> Secret:
+    """The Secret cert-manager writes for a CA Certificate"""
+    return Secret(data={"tls.crt": _b64(ocsp_ca.cert_pem), "tls.key": _b64(ocsp_ca.key_pem)})
+
+
 @pytest.mark.asyncio(loop_scope="function")
 async def test_get_signer_fetches_once_then_caches(monkeypatch: pytest.MonkeyPatch, ocsp_ca: SigningCA) -> None:
     """Every OCSP request would otherwise hit the k8s API, so the second call must be cached"""
-    material = signer.SignerMaterial(cert=ocsp_ca.cert, key=ocsp_ca.key)
-    fetch = AsyncMock(return_value=material)
-    monkeypatch.setattr(signer, "_fetch_secret", fetch)
+    get_secret = AsyncMock(return_value=_tls_secret(ocsp_ca))
+    monkeypatch.setattr(Secret, "async_get", get_secret)
+    settings = RMSettings.singleton()
 
     first = await signer.get_signer()
     second = await signer.get_signer()
 
-    assert first is second is material
-    assert fetch.await_count == 1
+    assert first is second
+    assert first.cert.subject == ocsp_ca.cert.subject
+    assert get_secret.await_count == 1
+    # Which Secret we look for comes from settings, name first then namespace
+    assert get_secret.await_args_list[0].args == (settings.ocsp_ca_secret_name, settings.ocsp_ca_secret_namespace)
 
 
 @pytest.mark.asyncio(loop_scope="function")
@@ -101,21 +110,24 @@ async def test_get_signer_fetches_once_under_concurrency(monkeypatch: pytest.Mon
     This is what the double-checked lock buys: a burst of OCSP requests after a restart
     would otherwise fire one Secret read each.
     """
-    material = signer.SignerMaterial(cert=ocsp_ca.cert, key=ocsp_ca.key)
-    calls = 0
+    secret = _tls_secret(ocsp_ca)
+    release = asyncio.Event()
 
-    async def _slow_fetch(name: str, namespace: str) -> signer.SignerMaterial:
-        nonlocal calls
-        calls += 1
-        await asyncio.sleep(0.05)  # hold the lock so the other caller queues behind it
-        return material
+    async def _blocking_get(name: str, namespace: str) -> Secret:
+        await release.wait()  # hold the lock so the other caller queues behind it
+        return secret
 
-    monkeypatch.setattr(signer, "_fetch_secret", _slow_fetch)
+    get_secret = AsyncMock(side_effect=_blocking_get)
+    monkeypatch.setattr(Secret, "async_get", get_secret)
 
-    first, second = await asyncio.gather(signer.get_signer(), signer.get_signer())
+    waiting = asyncio.gather(signer.get_signer(), signer.get_signer())
+    while get_secret.await_count == 0:
+        await asyncio.sleep(0)  # let both callers reach the lock
+    release.set()
+    first, second = await waiting
 
-    assert first is second is material
-    assert calls == 1
+    assert first is second
+    assert get_secret.await_count == 1
 
 
 @pytest.mark.asyncio(loop_scope="function")
@@ -124,9 +136,11 @@ async def test_get_signer_refreshes_when_stale(monkeypatch: pytest.MonkeyPatch, 
     stale = signer.SignerMaterial(cert=ocsp_ca.cert, key=ocsp_ca.key, fetched=time.monotonic() - signer.CACHE_TTL - 1)
     assert stale.expired is True
     monkeypatch.setattr(signer, "_CACHED", stale)
-    fresh = signer.SignerMaterial(cert=ocsp_ca.cert, key=ocsp_ca.key)
-    fetch = AsyncMock(return_value=fresh)
-    monkeypatch.setattr(signer, "_fetch_secret", fetch)
+    get_secret = AsyncMock(return_value=_tls_secret(ocsp_ca))
+    monkeypatch.setattr(Secret, "async_get", get_secret)
 
-    assert await signer.get_signer() is fresh
-    assert fetch.await_count == 1
+    refreshed = await signer.get_signer()
+
+    assert refreshed is not stale
+    assert refreshed.expired is False
+    assert get_secret.await_count == 1
