@@ -291,7 +291,7 @@ async def test_sign_csr_incomplete_status_raises(
         await private.sign_csr(csr_pem)
 
 
-# --- _delete_cr ------------------------------------------------------------------------
+# _delete_cr
 @pytest.mark.asyncio(loop_scope="function")
 async def test_delete_cr_true_when_present(fake_k8s: FakeK8s) -> None:
     """Deleting an existing CR reports True and records the name and namespace"""
@@ -307,7 +307,7 @@ async def test_delete_cr_false_when_missing(fake_k8s: FakeK8s, monkeypatch: pyte
     assert await private._delete_cr("rm-gone", NAMESPACE) is False
 
 
-# --- validate_reason -------------------------------------------------------------------
+# validate_reason
 @pytest.mark.parametrize(
     "reason, expected",
     (
@@ -328,7 +328,7 @@ def test_validate_reason_rejects(reason: Any, expected_error: type[Exception]) -
         private.validate_reason(reason)
 
 
-# --- the deliberate no-ops -------------------------------------------------------------
+# the deliberate no-ops
 @pytest.mark.asyncio(loop_scope="function")
 async def test_revoke_is_noop_after_validating_reason() -> None:
     """Both revoke helpers validate the reason and otherwise do nothing"""
