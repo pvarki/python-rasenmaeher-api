@@ -111,7 +111,8 @@ async def handle_description(request: web.Request) -> web.Response:
 
     return web.json_response(
         {
-            "shortname": "fake",
+            # Deliberately does not match the manifest key, rasenmaeher must override this
+            "shortname": "TotallyNotFake",
             "title": "Test fake product",
             "icon": None,
             "description": "Testing things",
@@ -127,7 +128,8 @@ async def handle_description_v2(request: web.Request) -> web.Response:
 
     return web.json_response(
         {
-            "shortname": "fake",
+            # Deliberately does not match the manifest key, rasenmaeher must override this
+            "shortname": "TotallyNotFake",
             "title": "Test fake product",
             "icon": None,
             "description": "Testing things",

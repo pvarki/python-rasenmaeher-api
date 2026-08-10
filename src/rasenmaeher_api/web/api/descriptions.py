@@ -1,7 +1,7 @@
 """product descriptions endpoints"""
 
 import logging
-from typing import Literal, cast
+from typing import Literal, TypeVar, cast
 
 from fastapi import APIRouter, Depends
 from libpvarki.middleware import MTLSHeader
@@ -61,6 +61,21 @@ class ProductDescriptionExtendedList(RootModel[list[ProductDescriptionExtended]]
     """List of product descriptions"""
 
 
+DescriptionT = TypeVar("DescriptionT", ProductDescription, ProductDescriptionExtended)
+
+
+def _with_manifest_shortname(name: str, description: DescriptionT) -> DescriptionT:
+    """Force shortname to the manifest key.
+
+    Products self-report their shortname and are not consistent about it, but the manifest key is what
+    we use as the slug in dicts and urls, so it must be the authoritative value.
+    """
+    if description.shortname != name:
+        LOGGER.debug(f"Overriding self-reported shortname {description.shortname!r} with manifest key {name!r}")
+        description = description.model_copy(update={"shortname": name})
+    return description
+
+
 @router.get(
     "/{language}",
     response_model=ProductDescriptionList,
@@ -70,7 +85,9 @@ async def list_product_descriptions(language: str) -> ProductDescriptionList:
     responses = await get_from_all_products(f"api/v1/description/{language}", ProductDescription)
     if responses is None:
         raise ValueError("Everything is broken")
-    return ProductDescriptionList([cast(ProductDescription, res) for res in responses.values() if res])
+    return ProductDescriptionList(
+        [_with_manifest_shortname(name, cast(ProductDescription, res)) for name, res in responses.items() if res]
+    )
 
 
 @router.get(
@@ -83,8 +100,7 @@ async def get_product_description(language: str, product: str) -> ProductDescrip
     if response is None:
         # TODO: Raise a reasonable error instead
         return None
-    response = cast(ProductDescription, response)
-    return response
+    return _with_manifest_shortname(product, cast(ProductDescription, response))
 
 
 @router_v2.get(
@@ -96,7 +112,13 @@ async def list_product_descriptions_extended(language: str) -> ProductDescriptio
     responses = await get_from_all_products(f"api/v2/description/{language}", ProductDescriptionExtended)
     if responses is None:
         raise ValueError("Everything is broken")
-    return ProductDescriptionExtendedList([cast(ProductDescriptionExtended, res) for res in responses.values() if res])
+    return ProductDescriptionExtendedList(
+        [
+            _with_manifest_shortname(name, cast(ProductDescriptionExtended, res))
+            for name, res in responses.items()
+            if res
+        ]
+    )
 
 
 @router_v2.get(
@@ -110,8 +132,7 @@ async def get_product_description_extended(language: str, product: str) -> Produ
     if response is None:
         # TODO: Raise a reasonable error instead
         return None
-    response = cast(ProductDescriptionExtended, response)
-    return response
+    return _with_manifest_shortname(product, cast(ProductDescriptionExtended, response))
 
 
 @router_v2_admin.get(
@@ -124,7 +145,13 @@ async def list_admin_product_descriptions_extended(language: str) -> ProductDesc
     responses = await get_from_all_products(f"api/v2/admin/description/{language}", ProductDescriptionExtended)
     if responses is None:
         raise ValueError("Everything is broken")
-    return ProductDescriptionExtendedList([cast(ProductDescriptionExtended, res) for res in responses.values() if res])
+    return ProductDescriptionExtendedList(
+        [
+            _with_manifest_shortname(name, cast(ProductDescriptionExtended, res))
+            for name, res in responses.items()
+            if res
+        ]
+    )
 
 
 @router_v2_admin.get(
@@ -139,5 +166,4 @@ async def get_admin_product_description_extended(language: str, product: str) ->
     if response is None:
         # TODO: Raise a reasonable error instead
         return None
-    response = cast(ProductDescriptionExtended, response)
-    return response
+    return _with_manifest_shortname(product, cast(ProductDescriptionExtended, response))

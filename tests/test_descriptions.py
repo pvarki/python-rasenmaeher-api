@@ -17,7 +17,7 @@ async def test_description_list(unauth_client: TestClient, lang: str) -> None:
     payload = resp.json()
     LOGGER.debug(payload)
     assert payload
-    assert payload[0]["shortname"]
+    assert payload[0]["shortname"] == "fake"
 
 
 @pytest.mark.parametrize("lang", ["fi", "en"])
@@ -29,7 +29,7 @@ async def test_product_description(unauth_client: TestClient, lang: str) -> None
     payload = resp.json()
     LOGGER.debug(payload)
     assert payload
-    assert payload["shortname"]
+    assert payload["shortname"] == "fake"
 
 
 @pytest.mark.parametrize("lang", ["fi", "en"])
