@@ -481,7 +481,11 @@ async def post_invite_code(request: Request) -> EnrollmentInviteCodeCreateOut:
     return EnrollmentInviteCodeCreateOut(invite_code=pool.invitecode)
 
 
-@ENROLLMENT_ROUTER.put("/invitecode/activate", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.put(
+    "/invitecode/activate",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def put_activate_invite_code(
     request: Request,
     request_in: EnrollmentInviteCodeActivateIn = Body(),
@@ -533,7 +537,11 @@ async def put_activate_invite_code(
     raise HTTPException(status_code=500, detail=_reason)
 
 
-@ENROLLMENT_ROUTER.put("/invitecode/deactivate", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.put(
+    "/invitecode/deactivate",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def put_deactivate_invite_code(
     request: Request,
     request_in: EnrollmentInviteCodeDeactivateIn = Body(),
@@ -585,7 +593,11 @@ async def put_deactivate_invite_code(
     raise HTTPException(status_code=500, detail=_reason)
 
 
-@ENROLLMENT_ROUTER.delete("/invitecode/{invite_code}", response_model=OperationResultResponse)
+@ENROLLMENT_ROUTER.delete(
+    "/invitecode/{invite_code}",
+    response_model=OperationResultResponse,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
 async def delete_invite_code(
     request: Request,
     invite_code: str,
