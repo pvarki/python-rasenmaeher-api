@@ -69,15 +69,20 @@ async def taskmaster() -> AsyncGenerator[None, None]:
         LOGGER.warning("Taskmaster wait timed out")
 
 
-@pytest.fixture(scope="session")
-def app_instance(session_env_config: None) -> FastAPI:
+@pytest.fixture(scope="session", params=["RSA", "ED25519"])
+def app_instance(
+    session_env_config: None, monkeysession: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> FastAPI:
     """Singleton app instance"""
     _ = session_env_config
-    # We need to import this *after* messing with env or manifest based routes break
-    from rasenmaeher_api.web.application import get_app
+    with monkeysession.context() as mpatch:
+        mpatch.setenv("RM_CERT_KEY_TYPE", str(request.param))
+        mpatch.setattr(switchme_to_singleton_call, "cert_key_type", str(request.param))
+        # We need to import this *after* messing with env or manifest based routes break
+        from rasenmaeher_api.web.application import get_app
 
-    app = get_app()
-    return app
+        app = get_app()
+        return app
 
 
 @pytest.fixture(scope="session", autouse=True)
