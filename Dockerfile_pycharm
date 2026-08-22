@@ -1,0 +1,10 @@
+###
+# Separate file Since PyCharms builder doesn't seem to take --target argument into account
+# You need to have build the devel_shell target first, see README.rst
+#
+# Set python exectuable path to /.venv/bin/python
+###
+FROM rasenmaeher_api:devel_shell as pycharm
+RUN source /root/.profile \
+    && uv sync \
+    && true
