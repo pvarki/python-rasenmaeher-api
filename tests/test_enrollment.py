@@ -1,6 +1,7 @@
 """Test enrollment endpoint"""
 
 import logging
+import secrets
 import uuid
 from pathlib import Path
 from typing import Any
@@ -184,11 +185,15 @@ async def test_have_i_been_accepted_no_jwt(unauth_client_session: TestClient) ->
 
 # STATUS USER FOUND
 @pytest.mark.asyncio(loop_scope="session")
-async def test_status_koira(tilauspalvelu_jwt_admin_client: TestClient) -> None:
+async def test_status_koira(
+    tilauspalvelu_jwt_admin_client: TestClient, test_user_secrets: tuple[list[str], list[str]]
+) -> None:
     """
     Test - get status
     """
-    resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/status?callsign=koira")
+    work_ids, _ = test_user_secrets
+    koira_id = work_ids[3]
+    resp = await tilauspalvelu_jwt_admin_client.get(f"/api/v1/enrollment/status?callsign={koira_id}")
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
@@ -242,7 +247,8 @@ async def test_post_init(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - init new user
     """
-    json_dict: dict[Any, Any] = {"callsign": "superjuusto"}
+    superjuusto = f"superjuusto_{secrets.token_hex(4)}"
+    json_dict: dict[Any, Any] = {"callsign": superjuusto}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -263,7 +269,8 @@ async def test_init_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
     """
     Test - init as normal user --> fail
     """
-    json_dict: dict[Any, Any] = {"callsign": "superkayra"}
+    superkayra = f"superkayra_{secrets.token_hex(4)}"
+    json_dict: dict[Any, Any] = {"callsign": superkayra}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/list", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -274,11 +281,15 @@ async def test_init_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
 # PROMOTE NORMAL USER
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.parametrize("tilauspalvelu_jwt_admin_client", [{"test": "value", "xclientcert": False}], indirect=True)
-async def test_promote_demote(tilauspalvelu_jwt_admin_client: TestClient) -> None:
+async def test_promote_demote(
+    tilauspalvelu_jwt_admin_client: TestClient, test_user_secrets: tuple[list[str], list[str]]
+) -> None:
     """
     Test - promote user
     """
-    json_dict: dict[Any, Any] = {"callsign": "kissa"}
+    work_ids, _ = test_user_secrets
+    kissa_id = work_ids[2]
+    json_dict: dict[Any, Any] = {"callsign": kissa_id}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/promote", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -291,7 +302,8 @@ async def test_promote_demote(tilauspalvelu_jwt_admin_client: TestClient) -> Non
     assert resp.status_code == 200
 
     # PROMOTE USER - ALREADY ADMIN
-    json_dict = {"callsign": "secondadmin"}
+    secondadmin = work_ids[1]
+    json_dict = {"callsign": secondadmin}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/promote", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -301,11 +313,15 @@ async def test_promote_demote(tilauspalvelu_jwt_admin_client: TestClient) -> Non
 # PROMOTE AS NORMAL USER - NO PERMISSION
 # DEMOTE AS NORMAL USER - NO PERMISSION
 @pytest.mark.asyncio(loop_scope="session")
-async def test_promote_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
+async def test_promote_as_usr(
+    tilauspalvelu_jwt_user_client: TestClient, test_user_secrets: tuple[list[str], list[str]]
+) -> None:
     """
     Test - promote user, no permissions
     """
-    json_dict: dict[Any, Any] = {"callsign": "superkayra"}
+    work_ids, _ = test_user_secrets
+    kissa_id = work_ids[2]
+    json_dict: dict[Any, Any] = {"callsign": kissa_id}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/promote", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -321,11 +337,12 @@ async def test_lock(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - lock
     """
-    json_dict: dict[Any, Any] = {"callsign": "lockme"}
+    lockme = f"lockme_{secrets.token_hex(4)}"
+    json_dict: dict[Any, Any] = {"callsign": lockme}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json=json_dict)
     assert resp.status_code == 200
 
-    json_dict = {"callsign": "lockme", "lock_reason": "pytest"}
+    json_dict = {"callsign": lockme, "lock_reason": "pytest"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/lock", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -334,11 +351,15 @@ async def test_lock(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 # LOCK USER - NO PERMISSION
 @pytest.mark.asyncio(loop_scope="session")
-async def test_lock_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
+async def test_lock_as_usr(
+    tilauspalvelu_jwt_user_client: TestClient, test_user_secrets: tuple[list[str], list[str]]
+) -> None:
     """
     Test - lock as normal use
     """
-    json_dict: dict[Any, Any] = {"callsign": "secondadmin"}
+    work_ids, _ = test_user_secrets
+    kissa_id = work_ids[2]
+    json_dict: dict[Any, Any] = {"callsign": kissa_id}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/lock", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -354,14 +375,15 @@ async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """
     Test - accept enrollment
     """
-    json_dict: dict[Any, Any] = {"callsign": "acceptme"}
+    acceptme = f"acceptme_{secrets.token_hex(4)}"
+    json_dict: dict[Any, Any] = {"callsign": acceptme}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
     assert "approvecode" in resp_dict
 
-    json_dict = {"callsign": "acceptme", "approvecode": resp_dict["approvecode"]}
+    json_dict = {"callsign": acceptme, "approvecode": resp_dict["approvecode"]}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -376,11 +398,15 @@ async def test_accept(tilauspalvelu_jwt_admin_client: TestClient) -> None:
 
 # ACCEPT - NO PERMISSIONS
 @pytest.mark.asyncio(loop_scope="session")
-async def test_accept_as_usr(tilauspalvelu_jwt_user_client: TestClient) -> None:
+async def test_accept_as_usr(
+    tilauspalvelu_jwt_user_client: TestClient, test_user_secrets: tuple[list[str], list[str]]
+) -> None:
     """
     Test - accept, no permissions -> fail
     """
-    json_dict: dict[Any, Any] = {"callsign": "koira", "approvecode": "nocode"}
+    work_ids, _ = test_user_secrets
+    kissa_id = work_ids[2]
+    json_dict: dict[Any, Any] = {"callsign": kissa_id, "approvecode": "nocode"}
     resp = await tilauspalvelu_jwt_user_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -410,7 +436,6 @@ async def test_invitecode_create(tilauspalvelu_jwt_admin_client: TestClient) -> 
     """
     Test - create invite code
     """
-    # json_dict: Dict[Any, Any] = {"callsign": "duhnosuchuser"}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
     resp_dict: dict[Any, Any] = resp.json()
     LOGGER.debug(resp_dict)
@@ -536,7 +561,8 @@ async def test_enroll_with_invite_code(
     assert resp.status_code == 200
     assert _inv_code != ""
 
-    json_dict: dict[Any, Any] = {"invite_code": _inv_code, "callsign": "enrollenrique"}
+    enrollenrique = f"enrollenrique_{secrets.token_hex(4)}"
+    json_dict: dict[Any, Any] = {"invite_code": _inv_code, "callsign": enrollenrique}
     resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -550,7 +576,7 @@ async def test_enroll_with_invite_code(
     resp = await tilauspalvelu_jwt_admin_client.get(f"/api/v1/enrollment/list?code={enrique_ac}")
     resp_dict = resp.json()
     assert resp_dict["callsign_list"] is not None
-    assert resp_dict["callsign_list"][0]["callsign"] == "enrollenrique"
+    assert resp_dict["callsign_list"][0]["callsign"] == enrollenrique
     assert resp_dict["callsign_list"][0]["approvecode"] == enrique_ac
 
     # ENROLL WITH INVITE CODE - BAD CODE
@@ -562,7 +588,7 @@ async def test_enroll_with_invite_code(
     assert resp_dict["detail"] != ""
 
     # ENROLL WITH INVITE CODE - USERNAME TAKEN
-    json_dict = {"invite_code": _inv_code, "callsign": "enrollenrique"}
+    json_dict = {"invite_code": _inv_code, "callsign": enrollenrique}
     resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -576,7 +602,8 @@ async def test_enroll_with_invite_code(
     LOGGER.debug(resp_dict)
     assert resp.status_code == 200
 
-    json_dict = {"invite_code": _inv_code, "callsign": "enriquescousin"}
+    enriquescousin = f"enriquescousin_{secrets.token_hex(4)}"
+    json_dict = {"invite_code": _inv_code, "callsign": enriquescousin}
     resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -584,7 +611,7 @@ async def test_enroll_with_invite_code(
     assert "disabled" in resp_dict["detail"]
 
     # Accept the enrollment
-    json_dict = {"callsign": "enrollenrique", "approvecode": enrique_ac}
+    json_dict = {"callsign": enrollenrique, "approvecode": enrique_ac}
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/accept", json=json_dict)
     resp_dict = resp.json()
     LOGGER.debug(resp_dict)
@@ -593,19 +620,21 @@ async def test_enroll_with_invite_code(
     # Fetch the PFX
     unauth_client_session.headers.clear()
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
-    resp = await unauth_client_session.get("/api/v1/enduserpfx/enrollenrique")
+    resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{enrollenrique}")
     resp.raise_for_status()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"enrollenrique")
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(
+        resp.content, enrollenrique.encode("ascii")
+    )
     assert pfxdata.key
     assert pfxdata.cert
 
     # Fetch also with alternative URLs
-    pfxurl = "/api/v1/enduserpfx/enrollenrique.pfx"
+    pfxurl = f"/api/v1/enduserpfx/{enrollenrique}.pfx"
     LOGGER.debug(f"Trying: {pfxurl}")
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(pfxurl)
     resp.raise_for_status()
-    pfxurl2 = f"/api/v1/enduserpfx/enrollenrique_{RMSettings.singleton().deployment_name}.pfx"
+    pfxurl2 = f"/api/v1/enduserpfx/{enrollenrique}_{RMSettings.singleton().deployment_name}.pfx"
     LOGGER.debug(f"Trying: {pfxurl2}")
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(
@@ -630,7 +659,7 @@ async def test_enroll_with_csr(
     assert resp.status_code == 200
     assert inv_code != ""
 
-    callsign = "csr_roller"
+    callsign = f"csr_roller_{secrets.token_hex(4)}"
     privkeyfile = Path(tempdir) / "user.key"
     pubkeyfile = Path(tempdir) / "user.pub"
     csrfile = Path(tempdir) / "user.csr"
@@ -679,11 +708,12 @@ async def test_enroll_with_csr(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_enrollmentpools_revoked_creator(ginosession: None, tilauspalvelu_jwt_admin_client: TestClient) -> None:
+async def test_enrollmentpools_revoked_creator(dbinit_func, tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """Test that pools list does not die if creator is revoked"""
-    _ = ginosession
+    _ = dbinit_func
     invitecode = str(uuid.uuid4())
-    person = await Person.create_with_cert("toberevoked")
+    toberevoked = f"toberevoked_{secrets.token_hex(4)}"
+    person = await Person.create_with_cert(toberevoked)
     with EngineWrapper.singleton().get_session() as session:
         pool = EnrollmentPool(owner=person.pk, invitecode=invitecode)
         session.add(pool)

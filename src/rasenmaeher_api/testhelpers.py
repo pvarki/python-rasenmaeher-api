@@ -1,6 +1,7 @@
 """Helpers for testing, unit and manual"""
 
 import logging
+import secrets
 
 from .db import Enrollment, LoginCode, Person
 
@@ -13,6 +14,7 @@ async def create_test_users() -> tuple[list[str], list[str]]:
     """
     work_ids: list[str] = []
     jwt_tokens: list[str] = []
+    suffix = f"_{secrets.token_hex(4)}"
 
     # Create "anon_admin", this is also done in /firstuser/add-admin if one not exists yet
     # anon_admin is only used to "approve" the newly created admin users. Aka user for "anon_admin_session".
@@ -25,35 +27,35 @@ async def create_test_users() -> tuple[list[str], list[str]]:
 
     # CREATE USER secondadmin
     # approved, admin role, approved by anon_admin
-    _enrollment_pyteststuff = await Enrollment.create_for_callsign(callsign="pyteststuff", pool=None, extra={})
+    _enrollment_pyteststuff = await Enrollment.create_for_callsign(callsign=f"pyteststuff{suffix}", pool=None, extra={})
     _user_pyteststuff = await _enrollment_pyteststuff.approve(approver=_anon_admin_user)
     _ = await _user_pyteststuff.assign_role(role="admin")
-    _jwt_pyteststuff = await LoginCode.create_for_claims(claims={"sub": "pyteststuff"})
-    work_ids.append("pyteststuff")
+    _jwt_pyteststuff = await LoginCode.create_for_claims(claims={"sub": f"pyteststuff{suffix}"})
+    work_ids.append(f"pyteststuff{suffix}")
     jwt_tokens.append(_jwt_pyteststuff)
 
     # CREATE USER secondadmin
     # approved, admin role, approved by pyteststuff
-    _enrollment_secondadmin = await Enrollment.create_for_callsign(callsign="secondadmin", pool=None, extra={})
+    _enrollment_secondadmin = await Enrollment.create_for_callsign(callsign=f"secondadmin{suffix}", pool=None, extra={})
     _user_secondadmin = await _enrollment_secondadmin.approve(approver=_user_pyteststuff)
     _ = await _user_secondadmin.assign_role(role="admin")
-    _jwt_secondadmin = await LoginCode.create_for_claims(claims={"sub": "secondadmin"})
-    work_ids.append("secondadmin")
+    _jwt_secondadmin = await LoginCode.create_for_claims(claims={"sub": f"secondadmin{suffix}"})
+    work_ids.append(f"secondadmin{suffix}")
     jwt_tokens.append(_jwt_secondadmin)
 
     # CREATE USER kissa
     # approved, approved by secondadmin
-    _enrollment_kissa = await Enrollment.create_for_callsign(callsign="kissa", pool=None, extra={})
+    _enrollment_kissa = await Enrollment.create_for_callsign(callsign=f"kissa{suffix}", pool=None, extra={})
     _ = await _enrollment_kissa.approve(approver=_user_secondadmin)
-    _jwt_kissa = await LoginCode.create_for_claims(claims={"sub": "kissa"})
-    work_ids.append("kissa")
+    _jwt_kissa = await LoginCode.create_for_claims(claims={"sub": f"kissa{suffix}"})
+    work_ids.append(f"kissa{suffix}")
     jwt_tokens.append(_jwt_kissa)
 
     # CREATE USER koira
     # not approved
-    _ = await Enrollment.create_for_callsign(callsign="koira", pool=None, extra={})
-    _jwt_koira = await LoginCode.create_for_claims(claims={"sub": "koira"})
-    work_ids.append("koira")
+    _ = await Enrollment.create_for_callsign(callsign=f"koira{suffix}", pool=None, extra={})
+    _jwt_koira = await LoginCode.create_for_claims(claims={"sub": f"koira{suffix}"})
+    work_ids.append(f"koira{suffix}")
     jwt_tokens.append(_jwt_koira)
 
     # TODO CREATE POOL FOR secondadmin

@@ -11,9 +11,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 @pytest.mark.asyncio
-async def test_valid_products(ginosession: None, unauth_client: TestClient) -> None:
+async def test_valid_products(dbinit_func, unauth_client: TestClient) -> None:
     """Test requesting interop with product 'fake'"""
-    _ = ginosession
+    _ = dbinit_func
     client = unauth_client
     client.headers.update({"X-ClientCert-DN": "CN=interoptest.localmaeher.dev.pvarki.fi,O=N/A"})
     req = ProductAddRequest(
@@ -26,9 +26,9 @@ async def test_valid_products(ginosession: None, unauth_client: TestClient) -> N
 
 
 @pytest.mark.asyncio
-async def test_invalid_requester(ginosession: None, unauth_client: TestClient) -> None:
+async def test_invalid_requester(dbinit_func, unauth_client: TestClient) -> None:
     """Test requesting interop with product 'fake' with product that is not valid"""
-    _ = ginosession
+    _ = dbinit_func
     client = unauth_client
     client.headers.update({"X-ClientCert-DN": "CN=callsigndude,O=N/A"})
     req = ProductAddRequest(
@@ -41,9 +41,9 @@ async def test_invalid_requester(ginosession: None, unauth_client: TestClient) -
 
 
 @pytest.mark.asyncio
-async def test_invalid_tgt(ginosession: None, unauth_client: TestClient) -> None:
+async def test_invalid_tgt(dbinit_func, unauth_client: TestClient) -> None:
     """Test requesting interop with product 'nosuch'"""
-    _ = ginosession
+    _ = dbinit_func
     client = unauth_client
     client.headers.update({"X-ClientCert-DN": "CN=interoptest.localmaeher.dev.pvarki.fi,O=N/A"})
     req = ProductAddRequest(

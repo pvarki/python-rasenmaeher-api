@@ -50,9 +50,15 @@ async def tms_wait() -> None:
             return
 
 
-# FIXME rename, we do not use Gino
 @pytest_asyncio.fixture(scope="function")
-async def ginosession() -> AsyncGenerator[None, None]:
+async def dbinit_func() -> AsyncGenerator[None, None]:
+    """make sure db is bound etc"""
+    await init_db()
+    yield
+
+
+@pytest_asyncio.fixture(scope="session")
+async def dbinit_sess() -> AsyncGenerator[None, None]:
     """make sure db is bound etc"""
     await init_db()
     yield
@@ -69,15 +75,20 @@ async def taskmaster() -> AsyncGenerator[None, None]:
         LOGGER.warning("Taskmaster wait timed out")
 
 
-@pytest.fixture(scope="session")
-def app_instance(session_env_config: None) -> FastAPI:
+@pytest.fixture(scope="session", params=["RSA", "ED25519"])
+def app_instance(
+    session_env_config: None, monkeysession: pytest.MonkeyPatch, request: pytest.FixtureRequest
+) -> FastAPI:
     """Singleton app instance"""
     _ = session_env_config
-    # We need to import this *after* messing with env or manifest based routes break
-    from rasenmaeher_api.web.application import get_app
+    with monkeysession.context() as mpatch:
+        mpatch.setenv("RM_CERT_KEY_TYPE", str(request.param))
+        mpatch.setattr(switchme_to_singleton_call, "cert_key_type", str(request.param))
+        # We need to import this *after* messing with env or manifest based routes break
+        from rasenmaeher_api.web.application import get_app
 
-    app = get_app()
-    return app
+        app = get_app()
+        return app
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -354,13 +365,13 @@ async def tilauspalvelu_jwt_user_koira_client(
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_user_secrets(session_env_config: None) -> tuple[list[str], list[str]]:
+async def test_user_secrets(app_instance: FastAPI) -> tuple[list[str], list[str]]:
     """Create a few test users and work ids returns
     list of work-ids and their corresponding "hashes"
 
     First one has "enrollment" special role
     """
-    _ = session_env_config
+    _ = app_instance
     return await create_test_users()
 
 

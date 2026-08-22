@@ -27,11 +27,11 @@ async def test_http_post_and_get(
     installed_signer: SigningCA,
     make_leaf: LeafFactory,
     make_request: RequestFactory,
-    ginosession: None,
+    dbinit_func,
     ocsp_client: TestClient,
 ) -> None:
     """POST body and GET base64-path forms return equivalent responses with cache headers"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     leaf = make_leaf("HTTPLEAF")
     reqder = make_request(leaf)
 
@@ -57,11 +57,11 @@ async def test_http_nonce_no_store(
     installed_signer: SigningCA,
     make_leaf: LeafFactory,
     make_request: RequestFactory,
-    ginosession: None,
+    dbinit_func,
     ocsp_client: TestClient,
 ) -> None:
     """Nonced responses must not be cached"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     leaf = make_leaf("NONCEHTTP")
     reqder = make_request(leaf, nonce=os.urandom(8))
     resp = await ocsp_client.post("/api/v1/ocsp", data=reqder)

@@ -22,9 +22,9 @@ async def test_get_ca() -> None:
 
 
 @pytest_asyncio.fixture(scope="function")
-async def one_revoked_cert(ginosession: None) -> None:
+async def one_revoked_cert(dbinit_func) -> None:
     """Make sure we have at least one revoked cert"""
-    _ = ginosession
+    _ = dbinit_func
     # We have to make actual certs to be able to revoke them
     person = await Person.create_with_cert(str(uuid.uuid4()))
     await person.revoke("key_compromise")
