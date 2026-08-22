@@ -27,10 +27,10 @@ async def test_product_cert_valid_cn(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
 ) -> None:
     """Recorded product certs with manifest CNs (and rmapi's own CN) -> GOOD"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     for common_name in (VALID_PRODUCT_CN, switchme_to_singleton_call.mtls_client_cert_cn):
         leaf = make_leaf(common_name)
         add_issued(leaf.serial_number, common_name)
@@ -45,11 +45,11 @@ async def test_issued_cert_active_user_cn(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
     nice_tmpdir: str,
 ) -> None:
     """Per-user cert signed via product path (e.g. TAK) with an active owner -> GOOD"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     callsign = f"atakuser_{uuid.uuid4()}"
     add_person(tmp=nice_tmpdir, callsign=callsign)  # active owner, different (main) cert serial
     leaf = make_leaf(callsign)
@@ -65,11 +65,11 @@ async def test_issued_cert_revoked_user_cn(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
     nice_tmpdir: str,
 ) -> None:
     """Per-user cert signed via product path whose owner is revoked -> REVOKED with owner's reason"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     callsign = f"atakuser_{uuid.uuid4()}"
     add_person(tmp=nice_tmpdir, callsign=callsign, deleted=datetime.now(UTC), revoke_reason="privilege_withdrawn")
     leaf = make_leaf(callsign)
@@ -85,10 +85,10 @@ async def test_issued_cert_no_owner_cn(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
 ) -> None:
     """Recorded cert whose CN matches no Person and no product -> GOOD (we issued it)"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     leaf = make_leaf("orphan.example.invalid")
     add_issued(leaf.serial_number, "orphan.example.invalid")
     resp = await respond(make_request(leaf))
@@ -101,10 +101,10 @@ async def test_unknown_serial(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
 ) -> None:
     """Serial in neither table -> UNKNOWN"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     leaf = make_leaf("NEVERRECORDED")
     resp = await respond(make_request(leaf))
     assert resp.response_status == ocsp.OCSPResponseStatus.SUCCESSFUL
@@ -112,13 +112,13 @@ async def test_unknown_serial(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_product_cn_lookup_failure_falls_back(monkeypatch: pytest.MonkeyPatch, ginosession: None) -> None:
+async def test_product_cn_lookup_failure_falls_back(monkeypatch: pytest.MonkeyPatch, dbinit_func) -> None:
     """A broken manifest lookup degrades to an empty product list instead of raising.
 
     valid_product_cns reads the kraftwerk manifest, which is absent in some deployments.
     Without the fallback every OCSP query for a recorded cert would become an internal error.
     """
-    _ = ginosession
+    _ = dbinit_func
     serial = x509.random_serial_number()
     with EngineWrapper.get_session() as session:
         session.add(IssuedCert(serial=str(serial), cn="orphan.example.invalid"))

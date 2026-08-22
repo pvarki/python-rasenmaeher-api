@@ -54,11 +54,11 @@ async def test_good_user(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
     nice_tmpdir: str,
 ) -> None:
     """Active user -> GOOD, signature verifies, both hash algos work"""
-    _ = ginosession
+    _ = dbinit_func
     leaf = make_leaf("GOODUSER")
     add_person(leaf.serial_number, tmp=nice_tmpdir)
     for algo in (hashes.SHA1(), hashes.SHA256()):
@@ -77,11 +77,11 @@ async def test_revoked_user(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
     nice_tmpdir: str,
 ) -> None:
     """Deleted user -> REVOKED with reason and time"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     leaf = make_leaf("REVOKEDUSER")
     deleted = datetime.now(UTC)
     add_person(leaf.serial_number, deleted=deleted, revoke_reason="key_compromise", tmp=nice_tmpdir)
@@ -99,10 +99,10 @@ async def test_nonce_echo(
     make_leaf: LeafFactory,
     make_request: RequestFactory,
     respond: Responder,
-    ginosession: None,
+    dbinit_func,
 ) -> None:
     """Nonce comes back byte-for-byte; oversize nonce is malformed"""
-    _ = ginosession, installed_signer
+    _ = dbinit_func, installed_signer
     leaf = make_leaf("NONCELEAF")
     nonce = os.urandom(16)
     resp = await respond(make_request(leaf, nonce=nonce))

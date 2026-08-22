@@ -50,9 +50,15 @@ async def tms_wait() -> None:
             return
 
 
-# FIXME rename, we do not use Gino
 @pytest_asyncio.fixture(scope="function")
-async def ginosession() -> AsyncGenerator[None, None]:
+async def dbinit_func() -> AsyncGenerator[None, None]:
+    """make sure db is bound etc"""
+    await init_db()
+    yield
+
+
+@pytest_asyncio.fixture(scope="session")
+async def dbinit_sess() -> AsyncGenerator[None, None]:
     """make sure db is bound etc"""
     await init_db()
     yield

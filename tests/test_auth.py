@@ -16,9 +16,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 @pytest_asyncio.fixture(scope="function")
-async def two_users(ginosession: None) -> tuple[Person, Person]:
+async def two_users(dbinit_func) -> tuple[Person, Person]:
     """First one is normal, second is admin"""
-    _ = ginosession
+    _ = dbinit_func
     try:
         normal = await Person.by_callsign("TestNormalUser")
     except NotFound:

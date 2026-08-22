@@ -708,9 +708,9 @@ async def test_enroll_with_csr(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_enrollmentpools_revoked_creator(ginosession: None, tilauspalvelu_jwt_admin_client: TestClient) -> None:
+async def test_enrollmentpools_revoked_creator(dbinit_func, tilauspalvelu_jwt_admin_client: TestClient) -> None:
     """Test that pools list does not die if creator is revoked"""
-    _ = ginosession
+    _ = dbinit_func
     invitecode = str(uuid.uuid4())
     toberevoked = f"toberevoked_{secrets.token_hex(4)}"
     person = await Person.create_with_cert(toberevoked)

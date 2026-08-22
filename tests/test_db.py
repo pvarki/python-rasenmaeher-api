@@ -71,9 +71,9 @@ def test_dbconfig_defaults(docker_ip: str) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_crud(ginosession: None) -> None:
+async def test_person_crud(dbinit_func) -> None:
     """Test the db abstraction of persons and roles"""
-    _ = ginosession
+    _ = dbinit_func
     DOGGO01a = f"DOGGO01a_{secrets.token_hex(4)}"
     with EngineWrapper.singleton().get_session() as session:
         obj = Person(callsign=DOGGO01a, certspath=str(uuid.uuid4()))
@@ -140,9 +140,9 @@ async def test_person_crud(ginosession: None) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_enrollments_crud(ginosession: None) -> None:
+async def test_enrollments_crud(dbinit_func) -> None:
     """Test the db abstraction enrollments"""
-    _ = ginosession
+    _ = dbinit_func
     MEGAMAN00a = f"DOGGO01a_{secrets.token_hex(4)}"
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
     with EngineWrapper.singleton().get_session() as session:
@@ -192,9 +192,9 @@ async def test_enrollments_crud(ginosession: None) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_enrollmentpools_crud(ginosession: None) -> None:
+async def test_enrollmentpools_crud(dbinit_func) -> None:
     """Test the db abstraction enrollments and enrollmentpools"""
-    _ = ginosession
+    _ = dbinit_func
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
     POOLBOYa = f"POOLBOYa_{secrets.token_hex(4)}"
     with EngineWrapper.singleton().get_session() as session:
@@ -243,9 +243,9 @@ async def test_enrollmentpools_crud(ginosession: None) -> None:
 
 
 @pytest_asyncio.fixture(scope="session")
-async def masterblaster(ginosession: None) -> AsyncGenerator[(Person, Person), None]:
+async def masterblaster(dbinit_sess) -> AsyncGenerator[(Person, Person), None]:
     """Fixture for two persons"""
-    _ = ginosession
+    _ = dbinit_sess
     MASTER666a = f"MASTER666a_{secrets.token_hex(4)}"
     BLASTER999a = f"BLASTER999a_{secrets.token_hex(4)}"
     # Done this way to avoid the cost of the certificate workflow, you should never do this outside of unittests
@@ -314,9 +314,9 @@ async def test_enrollments_list(masterblaster: (Person, Person)) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_seentokens_crud(ginosession: None) -> None:
+async def test_seentokens_crud(dbinit_func) -> None:
     """Test the db abstraction for seen tokens"""
-    _ = ginosession
+    _ = dbinit_func
     token = str(uuid.uuid4())
     meta = {"koirat": "doggoi"}
     with pytest.raises(NotFound):
@@ -338,9 +338,9 @@ async def test_seentokens_crud(ginosession: None) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_logincodes_crud(ginosession: None) -> None:
+async def test_logincodes_crud(dbinit_func) -> None:
     """Test the db abstraction for login codes"""
-    _ = ginosession
+    _ = dbinit_func
     sotakoira = f"sotakoira_{secrets.token_hex(4)}"
 
     await jwt_init()
@@ -364,9 +364,9 @@ async def test_logincodes_crud(ginosession: None) -> None:
 
 @flaky(max_runs=3, min_passes=1)
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_with_cert(ginosession: None) -> None:
+async def test_person_with_cert(dbinit_func) -> None:
     """Test the cert creation with the classmethod (and revocation)"""
-    _ = ginosession
+    _ = dbinit_func
     await mtls_init()
     BINGO01a = f"BINGO01a_{secrets.token_hex(4)}"
     person = await Person.create_with_cert(BINGO01a, {"kissa": "puuma"})
@@ -387,9 +387,9 @@ async def test_person_with_cert(ginosession: None) -> None:
 
 @pytest.mark.xfail(reason="monkeypatching the host does not work as expected")
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_person_with_cert_cfsslfail(dbinit_func, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test the cert creation with the classmethod with CFSSL failure"""
-    _ = ginosession
+    _ = dbinit_func
     await mtls_init()
     BONGO01a = f"BONGO01a_{secrets.token_hex(4)}"
     peoplepath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people"
@@ -409,9 +409,9 @@ async def test_person_with_cert_cfsslfail(ginosession: None, monkeypatch: pytest
 
 @flaky(max_runs=3, min_passes=1)
 @pytest.mark.asyncio(loop_scope="session")
-async def test_person_with_cert_duplicatename(ginosession: None) -> None:
+async def test_person_with_cert_duplicatename(dbinit_func) -> None:
     """Test the cert creation with the classmethod but reserved callsign"""
-    _ = ginosession
+    _ = dbinit_func
     await mtls_init()
     callsign = f"RUOSKA23a_{secrets.token_hex(4)}"
     peoplepath = Path(switchme_to_singleton_call.persistent_data_dir) / "private" / "people"
@@ -428,9 +428,9 @@ async def test_person_with_cert_duplicatename(ginosession: None) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_pfx_parse(ginosession: None) -> None:
+async def test_pfx_parse(dbinit_func) -> None:
     """Test that the PFX file gets done"""
-    _ = ginosession
+    _ = dbinit_func
     await mtls_init()
     callsign = f"PFXMAN01a_{secrets.token_hex(4)}"
     person = await Person.create_with_cert(callsign)
@@ -451,9 +451,9 @@ async def test_pfx_parse(ginosession: None) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_productcn_forbid(ginosession: None) -> None:
+async def test_productcn_forbid(dbinit_func) -> None:
     """Test that trying to create enrollment or person with callsign that matches a product CN fails"""
-    _ = ginosession
+    _ = dbinit_func
     with pytest.raises(CallsignReserved):
         await Person.create_with_cert("fake.localmaeher.dev.pvarki.fi")
     with pytest.raises(CallsignReserved):
@@ -479,9 +479,9 @@ def _self_signed_pem(common_name: str) -> str:
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_record_issued_cert(ginosession: None) -> None:
+async def test_record_issued_cert(dbinit_func) -> None:
     """record_issued_cert parses and stores the leaf, is idempotent, never raises"""
-    _ = ginosession
+    _ = dbinit_func
     common_name = "fake.localmaeher.dev.pvarki.fi"
     pem = _self_signed_pem(common_name)
     serial = cryptography.x509.load_pem_x509_certificate(pem.encode("ascii")).serial_number
