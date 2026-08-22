@@ -228,7 +228,7 @@ Creating a development container
 Build image, create container and start it::
 
     docker build --ssh default --target devel_shell -t rasenmaeher_api:devel_shell .
-    docker create --name rasenmaeher_api_devel -v `pwd`":/app" -it `echo $DOCKER_SSHAGENT` rasenmaeher_api:devel_shell
+    docker create --name rasenmaeher_api_devel -v `pwd`":/app" -it `echo $DOCKER_SSHAGENT` -v /var/run/docker.sock:/var/run/docker.sock  rasenmaeher_api:devel_shell
     docker start -i rasenmaeher_api_devel
 
 pre-commit considerations
