@@ -359,13 +359,13 @@ async def tilauspalvelu_jwt_user_koira_client(
 
 
 @pytest_asyncio.fixture(scope="session")
-async def test_user_secrets(session_env_config: None) -> tuple[list[str], list[str]]:
+async def test_user_secrets(app_instance: FastAPI) -> tuple[list[str], list[str]]:
     """Create a few test users and work ids returns
     list of work-ids and their corresponding "hashes"
 
     First one has "enrollment" special role
     """
-    _ = session_env_config
+    _ = app_instance
     return await create_test_users()
 
 
