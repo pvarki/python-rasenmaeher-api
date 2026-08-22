@@ -96,6 +96,7 @@ class RMSettings(BaseSettings):
     ocsprest_host: str = "http://127.0.0.1"
     ocsprest_port: str = "8887"
     cfssl_timeout: float = 2.5
+    cert_key_type: str = "RSA"
 
     # Cert-Manager configuration (used when cert_backend == CERT_MANAGER)
     cert_manager_namespace: str = "opendefence-system"

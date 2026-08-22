@@ -121,7 +121,9 @@ class Person(ORMBaseModel, table=True):
                 if csrpem:
                     newperson.csrfile.write_text(csrpem, encoding="utf-8")
                 else:
-                    ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile)
+                    ckp = await async_create_keypair(
+                        newperson.privkeyfile, newperson.pubkeyfile, ktype=cnf.cert_key_type
+                    )
                     csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
                 certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
                 newperson.certfile.write_text(certpem)

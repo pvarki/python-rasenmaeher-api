@@ -88,7 +88,7 @@ async def mtls_init() -> None:
         # Check the privkey again to avoid overwriting.
         if not privkeypath.exists():
             LOGGER.info("No mTLS client cert yet, creating it, this will take a moment")
-            keypair = await async_create_keypair(privkeypath, pubkeypath)
+            keypair = await async_create_keypair(privkeypath, pubkeypath, ktype=config.cert_key_type)
             LOGGER.debug("Creating mTLS client CSR")
             csrpem = await async_create_client_csr(keypair, csrpath, {"CN": config.mtls_client_cert_cn})
         if not certpath.exists():
