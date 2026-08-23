@@ -1,6 +1,6 @@
 [project]
 name = "rasenmaeher_api"
-version = "1.19.0+260822"
+version = "1.19.1+260823"
 description = "python-rasenmaeher-api"
 authors = [
     { name = "Aciid", email = "703382+Aciid@users.noreply.github.com" },
@@ -17,10 +17,10 @@ dependencies = [
     "pydantic>=2.0,<3.0",
     "pydantic-settings>=2.0,<3.0",
     "requests>=2.31,<3.0",
-    "multikeyjwt>=1.5,<2.0",
+    "multikeyjwt>=1.7,<2.0",
     "uvicorn[standard]>=0.47,<1.0",
     "gunicorn>=26.0",
-    "libpvarki>=2.2,<3.0",
+    "libpvarki>=2.4,<3.0",
     "openapi-readme>=0.2,<0.3",
     "python-multipart>=0.0.21,<1.0.0",
     "aiohttp>=3.11.10,<4.0",

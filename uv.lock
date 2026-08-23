@@ -1134,7 +1134,7 @@ wheels = [
 
 [[package]]
 name = "libpvarki"
-version = "2.3.0"
+version = "2.4.0"
 source = { registry = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple" }
 dependencies = [
     { name = "aiodns" },
@@ -1145,9 +1145,9 @@ dependencies = [
     { name = "fastapi" },
     { name = "pydantic" },
 ]
-sdist = { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.3.0/libpvarki-2.3.0.tar.gz", hash = "sha256:1db367b5b60e0ef8e6c81ab21e620569f5a60845e9cda078621918add12dacfe" }
+sdist = { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.4.0/libpvarki-2.4.0.tar.gz", hash = "sha256:9a11a18cb855b1840cf3a1a4933c53138aaf0f031ef5a645bf85d8e731c93b0f" }
 wheels = [
-    { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.3.0/libpvarki-2.3.0-py3-none-any.whl", hash = "sha256:3b6bb0c75e29c39a0b82141ac4dc8cb9d16490087f0ab74d9d4cbbe84a5f0f83" },
+    { url = "https://nexus.dev.pvarki.fi/repository/pypilocal/packages/libpvarki/2.4.0/libpvarki-2.4.0-py3-none-any.whl", hash = "sha256:575a93aaa9b0e09901f832d76234919082a2bde6f451378039722b40097945a0" },
 ]
 
 [[package]]
@@ -1373,7 +1373,7 @@ wheels = [
 
 [[package]]
 name = "multikeyjwt"
-version = "1.5.0"
+version = "1.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1382,9 +1382,9 @@ dependencies = [
     { name = "pendulum" },
     { name = "pyjwt", extra = ["crypto"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/31/7c89328b6d8130ab7b19662b9ffd48f90ab89dbf4fb27c8e3b9a82c97462/multikeyjwt-1.5.0.tar.gz", hash = "sha256:302da40091226dfa5a851895d053a69213ed8102c77b47bc5483d2ca4cc93552", size = 9927, upload-time = "2026-04-04T17:00:23.494Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/91/d8/343cea7e5c83966d78aa51bdab3fb9061ef457ad1c61efc1a7aeba9aab3a/multikeyjwt-1.7.0.tar.gz", hash = "sha256:73050fc3dd685c36dbbdcd8d4602b963fad39818f4b8a99b0104f50fc5b257f6", size = 10214, upload-time = "2026-08-23T09:44:47.71Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/81/eee17ce6d32c1a18d4f3a6baf8c4d414616db6c077e85844bd808e0934b6/multikeyjwt-1.5.0-py3-none-any.whl", hash = "sha256:f14d52ed00fccd3ce42536ca68a5489c3af3210e1c29e5e8262d6edeb26b26f7", size = 12336, upload-time = "2026-04-04T17:00:22.128Z" },
+    { url = "https://files.pythonhosted.org/packages/98/57/0b2eb40df649668034afaa1b1260d5bc5f6a8f26f1d807c2900715e01583/multikeyjwt-1.7.0-py3-none-any.whl", hash = "sha256:19c2ef3f1b040c5c1c799422bab55f8429308ec73ef64e24db3dc85b393cbc3f", size = 12712, upload-time = "2026-08-23T09:44:46.606Z" },
 ]
 
 [[package]]
@@ -2110,7 +2110,7 @@ wheels = [
 
 [[package]]
 name = "rasenmaeher-api"
-version = "1.19.0+260822"
+version = "1.19.1+260823"
 source = { editable = "." }
 dependencies = [
     { name = "aiodns" },
@@ -2170,8 +2170,8 @@ requires-dist = [
     { name = "filelock", specifier = ">=3.12,<4.0" },
     { name = "gunicorn", specifier = ">=26.0" },
     { name = "libadvian", specifier = ">=1.6,<2.0" },
-    { name = "libpvarki", specifier = ">=2.2,<3.0", index = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple" },
-    { name = "multikeyjwt", specifier = ">=1.5,<2.0" },
+    { name = "libpvarki", specifier = ">=2.4,<3.0", index = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple" },
+    { name = "multikeyjwt", specifier = ">=1.7,<2.0" },
     { name = "openapi-readme", specifier = ">=0.2,<0.3" },
     { name = "psycopg2-binary", specifier = ">=2.9,<3.0" },
     { name = "pydantic", specifier = ">=2.0,<3.0" },
