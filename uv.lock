@@ -1373,7 +1373,7 @@ wheels = [
 
 [[package]]
 name = "multikeyjwt"
-version = "1.5.0"
+version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -1382,9 +1382,9 @@ dependencies = [
     { name = "pendulum" },
     { name = "pyjwt", extra = ["crypto"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0c/31/7c89328b6d8130ab7b19662b9ffd48f90ab89dbf4fb27c8e3b9a82c97462/multikeyjwt-1.5.0.tar.gz", hash = "sha256:302da40091226dfa5a851895d053a69213ed8102c77b47bc5483d2ca4cc93552", size = 9927, upload-time = "2026-04-04T17:00:23.494Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/86/85e12c386cf7f22fde3070201f853c125486b8776322f61a1891d8700ec3/multikeyjwt-1.6.0.tar.gz", hash = "sha256:442d99cd810a8ba4fb02e06f652e13ed8bbf55f4802ec8096b7163d618551b90", size = 9961, upload-time = "2026-08-23T00:01:33.469Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2a/81/eee17ce6d32c1a18d4f3a6baf8c4d414616db6c077e85844bd808e0934b6/multikeyjwt-1.5.0-py3-none-any.whl", hash = "sha256:f14d52ed00fccd3ce42536ca68a5489c3af3210e1c29e5e8262d6edeb26b26f7", size = 12336, upload-time = "2026-04-04T17:00:22.128Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/24/44a14d4cbd48a6cc62fa86ad3e1bc570d49cadb7bb140e831d62f49fa255/multikeyjwt-1.6.0-py3-none-any.whl", hash = "sha256:926eef6b50d7daa3bc062bf618db69c456569b9f8bb891f4de458c5eb6f2a5a7", size = 12386, upload-time = "2026-08-23T00:01:24.746Z" },
 ]
 
 [[package]]
@@ -2171,7 +2171,7 @@ requires-dist = [
     { name = "gunicorn", specifier = ">=26.0" },
     { name = "libadvian", specifier = ">=1.6,<2.0" },
     { name = "libpvarki", specifier = ">=2.2,<3.0", index = "https://nexus.dev.pvarki.fi/repository/pypilocal/simple" },
-    { name = "multikeyjwt", specifier = ">=1.5,<2.0" },
+    { name = "multikeyjwt", specifier = ">=1.6,<2.0" },
     { name = "openapi-readme", specifier = ">=0.2,<0.3" },
     { name = "psycopg2-binary", specifier = ">=2.9,<3.0" },
     { name = "pydantic", specifier = ">=2.0,<3.0" },
