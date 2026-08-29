@@ -122,7 +122,11 @@ async def _method_to_product(
     session = await get_session_winit()
     async with session as client:
         try:
-            url = f"{productconf['api']}{url_suffix}"
+            # Normalise the join: every manifest "api" value ends in "/" (see
+            # miniwerk manifests), so a suffix that also starts with one gave
+            # "https://host:4626//api/v1/..." — which Starlette does not route,
+            # so the product 404s and the caller sees only a swallowed None.
+            url = f"{productconf['api'].rstrip('/')}/{url_suffix.lstrip('/')}"
             LOGGER.debug(f"calling {methodname}({url})")
             if data is None:
                 resp = await getattr(client, methodname)(url, timeout=rmconf.integration_api_timeout)
