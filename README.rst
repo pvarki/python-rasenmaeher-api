@@ -64,6 +64,18 @@ You can find all available variables here https://github.com/pvarki/python-rasen
    * - RM_SQLITE_FILEPATH_DEV
      - /tmp/rm_db.sql
      - location for sqlite database file in "dev", local development
+   * - RM_FEEDBACK_INGEST_URL
+     - None
+     - Where user feedback is POSTed, operator defined. Unset disables the feedback endpoint
+   * - RM_FEEDBACK_INGEST_KEY
+     - None
+     - Key sent with the feedback POST. Unset disables the feedback endpoint
+   * - RM_FEEDBACK_INGEST_KEY_HEADER
+     - Authorization
+     - Header carrying the key, value sent verbatim so "Bearer xyz" works
+   * - RM_FEEDBACK_TIMEOUT
+     - 5.0
+     - Seconds to wait for the feedback ingest
 
 
 You can create `.env` file in the root directory and place all
