@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from libpvarki.schemas.generic import OperationResultResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -117,6 +118,13 @@ class EnrollmentInitIn(BaseModel):
 
     callsign: str = Field(description="Callsign to create enrollment for")
     csr: str | None = Field(description="CSR for mTLS key in PEM format", default=None)
+    mdm: bool = Field(
+        description=(
+            "Mark this as a device enrolment planned for an MDM. The device supplies its own CSR later and an "
+            "MDM agent completes the enrolment; no JWT is issued to the caller and approving it by hand is refused."
+        ),
+        default=False,
+    )
 
 
 class EnrollmentInitOut(BaseModel):
@@ -136,7 +144,10 @@ class EnrollmentInitOut(BaseModel):
     callsign: str = Field(description="Callsign for which the enrollment got initialized")
     approvecode: str = Field(description="Code used to approve the enrollment, must be delivered to an admin")
     jwt: str = Field(
-        description="JWT that allows client to check enrollment approval status and fetc mTLS certs when approved"
+        description=(
+            "JWT that allows client to check enrollment approval status and fetc mTLS certs when approved. "
+            "Empty for enrolments planned for an MDM: nobody should be holding a device's credential."
+        )
     )
 
 
@@ -191,7 +202,18 @@ class EnrollmentAcceptIn(BaseModel):
 
     callsign: str = Field(description="Callsign to approve")
     approvecode: str = Field(
-        description="Approval code for the callsign, this must have been delivered by the person to be enrolled"
+        description=(
+            "Approval code for the callsign, this must have been delivered by the person to be enrolled. "
+            "Not used when an MDM agent completes a planned device enrolment: there is no human to deliver it, "
+            "and the agent has authenticated with its own certificate."
+        ),
+        default="",
+    )
+    csr: str | None = Field(
+        description=(
+            "CSR the device generated, PEM. Only for an MDM agent completing an enrolment planned with mdm=true."
+        ),
+        default=None,
     )
 
 
@@ -208,6 +230,20 @@ class EnrollmentAcceptOut(BaseModel):
     )
 
     callsign: str
+
+
+class EnrollmentAcceptResultOut(OperationResultResponse):
+    """Result of accepting an enrollment
+
+    Additive superset of the plain result: an MDM agent gets the issued certificate back here
+    rather than fetching it afterwards. It has no user credential to fetch it with, and in a
+    meshed deployment its own service identity would win over any bearer token anyway.
+    """
+
+    certificate: str | None = Field(
+        description="Issued certificate, PEM. Only set when an MDM agent completed the enrolment.",
+        default=None,
+    )
 
 
 class EnrollmentPromoteIn(BaseModel):
