@@ -118,6 +118,13 @@ class RMSettings(BaseSettings):
     # (suitable for in-cluster-only Service exposure during local dev).
     callsign_validity_secret: str | None = None
 
+    # Service identities allowed to complete device enrolments an admin planned with mdm=true,
+    # comma separated. Empty by default: until a deployment names its MDM agent here, the agent
+    # path in POST /enrollment/accept does not exist. Deliberately NOT the kraftwerk product CNs:
+    # those are exempt from role checks, can have any CSR signed and cannot be revoked at the
+    # edge, which is far more than completing a planned enrolment needs.
+    mdm_agent_cns: str = ""
+
     persistent_data_dir: str = "/data/persistent"
 
     # mtls
@@ -181,6 +188,11 @@ class RMSettings(BaseSettings):
             return my_dn.split(".", maxsplit=1)[0]
         LOGGER.warning("DNS name not defined")
         return "undefined"
+
+    @property
+    def mdm_agent_cn_set(self) -> set[str]:
+        """CNs allowed to act as an MDM enrolment agent"""
+        return {cnname.strip() for cnname in self.mdm_agent_cns.split(",") if cnname.strip()}
 
     @property
     def valid_product_cns(self) -> list[str]:
