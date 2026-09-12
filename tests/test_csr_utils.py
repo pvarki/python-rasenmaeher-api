@@ -1,8 +1,7 @@
 """Unit tests for CSR verification
 
-No database, no containers: these build certificate requests in memory and check what
-``verify_csr`` accepts. Every negative case here was accepted by the previous substring
-implementation, which is why they are pinned.
+Build certificate requests in memory and check what
+``verify_csr`` accepts.
 """
 
 import logging
