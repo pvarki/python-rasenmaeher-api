@@ -131,7 +131,7 @@ class RMSettings(BaseSettings):
     ldap_client_secret: str | None = None
 
     # Tilauspalvelu integration
-    tilauspalvelu_jwt: str = "https://tilaa.pvarki.fi/api/v1/config/jwtPublicKey.pem"
+    tilauspalvelu_jwt: str = ""  # "https://tilaa.pvarki.fi/api/v1/config/jwtPublicKey.pem"
     kraftwerk_announce: str | None = None  # When KRAFTWERK actually exists
     kraftwerk_timeout: float = 2.0
 

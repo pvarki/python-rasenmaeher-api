@@ -13,6 +13,7 @@ from libadvian.tasks import TaskMaster
 from ...rmsettings import RMSettings
 from .base import CFSSLError, DBLocked, NoResult, base_url, default_timeout, get_result, get_result_cert, ocsprest_base
 from .mtls import mtls_session
+from .profiles import signing_profile
 
 LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     async with await mtls_session() as session:
         url = f"{ocsprest_base()}/api/v1/csr/sign"
-        payload = {"certificate_request": csr, "profile": "client", "bundle": bundle}
+        payload = {"certificate_request": csr, "profile": signing_profile(csr), "bundle": bundle}
         try:
             LOGGER.debug(f"Calling {url}")
             async with session.post(url, json=payload, timeout=default_timeout()) as response:
