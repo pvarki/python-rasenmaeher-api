@@ -1,5 +1,6 @@
 """Test enrollment endpoint"""
 
+import asyncio
 import logging
 import secrets
 import uuid
@@ -20,6 +21,7 @@ from rasenmaeher_api.db import (
     EngineWrapper,
     Enrollment,
     EnrollmentPool,
+    EnrollmentState,
     Person,
 )
 from rasenmaeher_api.db.errors import CallsignReserved
@@ -926,6 +928,31 @@ async def test_list_marks_devices_planned_for_mdm(tilauspalvelu_jwt_admin_client
     listed = (await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list")).json()["callsign_list"]
     marks = {row["callsign"]: row["mdm"] for row in listed if row["callsign"] in (device, human)}
     assert marks == {device: True, human: False}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_two_devices_cannot_both_claim_one_planned_callsign() -> None:
+    """The clause the MVP plan will not sign off without
+
+    A callsign is spent the moment it is used and can never be released, so if two devices both
+    got past the claim one of them would receive a certificate for an identity the other also
+    holds, and the loser could never be enrolled under any name it had been promised. The check
+    and the write are one UPDATE for exactly this reason, so the guarantee is the database's and
+    not a check-then-act in Python.
+    """
+    callsign = f"mdmrace_{secrets.token_hex(4)}"
+    planned = await Enrollment.create_for_callsign(callsign=callsign, extra={"mdm": True})
+
+    first, second = await asyncio.gather(
+        (await Enrollment.by_callsign(callsign)).claim_with_csr("csr-from-device-one"),
+        (await Enrollment.by_callsign(callsign)).claim_with_csr("csr-from-device-two"),
+    )
+    assert sorted([first, second]) == [False, True], "exactly one device may claim a planned callsign"
+
+    settled = await Enrollment.by_callsign(callsign)
+    assert settled.csr in ("csr-from-device-one", "csr-from-device-two")
+    assert settled.state == EnrollmentState.PENDING, "claiming must not decide the enrollment"
+    _ = planned
 
 
 @pytest.mark.asyncio(loop_scope="session")
