@@ -22,6 +22,7 @@ from rasenmaeher_api.db import (
     EnrollmentPool,
     Person,
 )
+from rasenmaeher_api.db.errors import CallsignReserved
 from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
@@ -902,3 +903,24 @@ async def test_planning_many_devices_keeps_the_admin_session(
         )
         assert resp.status_code == 200
         assert resp.json()["jwt"] == ""
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_agent_cn_cannot_be_taken_as_a_callsign(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The agent CN is a service identity, not a name anyone may enroll under
+
+    A certificate carrying it is accepted as the MDM agent on sight, with no Person, role or
+    product check, so issuing one to a person would hand them every planned device's identity.
+    Both creation paths have to refuse it, and case cannot be used to slip past: callsign lookups
+    fold case, so a near-miss would be a confusing collision rather than a second identity.
+
+    No database here on purpose -- the guard is meant to fire before anything is written.
+    """
+    settings = RMSettings.singleton()
+    monkeypatch.setattr(settings, "mdm_agent_cns", f"{MDM_AGENT_CN},second-agent")
+
+    for taken in (MDM_AGENT_CN, MDM_AGENT_CN.upper(), "second-agent"):
+        with pytest.raises(CallsignReserved):
+            await Enrollment.create_for_callsign(callsign=taken)
+        with pytest.raises(CallsignReserved):
+            await Person.create_with_cert(callsign=taken)

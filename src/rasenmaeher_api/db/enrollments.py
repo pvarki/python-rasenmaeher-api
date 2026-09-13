@@ -344,8 +344,11 @@ class Enrollment(ORMBaseModel, table=True):
         csr: str | None = None,
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
-        if callsign in RMSettings.singleton().valid_product_cns:
+        cnf = RMSettings.singleton()
+        if callsign in cnf.valid_product_cns:
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
+        if callsign.lower() in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
+            raise CallsignReserved("Using MDM agent CNs as callsigns is forbidden")
         if csr and not verify_csr(csr, callsign):
             raise CallsignReserved("CSR CN must match callsign")
         with EngineWrapper.get_session() as session:

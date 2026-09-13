@@ -103,6 +103,10 @@ class Person(ORMBaseModel, table=True):
             raise CallsignReserved("Using product CNs as callsigns is forbidden")
         if callsign == cnf.mtls_client_cert_cn:
             raise CallsignReserved("Using the rasenmaeher service CN as a callsign is forbidden")
+        if callsign.lower() in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
+            # A certificate with this CN is accepted as the MDM enrolment agent on sight, so
+            # issuing one to a person would hand them every planned device's identity.
+            raise CallsignReserved("Using MDM agent CNs as callsigns is forbidden")
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()
