@@ -143,6 +143,14 @@ class RMSettings(BaseSettings):
     kc_realm: str = "RASENMAEHER"  # In which realm the real users are
     kc_enabled: bool = True  # Whether to use KC or not (mainly so that unit tests have less dependencies for now)
 
+    # Feedback ingest, the operator decides where user feedback is delivered.
+    # Unset url or key disables the endpoint (it will answer 503).
+    feedback_ingest_url: str | None = None
+    feedback_ingest_key: str | None = None
+    # Header carrying the key, value is sent verbatim so eg. "Bearer xyz" works
+    feedback_ingest_key_header: str = "Authorization"
+    feedback_timeout: float = 5.0
+
     # Enrollment code generation related
     code_size: int = 8
     code_avoid_confusion: bool = True  # Replace 1 and 0 with O and I to avoid confusion
