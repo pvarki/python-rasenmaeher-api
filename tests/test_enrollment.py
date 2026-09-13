@@ -906,6 +906,29 @@ async def test_planning_many_devices_keeps_the_admin_session(
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_list_marks_devices_planned_for_mdm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
+    """An admin has to be able to tell a planned device from a person waiting for approval
+
+    Both sit in the list in state PENDING, but a device is waiting for its own CSR through the
+    agent and approving it by hand is refused, so without the marker the approve-users queue fills
+    with rows nobody may act on.
+    """
+    device = f"mdmlisted_{secrets.token_hex(4)}"
+    human = f"humanlisted_{secrets.token_hex(4)}"
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": device, "mdm": True})
+    assert resp.status_code == 200
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
+    assert resp.status_code == 200
+    # A plain init hands back the new callsign's JWT as a cookie, which would unseat the admin
+    if tilauspalvelu_jwt_admin_client.cookie_jar is not None:
+        tilauspalvelu_jwt_admin_client.cookie_jar.clear()
+
+    listed = (await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list")).json()["callsign_list"]
+    marks = {row["callsign"]: row["mdm"] for row in listed if row["callsign"] in (device, human)}
+    assert marks == {device: True, human: False}
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_agent_cn_cannot_be_taken_as_a_callsign(monkeypatch: pytest.MonkeyPatch) -> None:
     """The agent CN is a service identity, not a name anyone may enroll under
 

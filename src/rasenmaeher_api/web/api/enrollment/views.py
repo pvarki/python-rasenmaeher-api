@@ -181,12 +181,28 @@ async def request_enrollment_list(code: str | None = None) -> EnrollmentListOut:
     if code:
         try:
             enrollment = await Enrollment.by_approvecode(code)
-            result_list.append({"callsign": enrollment.callsign, "approvecode": code, "state": enrollment.state})
+            result_list.append(
+                {
+                    "callsign": enrollment.callsign,
+                    "approvecode": code,
+                    "state": enrollment.state,
+                    "mdm": enrollment.planned_for_mdm,
+                }
+            )
         except NotFound:
             pass
         return EnrollmentListOut(callsign_list=result_list)
     async for enrollment in Enrollment.list():
-        result_list.append({"callsign": enrollment.callsign, "approvecode": "", "state": enrollment.state})
+        # mdm marks a device an admin planned for MDM enrolment. It is waiting for the device's own
+        # CSR through the agent, not for a human to approve it, and approving it by hand is refused.
+        result_list.append(
+            {
+                "callsign": enrollment.callsign,
+                "approvecode": "",
+                "state": enrollment.state,
+                "mdm": enrollment.planned_for_mdm,
+            }
+        )
 
     return EnrollmentListOut(callsign_list=result_list)
 
