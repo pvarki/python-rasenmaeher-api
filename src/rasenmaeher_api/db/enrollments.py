@@ -8,11 +8,12 @@ import string
 import uuid
 import warnings
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql import func
-from sqlmodel import Field, select
+from sqlalchemy.engine import CursorResult
+from sqlalchemy.sql import func, update
+from sqlmodel import Field, col, select
 
 from ..rmsettings import RMSettings
 from ..web.api.utils.csr_utils import verify_csr
@@ -157,7 +158,7 @@ class Enrollment(ORMBaseModel, table=True):
     approvecode: str = Field(nullable=False, index=True, unique=True)
     callsign: str = Field(nullable=False, index=True, unique=True)
     decided_on: datetime.datetime = Field(nullable=True, default=None)
-    decided_by: uuid.UUID = Field(
+    decided_by: uuid.UUID | None = Field(
         foreign_key=f"{ORMBaseModel.__table_args__['schema']}.users.pk", nullable=True, default=None
     )
     person: uuid.UUID = Field(
@@ -178,12 +179,74 @@ class Enrollment(ORMBaseModel, table=True):
         except ValueError:
             return await cls.by_callsign(str(inval))
 
-    async def approve(self, approver: Person) -> Person:
-        """Creates the person record, their certs etc"""
+    @property
+    def planned_for_mdm(self) -> bool:
+        """Was this enrollment planned by an admin for a device that enrols through an MDM
+
+        Set by POST /enrollment/init with mdm=true. Such a row waits for the device to present its
+        own CSR through an MDM agent; approving it by hand would generate a keypair on the server
+        and spend the callsign, so /enrollment/accept refuses that.
+        """
+        return bool(self.extra) and self.extra.get("mdm") is True
+
+    async def claim_with_csr(self, csrpem: str) -> bool:
+        """Attach a device CSR to this pending enrollment, once
+
+        Returns False if somebody got there first. The check and the write are one statement on
+        purpose: two devices racing for the same planned callsign must not both proceed, and the
+        loser has to find out before any certificate is issued.
+
+        NOTE: refresh (or re-read) the instance before calling approve(); approve() reads self.csr
+        off the in-memory object and would otherwise take the "no CSR" branch and generate a
+        keypair here on the server.
+        """
+        with EngineWrapper.get_session() as session:
+            statement = (
+                update(Enrollment)
+                .where(
+                    col(Enrollment.pk) == self.pk,
+                    col(Enrollment.csr).is_(None),
+                    col(Enrollment.state) == EnrollmentState.PENDING,
+                    col(Enrollment.decided_by).is_(None),
+                )
+                .values(csr=csrpem)
+            )
+            result = cast(CursorResult[Any], session.execute(statement))
+            session.commit()
+            if result.rowcount != 1:
+                LOGGER.warning(f"Enrollment {self.pk} was already claimed")
+                return False
+            self.csr = csrpem
+            return True
+
+    async def release_claim(self) -> None:
+        """Undo claim_with_csr
+
+        Issuing can fail after the claim (the CA is a network call), and a claimed row with no
+        certificate is a callsign nobody can ever use. Releasing lets the device's next attempt
+        run. It does not help if a Person row was already committed -- see the caller.
+        """
+        with EngineWrapper.get_session() as session:
+            statement = (
+                update(Enrollment)
+                .where(col(Enrollment.pk) == self.pk, col(Enrollment.state) == EnrollmentState.PENDING)
+                .values(csr=None)
+            )
+            session.execute(statement)
+            session.commit()
+            self.csr = None
+
+    async def approve(self, approver: Person | None) -> Person:
+        """Creates the person record, their certs etc
+
+        approver is None when an MDM agent completed a device enrolment the admin had already
+        planned: the agent is a service identity, not a Person, and decided_by is nullable. The
+        audit trail carries the agent's CN instead.
+        """
         with EngineWrapper.get_session() as session:
             person = await Person.create_with_cert(self.callsign, extra=self.extra, csrpem=self.csr)
             self.state = EnrollmentState.APPROVED
-            self.decided_by = approver.pk
+            self.decided_by = approver.pk if approver else None
             self.decided_on = datetime.datetime.now(datetime.UTC)
             self.person = person.pk
             session.add(self)
