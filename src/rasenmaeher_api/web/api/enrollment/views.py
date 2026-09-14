@@ -6,6 +6,7 @@ from typing import Any
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from cryptography.x509.oid import ExtendedKeyUsageOID
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
@@ -444,6 +445,41 @@ def mdm_agent_cn(request: Request) -> str | None:
     return str(payload.userid)
 
 
+def device_csr_overreach(csrpem: str) -> str | None:
+    """Is this request asking for more than a device identity, or None if it is not
+
+    The signer picks its profile from what the request asks for, so a request that asks for server
+    authentication is issued one, and nothing replaces the names it carries. On this path the
+    request arrived from the public SCEP endpoint and its contents are entirely the caller's
+    choice, so the shape of what gets issued cannot be one of the things they choose.
+
+    A genuine device request from an MDM asks for none of this: it carries a subject and a public
+    key and nothing else.
+    """
+    try:
+        csr = x509.load_pem_x509_csr(csrpem.encode("utf-8"))
+    except ValueError as exc:
+        return f"the request does not parse: {exc}"
+    try:
+        usages = csr.extensions.get_extension_for_class(x509.ExtendedKeyUsage).value
+        if [usage for usage in usages if usage != ExtendedKeyUsageOID.CLIENT_AUTH]:
+            return "the request asks for a key usage beyond client authentication"
+    except x509.ExtensionNotFound:
+        pass
+    try:
+        csr.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        return "the request carries subject alternative names"
+    except x509.ExtensionNotFound:
+        pass
+    try:
+        basic = csr.extensions.get_extension_for_class(x509.BasicConstraints).value
+        if basic.ca:
+            return "the request asks to be a certificate authority"
+    except x509.ExtensionNotFound:
+        pass
+    return None
+
+
 def same_public_key(csrpem: str, certpem: str) -> bool:
     """Does this CSR carry the key that was certified"""
     csr = x509.load_pem_x509_csr(csrpem.encode("utf-8"))
@@ -587,6 +623,9 @@ async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
         raise refuse(403, "NOT_PLANNED_FOR_MDM")
     if not verify_csr(csrpem, planned.callsign):
         raise refuse(403, "CSR_SUBJECT")
+    overreach = device_csr_overreach(csrpem)
+    if overreach:
+        raise refuse(403, "CSR_OVERREACH")
 
     if planned.state != EnrollmentState.PENDING or planned.csr:
         return await mdm_repeat(request, csrpem, planned, refuse)

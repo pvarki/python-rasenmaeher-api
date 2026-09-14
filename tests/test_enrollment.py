@@ -13,7 +13,9 @@ import pytest
 import pytest_asyncio
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from cryptography import x509
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 from fastapi import FastAPI
 from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair
 
@@ -974,3 +976,66 @@ async def test_agent_cn_cannot_be_taken_as_a_callsign(monkeypatch: pytest.Monkey
             await Enrollment.create_for_callsign(callsign=taken)
         with pytest.raises(CallsignReserved):
             await Person.create_with_cert(callsign=taken)
+
+
+def _csr_asking_for(callsign: str, **extensions: Any) -> str:
+    """A device request that asks for more than a device identity"""
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    builder = x509.CertificateSigningRequestBuilder().subject_name(
+        x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, callsign)])
+    )
+    if extensions.get("server_auth"):
+        builder = builder.add_extension(
+            x509.ExtendedKeyUsage([ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]), critical=False
+        )
+    if extensions.get("san"):
+        builder = builder.add_extension(
+            x509.SubjectAlternativeName([x509.DNSName(str(extensions["san"]))]), critical=False
+        )
+    if extensions.get("ca"):
+        builder = builder.add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
+    return builder.sign(key, hashes.SHA256()).public_bytes(serialization.Encoding.PEM).decode("utf-8")
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_device_request_may_not_choose_what_it_is_issued(
+    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient
+) -> None:
+    """The signer picks its profile from what the request asks for
+
+    So a request asking for server authentication is issued one, and nothing replaces the names it
+    carries. On this path the request arrived from the public SCEP endpoint, where its contents are
+    entirely the caller's choice, and every device in the deployment trusts this CA. A genuine MDM
+    device request asks for none of it.
+    """
+    for label, kwargs in (
+        ("server_auth", {"server_auth": True}),
+        ("san", {"san": "evil.example"}),
+        ("ca", {"ca": True}),
+    ):
+        callsign = f"mdmoverreach_{secrets.token_hex(4)}"
+        resp = await tilauspalvelu_jwt_admin_client.post(
+            "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
+        )
+        assert resp.status_code == 200
+        resp = await mdm_agent_client.post(
+            "/api/v1/enrollment/accept",
+            json={"callsign": callsign, "csr": _csr_asking_for(callsign, **kwargs)},
+        )
+        assert resp.status_code == 403, f"{label} must be refused"
+        assert (await Enrollment.by_callsign(callsign)).csr is None, f"{label} must not claim the callsign"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_an_ordinary_device_request_is_still_accepted(
+    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, nice_tmpdir: str
+) -> None:
+    """The guard must not refuse what an MDM actually sends"""
+    callsign = f"mdmplain_{secrets.token_hex(4)}"
+    resp = await tilauspalvelu_jwt_admin_client.post(
+        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
+    )
+    assert resp.status_code == 200
+    csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="plain")
+    resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem})
+    assert resp.status_code == 200, resp.text
