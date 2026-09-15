@@ -19,7 +19,7 @@ from ..middleware.datatypes import MTLSorJWTPayloadType
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
-from ..utils.csr_utils import verify_csr
+from ..utils.csr_utils import csr_carries_enrolment_proof, verify_csr
 from .schema import (
     EnrollmentAcceptIn,
     EnrollmentAcceptResultOut,
@@ -626,6 +626,12 @@ async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
     overreach = device_csr_overreach(csrpem)
     if overreach:
         raise refuse(403, "CSR_OVERREACH")
+    if not csr_carries_enrolment_proof(csrpem, planned.callsign, planned.approvecode):
+        # The callsign alone is not proof: it is a short human-chosen string, and the SCEP
+        # challenge in front of it is not a secret. The per-enrolment code is what says the MDM
+        # assigned THIS device THIS callsign. Refused before anything is claimed, so guessing
+        # cannot spend a callsign either.
+        raise refuse(403, "NO_ENROLMENT_PROOF")
 
     if planned.state != EnrollmentState.PENDING or planned.csr:
         return await mdm_repeat(request, csrpem, planned, refuse)
