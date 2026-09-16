@@ -1,86 +1,139 @@
-"""HTTP endpoint that answers callsign validity queries.
+"""Per-request mTLS authorization, answered for Traefik's ``forwardAuth`` middleware.
 
-Consumed by the Traefik ``callsign-validity`` plugin for per-request mTLS
-authorization checks. A callsign is valid if EITHER:
+Traefik forwards the verified client certificate as ``X-Forwarded-Tls-Client-Cert``
+(``passTLSClientCert`` with ``pem: true``). This endpoint recovers the leaf and
+resolves its serial through :func:`lookup_status` -- the same function the OCSP
+responder answers from, so the edge and OCSP clients can never disagree about
+whether a certificate is revoked.
 
-* a ``Person`` exists with the given callsign and ``deleted IS NULL``, OR
-* the callsign matches a product service CN listed in the kraftwerk manifest
-  (``RMSettings.valid_product_cns``) — e.g. ``rasenmaeher`` / ``tak`` for
-  inter-service mTLS calls. Matches the same trust model as the existing
-  ``ValidUser`` dependency in ``middleware/user.py``.
+The response is always ``200`` when the endpoint successfully answers. The verdict
+therefore travels in headers:
 
-Wire protocol:
+    Callsign               the certificate CN
+    Callsign-Valid         "true" or "false"
+    Callsign-Valid-Reason  ok | no_cert | invalid | error
 
-    POST /api/v1/internal/callsign-validity/check
-    {"callsign": "<name>"}
-    -> 200 {"valid": <bool>}
-    -> 400 if body is malformed
+SECURITY: the certificate header is authentication input. It is trustworthy only
+because ``strip-identity-headers`` blanks it on the ``websecure`` entrypoint --
+entrypoint middlewares run before router middlewares -- and ``mtls-pass-client-cert``
+then sets it from the verified connection. This endpoint is reachable only from
+Traefik's mesh identity; see the AuthorizationPolicy in the platform repo.
 
-Auth: if ``RM_CALLSIGN_VALIDITY_SECRET`` is set, the client must send a
-matching ``Validity-Secret`` header. Otherwise the endpoint is open
-(suitable for in-cluster-only Service exposure).
-
-Note: this used to be a websocket endpoint, but Traefik's Yaegi interpreter
-cannot load ``golang.org/x/net/websocket``, so the plugin was switched to
-stdlib ``net/http``. The per-request semantics are identical.
+The certificate is not re-verified here. Traefik has already checked it against
+the same trust-manager bundle on the TLS connection (see the mtls-optional and
+mtls-strict TLSOptions), so a second check would only ever disagree when the
+header did not come from the connection at all.
 """
 
 import logging
+import urllib.parse
 
-from fastapi import APIRouter, Header, HTTPException, status
-from pydantic import BaseModel
+from cryptography import x509
+from cryptography.x509 import ocsp
+from cryptography.x509.oid import NameOID
+from fastapi import APIRouter, Header, Response
 
-from ....db.errors import Deleted, NotFound
-from ....db.people import Person
-from ....rmsettings import RMSettings
+from ....cert.cert_manager.ocsp.status import lookup_status
 
 LOGGER = logging.getLogger(__name__)
 router = APIRouter()
 
+CERT_HEADER = "X-Forwarded-Tls-Client-Cert"
+CALLSIGN_HEADER = "Callsign"
+VALIDITY_HEADER = "Callsign-Valid"
+REASON_HEADER = "Callsign-Valid-Reason"
 
-class CheckRequest(BaseModel):
-    callsign: str
+REASON_OK = "ok"
+REASON_NO_CERT = "no_cert"
+REASON_INVALID = "invalid"
+REASON_ERROR = "error"
 
-
-class CheckResponse(BaseModel):
-    valid: bool
-
-
-def _check_secret(provided: str | None) -> None:
-    expected = RMSettings.singleton().callsign_validity_secret
-    if not expected:
-        return
-    if provided != expected:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid validity secret")
+PEM_LINE_WIDTH = 64
 
 
-async def _is_valid(callsign: str) -> bool:
-    settings = RMSettings.singleton()
-    # Service identities from the kraftwerk manifest (product backends like TAK,
-    # battlelog) and the rmapi self-CN are trusted by virtue of the CA chain;
-    # they don't appear in the Person table.
-    if callsign == settings.mtls_client_cert_cn:
-        return True
-    try:
-        if callsign in settings.valid_product_cns:
-            return True
-    except Exception:  # pylint: disable=broad-except
-        LOGGER.debug("valid_product_cns lookup failed", exc_info=True)
-    try:
-        await Person.by_callsign(callsign)
-        return True
-    except (NotFound, Deleted):
-        return False
+def _rewrap(body: str) -> str:
+    """Restore the PEM armour and line breaks Traefik strips from the header"""
+    if "BEGIN CERTIFICATE" in body:
+        return body
+    body = "".join(body.split())
+    lines = [body[offset : offset + PEM_LINE_WIDTH] for offset in range(0, len(body), PEM_LINE_WIDTH)]
+    return "-----BEGIN CERTIFICATE-----\n" + "\n".join(lines) + "\n-----END CERTIFICATE-----\n"
 
 
-@router.post("/check", response_model=CheckResponse)
+def _candidates(header: str) -> list[str]:
+    """Traefik sends the header url-encoded or literal.
+
+    The literal form is tried first because unquoting unconditionally would turn
+    a legal base64 ``+`` into a space.
+    """
+    out = [header]
+    if "%" not in header:
+        return out
+    for decoded in (urllib.parse.unquote(header), urllib.parse.unquote_plus(header)):
+        if decoded not in out:
+            out.append(decoded)
+    return out
+
+
+def parse_leaf(header: str) -> x509.Certificate | None:
+    """Recover the leaf certificate from a passTLSClientCert header value.
+
+    Traefik comma-separates the chain; only the first entry is the leaf.
+    """
+    header = header.strip()
+    if not header:
+        return None
+    for candidate in _candidates(header):
+        first = candidate.split(",", 1)[0].strip()
+        if not first:
+            continue
+        try:
+            return x509.load_pem_x509_certificate(_rewrap(first).encode("utf-8"))
+        except ValueError:
+            continue
+    return None
+
+
+def common_name(cert: x509.Certificate) -> str:
+    """Return the trimmed CN, which is the callsign"""
+    attributes = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    if not attributes:
+        return ""
+    return str(attributes[0].value).strip()
+
+
+def _verdict(callsign: str, valid: bool, reason: str) -> Response:
+    headers = {
+        VALIDITY_HEADER: "true" if valid else "false",
+        REASON_HEADER: reason,
+    }
+    if callsign:
+        headers[CALLSIGN_HEADER] = callsign
+    return Response(status_code=200, headers=headers)
+
+
+@router.get("/check")
 async def callsign_validity_check(
-    req: CheckRequest,
-    validity_secret: str | None = Header(default=None, alias="Validity-Secret"),
-) -> CheckResponse:
-    """Return whether the given callsign is currently valid."""
-    _check_secret(validity_secret)
-    callsign = req.callsign.strip()
+    client_cert: str | None = Header(default=None, alias=CERT_HEADER),
+) -> Response:
+    """Answer Traefik's forwardAuth subrequest with the client certificate's verdict"""
+    leaf = parse_leaf(client_cert or "")
+    if leaf is None:
+        return _verdict("", False, REASON_NO_CERT)
+
+    callsign = common_name(leaf)
     if not callsign:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="callsign must be non-empty")
-    return CheckResponse(valid=await _is_valid(callsign))
+        return _verdict("", False, REASON_NO_CERT)
+
+    try:
+        result = await lookup_status(leaf.serial_number)
+    except Exception:  # pylint: disable=broad-except
+        LOGGER.exception("callsign validity lookup failed for %s", callsign)
+        return _verdict(callsign, False, REASON_ERROR)
+
+    if result.status == ocsp.OCSPCertStatus.GOOD:
+        return _verdict(callsign, True, REASON_OK)
+
+    # REVOKED and UNKNOWN both deny; an unknown serial is not one we issued.
+    LOGGER.info("callsign %s denied, status=%s", callsign, result.status)
+    return _verdict(callsign, False, REASON_INVALID)
