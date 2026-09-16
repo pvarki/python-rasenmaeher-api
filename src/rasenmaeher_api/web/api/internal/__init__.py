@@ -1,9 +1,4 @@
-"""Internal (in-cluster only) API surface.
-
-Endpoints here are not exposed through Traefik's public routers. They answer
-infrastructure questions such as the per-request mTLS authorization that
-Traefik's forwardAuth middleware asks on every request to an mTLS route.
-"""
+"""Internal (in-cluster only) API surface, not exposed through Traefik's routers."""
 
 from fastapi import APIRouter
 

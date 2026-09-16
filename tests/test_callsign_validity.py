@@ -24,11 +24,7 @@ GOOD = CertStatusResult(status=ocsp.OCSPCertStatus.GOOD)
 
 
 def make_cert(common_name: str = "ALPHA01", serial: int = 0x4242) -> str:
-    """A self-signed leaf; only the CN and serial matter here.
-
-    The endpoint does not verify the issuer: Traefik has already checked the
-    chain against the same trust bundle on the TLS connection.
-    """
+    """A self-signed leaf; only the CN and serial are read"""
     key = ec.generate_private_key(ec.SECP256R1())
     name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
     now = datetime.datetime.now(datetime.UTC)
@@ -51,7 +47,7 @@ def stripped(pem: str) -> str:
 
 
 def patch_status(monkeypatch: pytest.MonkeyPatch, result: Any, seen: list[int] | None = None) -> None:
-    """Replace the DB lookup; lookup_status itself is covered in tests/cert"""
+    """Replace the DB lookup; lookup_status has its own tests under tests/cert"""
 
     async def fake_lookup(serial: int) -> Any:
         if seen is not None:
@@ -122,12 +118,10 @@ async def test_lookup_failure_is_an_error_verdict(
 async def test_lookup_keys_on_the_certificate_serial(
     unauth_client_session: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The verdict must come from the serial, not the callsign.
-
-    The endpoint this replaced looked the callsign up in the Person table, which
-    can disagree with whether the certificate itself was revoked. Keying on the
-    serial is what makes this the same answer the OCSP responder gives.
-    """
+    """Regression test. The endpoint this replaced looked the callsign up in the
+    Person table, which can disagree with whether the certificate itself was
+    revoked. Keying on the serial is what keeps this and the OCSP responder in
+    agreement."""
     seen: list[int] = []
     patch_status(monkeypatch, GOOD, seen)
     await unauth_client_session.get(ENDPOINT, headers={CERT_HEADER: make_cert("BRAVO02", 0xDEADBEEF)})
