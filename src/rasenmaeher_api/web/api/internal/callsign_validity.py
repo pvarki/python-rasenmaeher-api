@@ -1,13 +1,9 @@
 """Per-request mTLS authorization, answered for Traefik's ``forwardAuth`` middleware.
 
-Traefik forwards the verified client certificate as ``X-Forwarded-Tls-Client-Cert``
-(``passTLSClientCert`` with ``pem: true``). This endpoint recovers the leaf and
-resolves its serial through :func:`lookup_status` -- the same function the OCSP
-responder answers from, so the edge and OCSP clients can never disagree about
-whether a certificate is revoked.
-
-The response is always ``200`` when the endpoint successfully answers. The verdict
-therefore travels in headers:
+Recovers the client certificate from ``X-Forwarded-Tls-Client-Cert`` and resolves
+its serial through :func:`lookup_status`, the same function the OCSP responder
+answers from. Always replies ``200``; the verdict is in the headers, which
+``callsign-redirect`` acts on:
 
     Callsign               the certificate CN
     Callsign-Valid         "true" or "false"
@@ -16,13 +12,7 @@ therefore travels in headers:
 SECURITY: the certificate header is authentication input. It is trustworthy only
 because ``strip-identity-headers`` blanks it on the ``websecure`` entrypoint --
 entrypoint middlewares run before router middlewares -- and ``mtls-pass-client-cert``
-then sets it from the verified connection. This endpoint is reachable only from
-Traefik's mesh identity; see the AuthorizationPolicy in the platform repo.
-
-The certificate is not re-verified here. Traefik has already checked it against
-the same trust-manager bundle on the TLS connection (see the mtls-optional and
-mtls-strict TLSOptions), so a second check would only ever disagree when the
-header did not come from the connection at all.
+then sets it from the verified connection.
 """
 
 import logging
@@ -61,11 +51,8 @@ def _rewrap(body: str) -> str:
 
 
 def _candidates(header: str) -> list[str]:
-    """Traefik sends the header url-encoded or literal.
-
-    The literal form is tried first because unquoting unconditionally would turn
-    a legal base64 ``+`` into a space.
-    """
+    """The header url-encoded or literal; the literal first, since unquoting
+    would turn a legal base64 ``+`` into a space."""
     out = [header]
     if "%" not in header:
         return out
@@ -76,10 +63,8 @@ def _candidates(header: str) -> list[str]:
 
 
 def parse_leaf(header: str) -> x509.Certificate | None:
-    """Recover the leaf certificate from a passTLSClientCert header value.
-
-    Traefik comma-separates the chain; only the first entry is the leaf.
-    """
+    """Recover the leaf from a passTLSClientCert header; the chain is
+    comma-separated and only the first entry is the leaf."""
     header = header.strip()
     if not header:
         return None
@@ -134,6 +119,6 @@ async def callsign_validity_check(
     if result.status == ocsp.OCSPCertStatus.GOOD:
         return _verdict(callsign, True, REASON_OK)
 
-    # REVOKED and UNKNOWN both deny; an unknown serial is not one we issued.
+    # REVOKED and UNKNOWN both deny.
     LOGGER.info("callsign %s denied, status=%s", callsign, result.status)
     return _verdict(callsign, False, REASON_INVALID)
