@@ -1,9 +1,8 @@
 """Internal (in-cluster only) API surface.
 
-Endpoints under here are not intended to be exposed via Traefik — they are
-reachable only on the in-cluster Service. They power infrastructure-side
-features such as the callsign-validity websocket consumed by the Traefik
-plugin.
+Endpoints here are not exposed through Traefik's public routers. They answer
+infrastructure questions such as the per-request mTLS authorization that
+Traefik's forwardAuth middleware asks on every request to an mTLS route.
 """
 
 from fastapi import APIRouter
