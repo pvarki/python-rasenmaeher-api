@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import logging
 import shutil
+import subprocess  # nosec
 import uuid
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -31,6 +32,42 @@ from .engine import EngineWrapper
 from .errors import BackendError, CallsignReserved, Deleted, NotFound
 
 LOGGER = logging.getLogger(__name__)
+# Same algorithms libpvarki.mtlshelp.pkcs12.serialize_legacy_pkcs12 uses, for the same broad client support
+NOPASS_PKCS12_ALGOS = ("-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1")
+
+
+def write_nopass_pkcs12(certfile: Path, keyfile: Path, target: Path, friendlyname: str) -> None:
+    """Write a PKCS12 container that opens with an empty password
+
+    ponytail: shells out to openssl because pyca/cryptography refuses to serialize with an empty
+    password ("Password must be 1 or more bytes"), and its only password-free alternative,
+    NoEncryption(), emits a MAC-less container that the JDK PKCS12 provider reads as having no
+    entries at all. The container therefore has to stay encrypted, just with an empty password:
+    that is precisely what AOSP CredentialHelper.hasPassword() probes for before Android's
+    CertInstaller decides whether to show its password dialog.
+    """
+    subprocess.run(  # nosec
+        [
+            "openssl",
+            "pkcs12",
+            "-export",
+            "-out",
+            str(target),
+            "-inkey",
+            str(keyfile),
+            "-in",
+            str(certfile),
+            "-name",
+            friendlyname,
+            *NOPASS_PKCS12_ALGOS,
+            "-passout",
+            "pass:",
+        ],
+        check=True,
+        capture_output=True,
+    )
+    # No password means the key is only as safe as the file mode
+    target.chmod(0o600)
 
 
 class Person(ORMBaseModel, table=True):
@@ -160,8 +197,8 @@ class Person(ORMBaseModel, table=True):
         return refresh
 
     async def create_pfx(self) -> Path:
-        """Put cert and key to PKCS12 container"""
-        if self.pfxfile.exists():
+        """Put cert and key to PKCS12 containers, with and without a password"""
+        if self.pfxfile.exists() and (self.nopass_pfxfile.exists() or not self.privkeyfile.exists()):
             return self.pfxfile
 
         def write_pfx() -> None:
@@ -169,6 +206,10 @@ class Person(ORMBaseModel, table=True):
             nonlocal self
             if self.privkeyfile.exists():
                 p12bytes = convert_pem_to_pkcs12(self.certfile, self.privkeyfile, self.callsign, None, self.callsign)
+                # The passworded container is what the Apple profile embeds, the empty-password one
+                # is what everything else downloads. Keep the friendly name on both: Android only
+                # asks the user to name a credential when the container does not carry one.
+                write_nopass_pkcs12(self.certfile, self.privkeyfile, self.nopass_pfxfile, self.callsign)
             else:
                 p12bytes = convert_pem_to_pkcs12(self.certfile, None, self.callsign, None, self.callsign)
             self.pfxfile.write_bytes(p12bytes)
@@ -241,6 +282,11 @@ class Person(ORMBaseModel, table=True):
     def pfxfile(self) -> Path:
         """Return a PKCS12 PFX file"""
         return Path(self.certspath) / "mtls.pfx"
+
+    @property
+    def nopass_pfxfile(self) -> Path:
+        """Return a PKCS12 PFX file that opens with an empty password"""
+        return Path(self.certspath) / "mtls_nopass.pfx"
 
     @property
     def certfile(self) -> Path:
