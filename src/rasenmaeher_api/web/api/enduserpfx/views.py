@@ -71,8 +71,10 @@ async def get_user_mobileconfig(
 ) -> Response:
     """Get the cert and key as an Apple configuration profile, which installs without a prompt"""
     deployment = RMSettings.singleton().deployment_name
-    callsign = callsign.removesuffix(f"_{deployment}.mobileconfig")
+    # Strip the extension before the deployment suffix: "/{callsign}.mobileconfig" is registered
+    # first, so it is what matches the long form too, leaving "OTTER1_localmaeher" in the param.
     callsign = callsign.removesuffix(".mobileconfig")
+    callsign = callsign.removesuffix(f"_{deployment}")
     LOGGER.debug(f"MOBILECONFIG: Called with callsign={callsign}")
     if person.callsign != callsign:
         LOGGER.audit(  # type: ignore[attr-defined]
