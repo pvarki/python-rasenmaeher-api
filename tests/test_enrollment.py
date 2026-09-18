@@ -702,7 +702,7 @@ async def test_enroll_with_csr(
     unauth_client_session.headers.update({"Authorization": f"Bearer {user_jwt}"})
     resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{callsign}.pfx")
     resp.raise_for_status()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, callsign.encode("utf-8"))
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"")
     assert not pfxdata.key
     assert pfxdata.additional_certs[0]
     cert = pfxdata.additional_certs[0]

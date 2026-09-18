@@ -159,9 +159,9 @@ async def get_user_pfx(
     )
 
     # Empty password everywhere it works, which is everything except Apple. Apple has the
-    # .mobileconfig endpoint instead. Falls back for people whose private key we do not hold.
+    # .mobileconfig endpoint instead. create_pfx always writes this one, so never serve the other.
     return FileResponse(
-        path=person.nopass_pfxfile if person.nopass_pfxfile.exists() else person.pfxfile,
+        path=person.nopass_pfxfile,
         media_type="application/x-pkcs12",
         filename=f"{callsign}_{RMSettings.singleton().deployment_name}.pfx",
     )

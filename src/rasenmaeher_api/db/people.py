@@ -36,7 +36,7 @@ LOGGER = logging.getLogger(__name__)
 NOPASS_PKCS12_ALGOS = ("-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1")
 
 
-def write_nopass_pkcs12(certfile: Path, keyfile: Path, target: Path, friendlyname: str) -> None:
+def write_nopass_pkcs12(certfile: Path, keyfile: Path | None, target: Path, friendlyname: str) -> None:
     """Write a PKCS12 container that opens with an empty password
 
     ponytail: shells out to openssl because pyca/cryptography refuses to serialize with an empty
@@ -46,6 +46,10 @@ def write_nopass_pkcs12(certfile: Path, keyfile: Path, target: Path, friendlynam
     that is precisely what AOSP CredentialHelper.hasPassword() probes for before Android's
     CertInstaller decides whether to show its password dialog.
     """
+    # People who enrolled with their own CSR get a cert-only container, there is no key to put in it.
+    # -name labels the key, so with no key the friendly name has to go on the cert bag instead.
+    keyargs = ["-inkey", str(keyfile)] if keyfile else ["-nokeys"]
+    nameargs = ["-name", friendlyname] if keyfile else ["-caname", friendlyname]
     subprocess.run(  # nosec
         [
             "openssl",
@@ -53,12 +57,10 @@ def write_nopass_pkcs12(certfile: Path, keyfile: Path, target: Path, friendlynam
             "-export",
             "-out",
             str(target),
-            "-inkey",
-            str(keyfile),
+            *keyargs,
             "-in",
             str(certfile),
-            "-name",
-            friendlyname,
+            *nameargs,
             *NOPASS_PKCS12_ALGOS,
             "-passout",
             "pass:",
@@ -198,21 +200,20 @@ class Person(ORMBaseModel, table=True):
 
     async def create_pfx(self) -> Path:
         """Put cert and key to PKCS12 containers, with and without a password"""
-        if self.pfxfile.exists() and (self.nopass_pfxfile.exists() or not self.privkeyfile.exists()):
+        if self.pfxfile.exists() and self.nopass_pfxfile.exists():
             return self.pfxfile
 
         def write_pfx() -> None:
             """Do the IO"""
             nonlocal self
-            if self.privkeyfile.exists():
-                p12bytes = convert_pem_to_pkcs12(self.certfile, self.privkeyfile, self.callsign, None, self.callsign)
-                # The passworded container is what the Apple profile embeds, the empty-password one
-                # is what everything else downloads. Keep the friendly name on both: Android only
-                # asks the user to name a credential when the container does not carry one.
-                write_nopass_pkcs12(self.certfile, self.privkeyfile, self.nopass_pfxfile, self.callsign)
-            else:
-                p12bytes = convert_pem_to_pkcs12(self.certfile, None, self.callsign, None, self.callsign)
+            keyfile = self.privkeyfile if self.privkeyfile.exists() else None
+            p12bytes = convert_pem_to_pkcs12(self.certfile, keyfile, self.callsign, None, self.callsign)
             self.pfxfile.write_bytes(p12bytes)
+            # The passworded container is what the Apple profile embeds, the empty-password one is
+            # what everything else downloads. Always write both: the download path must never have
+            # to serve the passworded one, the UI no longer tells anybody what the password is.
+            # Keep the friendly name, Android prefills the credential name prompt from it.
+            write_nopass_pkcs12(self.certfile, keyfile, self.nopass_pfxfile, self.callsign)
 
         await asyncio.get_event_loop().run_in_executor(None, write_pfx)
         return self.pfxfile
