@@ -642,6 +642,19 @@ async def test_enroll_with_invite_code(
     assert embedded.key
     assert embedded.cert
 
+    # iOS only hands the profile to its installer on a real navigation, which sends no
+    # Authorization header, so the cookie has to carry the auth on its own.
+    resp = await unauth_client_session.post("/api/v1/enduserpfx/session")
+    resp.raise_for_status()
+    saved_auth = unauth_client_session.headers["Authorization"]
+    del unauth_client_session.headers["Authorization"]
+    navurl = f"/api/v1/enduserpfx/{enrollenrique}_{RMSettings.singleton().deployment_name}.mobileconfig"
+    resp = await unauth_client_session.get(navurl)
+    resp.raise_for_status()
+    assert resp.headers["content-type"].startswith("application/x-apple-aspen-config")
+    assert plistlib.loads(resp.content)["PayloadContent"][0]["PayloadType"] == "com.apple.security.pkcs12"
+    unauth_client_session.headers.update({"Authorization": saved_auth})
+
     # Fetch also with alternative URLs
     pfxurl = f"/api/v1/enduserpfx/{enrollenrique}.pfx"
     LOGGER.debug(f"Trying: {pfxurl}")

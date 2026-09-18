@@ -2,11 +2,13 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import FileResponse
+from libpvarki.schemas.generic import OperationResultResponse
 
 from ....db import Person
 from ....rmsettings import RMSettings
+from ..enrollment.views import issue_enrollment_jwt
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
 from .mobileconfig import MEDIA_TYPE, build_mobileconfig
@@ -60,6 +62,32 @@ async def get_user_pem(
         media_type="application/x-pem-file",
         filename=f"{callsign}_{RMSettings.singleton().deployment_name}.pem",
     )
+
+
+@router.post("/session")
+async def create_download_session(
+    request: Request,
+    response: Response,
+    person: Person = Depends(ValidUser(auto_error=True)),
+) -> OperationResultResponse:
+    """Refresh the JWT cookie so the browser can fetch a download by plain navigation
+
+    iOS only hands a .mobileconfig to the profile installer when Safari navigates to it and sees
+    the response content type, and a navigation carries no Authorization header. The cookie is the
+    only credential that survives one, and the one enrollment sets expires long before the JWT the
+    page holds, so anyone downloading again later needs a fresh one.
+    """
+    issue_enrollment_jwt(response, {"sub": person.callsign})
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Download session refreshed",
+        extra=build_audit_extra(
+            action="download_session",
+            outcome="success",
+            actor=person.callsign,
+            request=request,
+        ),
+    )
+    return OperationResultResponse(success=True)
 
 
 @router.get(f"/{{callsign}}_{RMSettings.singleton().deployment_name}.mobileconfig")
