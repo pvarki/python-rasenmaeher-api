@@ -129,6 +129,7 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
         libffi8 \
         tini \
         libpq5 \
+        openssl \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
