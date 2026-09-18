@@ -1,6 +1,7 @@
 """Test enrollment endpoint"""
 
 import logging
+import plistlib
 import secrets
 import uuid
 from pathlib import Path
@@ -622,11 +623,24 @@ async def test_enroll_with_invite_code(
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{enrollenrique}")
     resp.raise_for_status()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(
-        resp.content, enrollenrique.encode("ascii")
-    )
+    # Downloaded containers have no password, see get_user_pfx
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"")
     assert pfxdata.key
     assert pfxdata.cert
+    assert pfxdata.cert.friendly_name
+    assert pfxdata.cert.friendly_name.decode("utf-8") == enrollenrique
+
+    # The Apple profile carries the passworded container plus its password
+    resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{enrollenrique}.mobileconfig")
+    resp.raise_for_status()
+    assert resp.headers["content-type"].startswith("application/x-apple-aspen-config")
+    payload = plistlib.loads(resp.content)["PayloadContent"][0]
+    assert payload["PayloadType"] == "com.apple.security.pkcs12"
+    embedded = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(
+        payload["PayloadContent"], payload["Password"].encode("utf-8")
+    )
+    assert embedded.key
+    assert embedded.cert
 
     # Fetch also with alternative URLs
     pfxurl = f"/api/v1/enduserpfx/{enrollenrique}.pfx"

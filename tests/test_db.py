@@ -451,6 +451,36 @@ async def test_pfx_parse(dbinit_func) -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_nopass_pfx_parse(dbinit_func) -> None:
+    """Test that the password-less PFX file gets done and actually has no password"""
+    _ = dbinit_func
+    await mtls_init()
+    callsign = f"PFXMAN02a_{secrets.token_hex(4)}"
+    person = await Person.create_with_cert(callsign)
+
+    async def wait_for_nopass_pfxfile() -> None:
+        """wait for the background task to do it's work"""
+        nonlocal person
+        while not person.nopass_pfxfile.exists():
+            await asyncio.sleep(0.5)
+
+    await asyncio.wait_for(wait_for_nopass_pfxfile(), timeout=5.0)
+
+    # Android skips its password dialog only when the container opens with an empty password
+    pfxbytes = person.nopass_pfxfile.read_bytes()
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(pfxbytes, b"")
+    assert pfxdata.key
+    assert pfxdata.cert
+    # ...and skips asking for a credential name only when the container carries one
+    assert pfxdata.cert.friendly_name
+    assert pfxdata.cert.friendly_name.decode("utf-8") == callsign
+
+    # The container the Apple profile embeds must still want its password
+    with pytest.raises(ValueError):
+        cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(person.pfxfile.read_bytes(), b"")
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_productcn_forbid(dbinit_func) -> None:
     """Test that trying to create enrollment or person with callsign that matches a product CN fails"""
     _ = dbinit_func
