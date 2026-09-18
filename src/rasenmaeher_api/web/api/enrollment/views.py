@@ -196,10 +196,16 @@ async def request_enrollment_list(code: str | None = None) -> EnrollmentListOut:
     async for enrollment in Enrollment.list():
         # mdm marks a device an admin planned for MDM enrolment. It is waiting for the device's own
         # CSR through the agent, not for a human to approve it, and approving it by hand is refused.
+        #
+        # The code is withheld for people: there it is a secret the person tells the admin, and
+        # listing it would let any admin approve anybody without being told anything. For a device
+        # it is the opposite -- the admin has to type it into the MDM for the device to enrol at
+        # all, and nobody else ever learns it. Withholding it there would mean an admin who plans a
+        # hundred devices can only ever read the codes once, at the moment of creation.
         result_list.append(
             {
                 "callsign": enrollment.callsign,
-                "approvecode": "",
+                "approvecode": enrollment.approvecode if enrollment.planned_for_mdm else "",
                 "state": enrollment.state,
                 "mdm": enrollment.planned_for_mdm,
             }

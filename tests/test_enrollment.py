@@ -933,6 +933,33 @@ async def test_list_marks_devices_planned_for_mdm(tilauspalvelu_jwt_admin_client
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_the_list_carries_the_code_for_devices_but_not_for_people(
+    tilauspalvelu_jwt_admin_client: TestClient,
+) -> None:
+    """A device's code is configuration an admin must type into the MDM; a person's is a secret
+
+    Withholding it for devices would mean an admin who plans a hundred of them can only read the
+    codes once, at the moment of creation. Exposing it for people would let any admin approve
+    anybody without being told anything.
+    """
+    device = f"mdmcode_{secrets.token_hex(4)}"
+    human = f"humancode_{secrets.token_hex(4)}"
+    made = await tilauspalvelu_jwt_admin_client.post(
+        "/api/v1/enrollment/init", json={"callsign": device, "mdm": True}
+    )
+    assert made.status_code == 200
+    expected = made.json()["approvecode"]
+    assert await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
+    if tilauspalvelu_jwt_admin_client.cookie_jar is not None:
+        tilauspalvelu_jwt_admin_client.cookie_jar.clear()
+
+    listed = (await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list")).json()["callsign_list"]
+    codes = {row["callsign"]: row["approvecode"] for row in listed if row["callsign"] in (device, human)}
+    assert codes[device] == expected, "a device's code has to be readable again after creation"
+    assert codes[human] == "", "a person's code is theirs to tell the admin"
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_two_devices_cannot_both_claim_one_planned_callsign() -> None:
     """The clause the MVP plan will not sign off without
 
