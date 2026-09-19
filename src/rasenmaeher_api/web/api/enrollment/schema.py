@@ -469,3 +469,12 @@ class EnrollmentInviteCodeDeleteIn(BaseModel):
     )
 
     invite_code: str
+
+
+class MdmSettingsOut(BaseModel):
+    """What an operator has to type into whatever MDM their unit runs"""
+
+    #: Where the MDM sends each device's certificate request
+    scep_url: str
+    #: The SCEP challenge, or empty if this deployment has not passed it through
+    challenge: str

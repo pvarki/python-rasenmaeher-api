@@ -43,6 +43,7 @@ from .schema import (
     EnrollmentShowVerificationCodeOut,
     EnrollmentStatusIn,
     EnrollmentStatusOut,
+    MdmSettingsOut,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -212,6 +213,29 @@ async def request_enrollment_list(code: str | None = None) -> EnrollmentListOut:
         )
 
     return EnrollmentListOut(callsign_list=result_list)
+
+
+@ENROLLMENT_ROUTER.get(
+    "/mdm-settings",
+    response_model=MdmSettingsOut,
+    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+)
+async def request_mdm_settings(request: Request) -> MdmSettingsOut:
+    """What to configure the MDM with
+
+    The challenge is not a secret and is not treated as one: it sits in the MDM's own
+    configuration, the MDM hands it to every device, and it is a nuisance filter against whatever
+    scans the internet. What decides whether a device may have a callsign is the per-enrolment code
+    in its certificate request, which is per device and never leaves the admin and the MDM.
+
+    Admin only all the same, because there is no reason for anybody else to read it.
+    """
+    cnf = RMSettings.singleton()
+    host = (request.url.hostname or "").removeprefix("mtls.")
+    return MdmSettingsOut(
+        scep_url=f"https://{host}/scep" if host else "",
+        challenge=cnf.mdm_scep_challenge,
+    )
 
 
 def issue_enrollment_jwt(response: Response, claims: dict[str, Any]) -> str:
