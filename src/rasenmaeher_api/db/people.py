@@ -4,7 +4,6 @@ import asyncio
 import datetime
 import logging
 import shutil
-import subprocess  # nosec
 import uuid
 from collections.abc import AsyncGenerator
 from pathlib import Path
@@ -22,6 +21,7 @@ from sqlalchemy.sql import func
 from sqlmodel import Field, SQLModel, select
 
 from ..cert.backend import ReasonTypes, refresh_ocsp, revoke_pem, sign_csr, validate_reason
+from ..cert.pkcs12 import write_nopass_pkcs12
 from ..kchelpers import KCClient, KCUserData
 from ..productapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
@@ -32,44 +32,6 @@ from .engine import EngineWrapper
 from .errors import BackendError, CallsignReserved, Deleted, NotFound
 
 LOGGER = logging.getLogger(__name__)
-# Same algorithms libpvarki.mtlshelp.pkcs12.serialize_legacy_pkcs12 uses, for the same broad client support
-NOPASS_PKCS12_ALGOS = ("-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1")
-
-
-def write_nopass_pkcs12(certfile: Path, keyfile: Path | None, target: Path, friendlyname: str) -> None:
-    """Write a PKCS12 container that opens with an empty password
-
-    ponytail: shells out to openssl because pyca/cryptography refuses to serialize with an empty
-    password ("Password must be 1 or more bytes"), and its only password-free alternative,
-    NoEncryption(), emits a MAC-less container that the JDK PKCS12 provider reads as having no
-    entries at all. The container therefore has to stay encrypted, just with an empty password:
-    that is precisely what AOSP CredentialHelper.hasPassword() probes for before Android's
-    CertInstaller decides whether to show its password dialog.
-    """
-    # People who enrolled with their own CSR get a cert-only container, there is no key to put in it.
-    # -name labels the key, so with no key the friendly name has to go on the cert bag instead.
-    keyargs = ["-inkey", str(keyfile)] if keyfile else ["-nokeys"]
-    nameargs = ["-name", friendlyname] if keyfile else ["-caname", friendlyname]
-    subprocess.run(  # nosec
-        [
-            "openssl",
-            "pkcs12",
-            "-export",
-            "-out",
-            str(target),
-            *keyargs,
-            "-in",
-            str(certfile),
-            *nameargs,
-            *NOPASS_PKCS12_ALGOS,
-            "-passout",
-            "pass:",
-        ],
-        check=True,
-        capture_output=True,
-    )
-    # No password means the key is only as safe as the file mode
-    target.chmod(0o600)
 
 
 class Person(ORMBaseModel, table=True):
