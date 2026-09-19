@@ -1,10 +1,4 @@
-"""Internal (in-cluster only) API surface.
-
-Endpoints under here are not intended to be exposed via Traefik — they are
-reachable only on the in-cluster Service. They power infrastructure-side
-features such as the callsign-validity websocket consumed by the Traefik
-plugin.
-"""
+"""Internal (in-cluster only) API surface, not exposed through Traefik's routers."""
 
 from fastapi import APIRouter
 
