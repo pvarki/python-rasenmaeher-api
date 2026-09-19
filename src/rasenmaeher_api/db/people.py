@@ -21,6 +21,7 @@ from sqlalchemy.sql import func
 from sqlmodel import Field, SQLModel, select
 
 from ..cert.backend import ReasonTypes, refresh_ocsp, revoke_pem, sign_csr, validate_reason
+from ..cert.pkcs12 import write_nopass_pkcs12
 from ..kchelpers import KCClient, KCUserData
 from ..productapihelpers import post_to_all_products
 from ..rmsettings import RMSettings
@@ -160,18 +161,21 @@ class Person(ORMBaseModel, table=True):
         return refresh
 
     async def create_pfx(self) -> Path:
-        """Put cert and key to PKCS12 container"""
-        if self.pfxfile.exists():
+        """Put cert and key to PKCS12 containers, with and without a password"""
+        if self.pfxfile.exists() and self.nopass_pfxfile.exists():
             return self.pfxfile
 
         def write_pfx() -> None:
             """Do the IO"""
             nonlocal self
-            if self.privkeyfile.exists():
-                p12bytes = convert_pem_to_pkcs12(self.certfile, self.privkeyfile, self.callsign, None, self.callsign)
-            else:
-                p12bytes = convert_pem_to_pkcs12(self.certfile, None, self.callsign, None, self.callsign)
+            keyfile = self.privkeyfile if self.privkeyfile.exists() else None
+            p12bytes = convert_pem_to_pkcs12(self.certfile, keyfile, self.callsign, None, self.callsign)
             self.pfxfile.write_bytes(p12bytes)
+            # The passworded container is what the Apple profile embeds, the empty-password one is
+            # what everything else downloads. Always write both: the download path must never have
+            # to serve the passworded one, the UI no longer tells anybody what the password is.
+            # Keep the friendly name, Android prefills the credential name prompt from it.
+            write_nopass_pkcs12(self.certfile, keyfile, self.nopass_pfxfile, self.callsign)
 
         await asyncio.get_event_loop().run_in_executor(None, write_pfx)
         return self.pfxfile
@@ -241,6 +245,11 @@ class Person(ORMBaseModel, table=True):
     def pfxfile(self) -> Path:
         """Return a PKCS12 PFX file"""
         return Path(self.certspath) / "mtls.pfx"
+
+    @property
+    def nopass_pfxfile(self) -> Path:
+        """Return a PKCS12 PFX file that opens with an empty password"""
+        return Path(self.certspath) / "mtls_nopass.pfx"
 
     @property
     def certfile(self) -> Path:

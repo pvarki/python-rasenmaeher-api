@@ -1,6 +1,7 @@
 """Test enrollment endpoint"""
 
 import logging
+import plistlib
 import secrets
 import uuid
 from pathlib import Path
@@ -622,11 +623,37 @@ async def test_enroll_with_invite_code(
     unauth_client_session.headers.update({"Authorization": f"Bearer {enrique_jwt}"})
     resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{enrollenrique}")
     resp.raise_for_status()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(
-        resp.content, enrollenrique.encode("ascii")
-    )
+    # Downloaded containers have no password, see get_user_pfx
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"")
     assert pfxdata.key
     assert pfxdata.cert
+    assert pfxdata.cert.friendly_name
+    assert pfxdata.cert.friendly_name.decode("utf-8") == enrollenrique
+
+    # The Apple profile carries the passworded container plus its password
+    resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{enrollenrique}.mobileconfig")
+    resp.raise_for_status()
+    assert resp.headers["content-type"].startswith("application/x-apple-aspen-config")
+    payload = plistlib.loads(resp.content)["PayloadContent"][0]
+    assert payload["PayloadType"] == "com.apple.security.pkcs12"
+    embedded = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(
+        payload["PayloadContent"], payload["Password"].encode("utf-8")
+    )
+    assert embedded.key
+    assert embedded.cert
+
+    # iOS only hands the profile to its installer on a real navigation, which sends no
+    # Authorization header, so the cookie has to carry the auth on its own.
+    resp = await unauth_client_session.post("/api/v1/enduserpfx/session")
+    resp.raise_for_status()
+    saved_auth = unauth_client_session.headers["Authorization"]
+    del unauth_client_session.headers["Authorization"]
+    navurl = f"/api/v1/enduserpfx/{enrollenrique}_{RMSettings.singleton().deployment_name}.mobileconfig"
+    resp = await unauth_client_session.get(navurl)
+    resp.raise_for_status()
+    assert resp.headers["content-type"].startswith("application/x-apple-aspen-config")
+    assert plistlib.loads(resp.content)["PayloadContent"][0]["PayloadType"] == "com.apple.security.pkcs12"
+    unauth_client_session.headers.update({"Authorization": saved_auth})
 
     # Fetch also with alternative URLs
     pfxurl = f"/api/v1/enduserpfx/{enrollenrique}.pfx"
@@ -688,7 +715,7 @@ async def test_enroll_with_csr(
     unauth_client_session.headers.update({"Authorization": f"Bearer {user_jwt}"})
     resp = await unauth_client_session.get(f"/api/v1/enduserpfx/{callsign}.pfx")
     resp.raise_for_status()
-    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, callsign.encode("utf-8"))
+    pfxdata = cryptography.hazmat.primitives.serialization.pkcs12.load_pkcs12(resp.content, b"")
     assert not pfxdata.key
     assert pfxdata.additional_certs[0]
     cert = pfxdata.additional_certs[0]
