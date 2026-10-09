@@ -233,7 +233,11 @@ async def test_list_as_adm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     LOGGER.debug(resp_dict)
     assert resp_dict["callsign_list"] is not None
     assert resp_dict["callsign_list"][0]["callsign"]
-    assert not resp_dict["callsign_list"][0]["approvecode"]
+    # Every person's code, not just whichever row the database happened to return first: a device
+    # planned for MDM carries its code on purpose, so an index-0 check is a coin flip on what
+    # earlier tests left behind. Which kind may show its code is pinned in
+    # test_the_list_carries_the_code_for_devices_but_not_for_people, on rows it created itself.
+    assert all(not row["approvecode"] for row in resp_dict["callsign_list"] if not row["mdm"])
     assert resp.status_code == 200
 
 
@@ -761,13 +765,21 @@ async def mdm_agent_client(app_instance: FastAPI) -> AsyncGenerator[TestClient, 
     settings.mdm_agent_cns = previous
 
 
-async def _device_csr(tempdir: Path, callsign: str, name: str = "device") -> str:
-    """A CSR the way a device would send one: its own key, its callsign as the CN"""
+async def _device_csr(tempdir: Path, callsign: str, name: str = "device", code: str = "") -> str:
+    """A CSR the way a device would send one: its own key, its callsign as the CN
+
+    With a code, also the way an MDM sends one: ``<callsign>@<approvecode>`` rendered into the one
+    per-host subject field an MDM can substitute, which is what proves the MDM assigned this
+    device this callsign. Without it, what a caller who only guessed the callsign would send.
+    """
     privkeyfile = Path(tempdir) / f"{name}.key"
     pubkeyfile = Path(tempdir) / f"{name}.pub"
     csrfile = Path(tempdir) / f"{name}.csr"
+    reqdn = {"CN": callsign}
+    if code:
+        reqdn["OU"] = f"{callsign}@{code}"
     ckp = await async_create_keypair(privkeyfile, pubkeyfile)
-    return str(await async_create_client_csr(ckp, csrfile, {"CN": callsign}))
+    return str(await async_create_client_csr(ckp, csrfile, reqdn))
 
 
 def _public_key_der(pem: str) -> bytes:
@@ -814,8 +826,9 @@ async def test_mdm_agent_completes_planned_enrollment(
         "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
     )
     assert resp.status_code == 200
+    code = resp.json()["approvecode"]
 
-    csrpem = await _device_csr(tempdir, callsign)
+    csrpem = await _device_csr(tempdir, callsign, code=code)
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem})
     assert resp.status_code == 200
     body = resp.json()
@@ -826,7 +839,13 @@ async def test_mdm_agent_completes_planned_enrollment(
     # The certificate must be for the key the device holds. If this ever regresses, rasenmaeher
     # generated a keypair of its own and the device received a certificate it cannot use.
     assert _public_key_der(certpem) == _public_key_der(csrpem)
-    assert [attr.value for attr in x509.load_pem_x509_certificate(certpem.encode("utf-8")).subject] == [callsign]
+    # The mTLS edge authorises on the CN it reads off the certificate, so exactly one and it is
+    # the callsign. The signer copies the rest of the request's subject verbatim, which is why the
+    # enrolment code rides along -- spent by the time it is in there, but worth noticing if the
+    # signer ever starts naming the certificate itself instead.
+    issued = x509.load_pem_x509_certificate(certpem.encode("utf-8"))
+    assert [attr.value for attr in issued.subject.get_attributes_for_oid(NameOID.COMMON_NAME)] == [callsign]
+    assert [attr.value for attr in issued.subject] == [f"{callsign}@{code}", callsign]
 
     # The reply can be lost on the way back to the MDM, which then repeats the request verbatim
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem})
@@ -834,7 +853,7 @@ async def test_mdm_agent_completes_planned_enrollment(
     assert resp.json()["certificate"] == certpem
 
     # ...but a different key for the same callsign is somebody else
-    other_csr = await _device_csr(tempdir, callsign, name="imposter")
+    other_csr = await _device_csr(tempdir, callsign, name="imposter", code=code)
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": other_csr})
     assert resp.status_code == 403
 
@@ -1061,7 +1080,8 @@ async def test_an_ordinary_device_request_is_still_accepted(
         "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
     )
     assert resp.status_code == 200
-    csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="plain")
+    code = resp.json()["approvecode"]
+    csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="plain", code=code)
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem})
     assert resp.status_code == 200, resp.text
 
