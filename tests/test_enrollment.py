@@ -944,9 +944,7 @@ async def test_the_list_carries_the_code_for_devices_but_not_for_people(
     """
     device = f"mdmcode_{secrets.token_hex(4)}"
     human = f"humancode_{secrets.token_hex(4)}"
-    made = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/init", json={"callsign": device, "mdm": True}
-    )
+    made = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": device, "mdm": True})
     assert made.status_code == 200
     expected = made.json()["approvecode"]
     assert await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
