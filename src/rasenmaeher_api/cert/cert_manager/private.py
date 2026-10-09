@@ -2,9 +2,8 @@
 
 The signing flow creates a cert-manager ``CertificateRequest`` CR carrying the
 caller-provided CSR, waits until cert-manager issues the certificate, and returns
-the issued certificate as PEM. Revocation is DB-driven (consumed by the
-Traefik callsign-validity plugin), so the revoke functions only best-effort
-clean up the CR.
+the issued certificate as PEM. Revocation is DB-driven (served to clients by
+the OCSP responder), so the revoke functions only best-effort clean up the CR.
 """
 
 import base64
@@ -253,8 +252,8 @@ def validate_reason(reason: ReasonTypes) -> cryptography.x509.ReasonFlags:
 
 async def revoke_pem(pem: str | Path, reason: ReasonTypes) -> None:
     """Best-effort revoke. Under cert-manager, revocation is authoritative in
-    the rmapi DB (``Person.deleted``) and is consumed by the Traefik plugin via
-    websocket. This function only cleans up the matching CertificateRequest CR.
+    the rmapi DB (``Person.deleted``) and is served to the edge by the OCSP
+    responder. This function only cleans up the matching CertificateRequest CR.
     """
     validate_reason(reason)
     LOGGER.debug(
