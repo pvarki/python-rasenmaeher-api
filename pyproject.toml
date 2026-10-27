@@ -95,7 +95,6 @@ extend-immutable-calls = [
 ]
 
 [tool.mypy]
-python_version="3.12"
 strict=true
 
 [[tool.mypy.overrides]]
