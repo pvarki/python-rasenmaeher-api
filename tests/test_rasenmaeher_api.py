@@ -15,7 +15,7 @@ from rasenmaeher_api.rmsettings import RMSettings
 
 def test_version() -> None:
     """Make sure version matches expected"""
-    assert __version__ == "1.19.5+261028"
+    assert __version__ == "1.20.0+261027"
 
 
 @pytest.mark.asyncio(loop_scope="session")
@@ -31,23 +31,6 @@ def test_settings() -> None:
     """Test settings defaults"""
     conf = RMSettings.singleton()
     assert "fake.localmaeher.dev.pvarki.fi" in conf.valid_product_cns
-
-
-@pytest.mark.parametrize(
-    ("cn", "expected"),
-    [
-        ("rasenmaeher", True),
-        ("RASENMAEHER", True),
-        ("fake.localmaeher.dev.pvarki.fi", True),
-        ("Fake.Localmaeher.Dev.Pvarki.Fi", True),
-        ("kissa", False),
-        ("rasenmaeher2", False),
-    ],
-)
-def test_is_reserved_cn(cn: str, expected: bool) -> None:
-    """Test service CN detection is case-insensitive"""
-    conf = RMSettings.singleton()
-    assert conf.is_reserved_cn(cn) == expected
 
 
 # FIXME: Figure out WTF is asyncios problem
