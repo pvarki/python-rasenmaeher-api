@@ -8,16 +8,11 @@ from uuid import uuid4
 
 import jwt
 import pytest
-from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
-from libpvarki.logging import add_trace_and_audit
 from multikeyjwt import Issuer, Verifier
 from sqlalchemy.exc import OperationalError
 
-from rasenmaeher_api.db.nonces import SeenToken
 from rasenmaeher_api.rmsettings import RMSettings
-from rasenmaeher_api.web.api.middleware.federation import authorize_federation
-from tests.conftest import JWT_PATH
 
 LOCAL = "localmaeher.dev.pvarki.fi"
 REMOTE = "fast-flounder.other.example"
@@ -42,31 +37,6 @@ def claims(**overrides: Any) -> dict[str, Any]:
 
 def sign(issuer: Issuer, payload: dict[str, Any]) -> str:
     return jwt.api_jws.encode(json.dumps(payload).encode(), issuer._privkey, algorithm="RS256")
-
-
-@pytest.fixture
-def consume(monkeypatch: pytest.MonkeyPatch) -> AsyncMock:
-    mock = AsyncMock()
-    monkeypatch.setattr(SeenToken, "use_token", mock)
-    return mock
-
-
-@pytest.fixture
-def client(monkeypatch: pytest.MonkeyPatch, consume: AsyncMock) -> TestClient:
-    add_trace_and_audit()
-    settings = RMSettings.singleton()
-    monkeypatch.setattr(settings, "kraftwerk_manifest_bool", True)
-    monkeypatch.setattr(settings, "kraftwerk_manifest_dict", {"dns": LOCAL, "products": {}})
-    monkeypatch.setenv("JWT_COOKIE_NAME", "rm_jwt_cookie")
-    monkeypatch.setattr(Verifier, "_singleton", Verifier(pubkeypath=JWT_PATH / "cl_jwtRS256.pub"))
-    app = FastAPI()
-
-    @app.post("/trust")
-    @app.post("/outgoing")
-    async def endpoint(payload: dict[str, Any] = Depends(authorize_federation)) -> dict[str, Any]:
-        return {"sub": payload["sub"]}
-
-    return TestClient(app)
 
 
 def post(client: TestClient, token: str, *, endpoint: str = "trust", remote: str = REMOTE):
@@ -108,9 +78,6 @@ def test_header_only(client: TestClient, consume: AsyncMock, issuer_cl: Issuer, 
         ("remote_base", REMOTE + ":4439"),
         ("nonce", "invalid"),
         ("nonce", 1),
-        ("exp", int(time.time()) - 1),
-        ("iat", int(time.time()) + 60),
-        ("nbf", int(time.time()) + 60),
         ("iat", True),
         ("nbf", True),
         ("exp", True),
@@ -123,12 +90,27 @@ def test_header_only(client: TestClient, consume: AsyncMock, issuer_cl: Issuer, 
         ("iat", None),
         ("nbf", None),
         ("exp", None),
-        ("exp", int(time.time()) + 301),
     ],
 )
 def test_invalid_claims(client: TestClient, consume: AsyncMock, issuer_cl: Issuer, field: str, value: Any) -> None:
     response = post(client, sign(issuer_cl, claims(**{field: value})))
     assert response.status_code == 403
+    consume.assert_not_called()
+
+
+@pytest.mark.parametrize("case", ["expired", "future_iat", "future_nbf", "long_lifetime"])
+def test_invalid_times(client: TestClient, consume: AsyncMock, issuer_cl: Issuer, case: str) -> None:
+    payload = claims()
+    now = payload["iat"]
+    payload.update(
+        {
+            "expired": {"exp": now - 1},
+            "future_iat": {"iat": now + 60},
+            "future_nbf": {"nbf": now + 60},
+            "long_lifetime": {"exp": now + 301},
+        }[case]
+    )
+    assert post(client, sign(issuer_cl, payload)).status_code == 403
     consume.assert_not_called()
 
 
@@ -204,3 +186,21 @@ def test_audit_no_token(client: TestClient, issuer_cl: Issuer, caplog: pytest.Lo
     assert records[-1].issuer == "orchestrator"
     assert records[-1].stage == "authorize"
     assert token not in caplog.text
+
+
+@pytest.mark.parametrize("field", ["iat", "nbf", "exp"])
+def test_nonfinite_timestamp(client: TestClient, consume: AsyncMock, issuer_cl: Issuer, field: str) -> None:
+    assert post(client, sign(issuer_cl, claims(**{field: float("inf")}))).status_code == 403
+    consume.assert_not_called()
+
+
+def test_audience_isolation(client: TestClient, consume: AsyncMock, issuer_cl: Issuer) -> None:
+    original_config = issuer_cl.config
+    assert post(client, sign(issuer_cl, claims())).status_code == 200
+    RMSettings.singleton().kraftwerk_manifest_dict["dns"] = "another.example"
+    consume.reset_mock()
+    assert post(client, sign(issuer_cl, claims())).status_code == 403
+    consume.assert_not_called()
+    assert post(client, sign(issuer_cl, claims(aud="rasenmaeher:tak-federation:another.example"))).status_code == 200
+    assert issuer_cl.config == original_config
+    assert Verifier.singleton().decode(issuer_cl.issue({"sub": "ordinary-session"}))["sub"] == "ordinary-session"

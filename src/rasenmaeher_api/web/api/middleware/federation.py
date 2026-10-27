@@ -94,7 +94,7 @@ async def authorize_federation(
             ) from exc
         try:
             claims = verifier.decode(credentials.credentials, audience=expected_audience)
-        except (InvalidTokenError, ValueError, TypeError) as exc:
+        except (InvalidTokenError, ValueError, TypeError, OverflowError) as exc:
             raise federation_error(
                 403, "invalid_federation_token", "authorize", "Invalid or expired federation token"
             ) from exc
