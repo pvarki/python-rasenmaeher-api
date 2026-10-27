@@ -309,7 +309,7 @@ is passed through the system.
 
 Export a previously generated key to the container::
 
-    export EXTERNAL_JWT_PUBKEY_B64=$(cat ~/p/jwt-test/private_key.key | base64)
+    export EXTERNAL_JWT_PUBKEY_B64=$(cat ~/p/jwt-test/public_key.pub | base64)
     rmlocal up --build
 
 Generate a token and set it in the environment `TOKEN`. The JWT should have
@@ -328,3 +328,87 @@ Versioning is handled with bump-my-version_. To increment, use ``bump-my-version
 You can use ``bump-my-version show-bump`` to see how each option would affect the version.
 
 .. _bump-my-version: https://github.com/callowayproject/bump-my-version
+
+TAK federation orchestration
+----------------------------
+
+A service whose JWT signing public key RMAPI trusts can call:
+
+* ``POST /api/v1/federation/tak/trust``
+* ``POST /api/v1/federation/tak/outgoing``
+
+Both require ``Authorization: Bearer <JWT>`` and accept exactly
+``{"remote_base": "fast-flounder.solution.dev.pvarki.fi"}``. The peer is a full
+DNS hostname with an optional HTTPS port (``:4439`` for development). Schemes,
+paths, credentials, IP literals, ``tak.`` prefixes, unknown fields and
+self-federation are rejected. Hostnames are lowercased and port 443 is omitted.
+The first label must fit TAK's 30-character display-name limit. Cross-domain
+peers are allowed.
+
+The caller runs trust on both servers, waits for both successful responses,
+and calls outgoing on **exactly one**. The caller owns this coordination;
+RMAPI does not elect a server or initiate a reverse connection.
+
+Use multikeyjwt 1.8 or later to issue a fresh token for each request::
+
+    from uuid import uuid4
+    from multikeyjwt import Issuer
+
+    token = Issuer.singleton().issue(
+        {
+            "iss": "federation-orchestrator",
+            "sub": "federation-orchestrator",
+            "aud": "rasenmaeher:tak-federation:localmaeher.dev.pvarki.fi",
+            "nonce": str(uuid4()),
+            "federation_action": "trust",
+            "remote_base": "fast-flounder.solution.dev.pvarki.fi",
+        },
+        lifetime=60,
+    )
+
+The signing key belongs to the external service. Provision only its PEM public
+key through ``JWT_PUBKEY_PATH`` or ``EXTERNAL_JWT_PUBKEY_B64`` (Compose maps
+``RMAPI_EXTERNAL_JWT_PUBKEY_B64``). Restart workers after key changes; removing
+the environment variable alone does not remove a previously persisted
+``external.pub``. Issuer and subject are attribution; signing-key trust is not
+bound to a particular issuer name.
+
+The audience must be one exact string for the target deployment's manifest
+``dns``; it contains no HTTPS port. Audience arrays are rejected. ``iss`` and
+``sub`` must be nonempty strings. Integer ``iat``, ``nbf`` and ``exp`` are all
+required, with ``iat <= nbf < exp`` and at most 300 seconds from issue to expiry.
+Clocks must be synchronized; verification uses zero clock leeway. The signed
+action must match the route, and the canonical signed peer must match the body,
+including any nondefault HTTPS port. Browser cookies and ordinary session
+tokens cannot authorize these routes.
+
+Every nonce is a UUID, normalized before consumption in the existing database.
+Replays and concurrent duplicate requests are rejected before dispatch. After
+an authorized attempt, retry with a fresh token and nonce, even if the product
+request failed or timed out. TAK's idempotent readbacks make the desired-state
+retry safe.
+
+RMAPI synchronously calls only manifest product ``tak`` using its product mTLS
+identity, a fixed internal federation path, no redirects and a 30-second budget.
+It never forwards the external JWT. The TAK integration must provide both
+internal federation endpoints; deploy that implementation before using these
+public routes. Local development HTTPS uses port 4439 and the development CA;
+use a verified CA bundle when calling it.
+
+HTTP 200 confirms a validated configuration readback, including no-ops;
+``changed`` distinguishes changes from existing configuration. Trust returns the
+CA fingerprint and both default group directions. Outgoing returns the observed
+connection status (possibly null); success does not prove traffic delivery or
+persistence across restart.
+
+Failures use ``detail`` with ``code``, ``stage``, ``message`` and
+``may_have_changed``. Statuses are 403 for JWT/replay rejection, 422 for input,
+404 when TAK is absent, 409 for prerequisite/configuration conflicts, 502 for
+upstream or invalid responses, 503 for unavailable local resources/lock state,
+and 504 for timeouts. A timeout may follow a successful write. Verified actor,
+issuer, operation, peer, nonce and result are audited without logging the JWT.
+
+Upgrading to multikeyjwt 1.8 also changes existing authentication: any
+Authorization header takes precedence over cookies, including invalid/empty
+headers. Cookie clients must omit unusable headers. Optional JWT authentication
+returns ``None`` on invalid credentials; existing mTLS fallback remains usable.
