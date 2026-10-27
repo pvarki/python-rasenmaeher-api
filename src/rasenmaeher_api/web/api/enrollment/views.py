@@ -1,6 +1,7 @@
 """Enrollment API views."""
 
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -46,6 +47,9 @@ from .schema import (
 )
 
 LOGGER = logging.getLogger(__name__)
+#: A device callsign must fit the enrolment proof, <callsign>@<approvecode> in the certificate
+#: subject. Same rule the UI applies to people.
+MDM_CALLSIGN = re.compile(r"[A-Za-z0-9]{3,30}")
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 NO_JWT_ENROLLMENT_ROUTER = APIRouter()
@@ -244,6 +248,9 @@ async def request_enrollment_init(
     Add new callsign (enrollment) to environment.
     """
     callsign = request_in.callsign
+    if request_in.mdm and not MDM_CALLSIGN.fullmatch(callsign):
+        # Accepted, it would wait forever: no certificate request can prove it.
+        raise HTTPException(status_code=400, detail="A device callsign is 3-30 letters A-Z or digits")
 
     # TODO ADD POOL NAME CHECK
 

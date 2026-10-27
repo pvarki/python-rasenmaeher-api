@@ -795,7 +795,7 @@ async def test_mdm_planned_enrollment_is_not_approvable_by_hand(
     tilauspalvelu_jwt_admin_client: TestClient,
 ) -> None:
     """An admin planning a device must not be able to approve it and spend the callsign"""
-    callsign = f"mdmplanned_{secrets.token_hex(4)}"
+    callsign = f"mdmplanned{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post(
         "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
     )
@@ -821,7 +821,7 @@ async def test_mdm_agent_completes_planned_enrollment(
 ) -> None:
     """The whole agent path: plan, complete with the device CSR, and survive a repeat"""
     tempdir = Path(nice_tmpdir)
-    callsign = f"mdmdevice_{secrets.token_hex(4)}"
+    callsign = f"mdmdevice{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post(
         "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
     )
@@ -869,7 +869,7 @@ async def test_mdm_agent_refusals(
     tempdir = Path(nice_tmpdir)
 
     # A callsign nobody planned
-    unplanned = f"mdmunplanned_{secrets.token_hex(4)}"
+    unplanned = f"mdmunplanned{secrets.token_hex(4)}"
     csrpem = await _device_csr(tempdir, unplanned, name="unplanned")
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": unplanned, "csr": csrpem})
     assert resp.status_code == 403
@@ -877,7 +877,7 @@ async def test_mdm_agent_refusals(
         await Enrollment.by_callsign(unplanned)
 
     # A CSR for a different callsign than the one being completed
-    planned = f"mdmmismatch_{secrets.token_hex(4)}"
+    planned = f"mdmmismatch{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": planned, "mdm": True})
     assert resp.status_code == 200
     wrong_csr = await _device_csr(tempdir, f"{planned}X", name="mismatch")
@@ -897,7 +897,7 @@ async def test_mdm_agent_refusals(
     # A plain init hands the caller the new callsign's JWT as a session cookie, and JWTBearer
     # prefers that cookie over the Authorization header, so this client would stop being an admin.
     # Clean up after it here; not issuing it at all is exactly what the mdm form is for.
-    human = f"mdmhuman_{secrets.token_hex(4)}"
+    human = f"mdmhuman{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
     assert resp.status_code == 200
     if tilauspalvelu_jwt_admin_client.cookie_jar is not None:
@@ -920,7 +920,7 @@ async def test_planning_many_devices_keeps_the_admin_session(
     at all, nobody should be holding a device's credential anyway, so this stays an admin.
     """
     for _ in range(3):
-        callsign = f"mdmfleet_{secrets.token_hex(4)}"
+        callsign = f"mdmfleet{secrets.token_hex(4)}"
         resp = await tilauspalvelu_jwt_admin_client.post(
             "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
         )
@@ -936,7 +936,7 @@ async def test_list_marks_devices_planned_for_mdm(tilauspalvelu_jwt_admin_client
     agent and approving it by hand is refused, so without the marker the approve-users queue fills
     with rows nobody may act on.
     """
-    device = f"mdmlisted_{secrets.token_hex(4)}"
+    device = f"mdmlisted{secrets.token_hex(4)}"
     human = f"humanlisted_{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": device, "mdm": True})
     assert resp.status_code == 200
@@ -961,7 +961,7 @@ async def test_the_list_carries_the_code_for_devices_but_not_for_people(
     codes once, at the moment of creation. Exposing it for people would let any admin approve
     anybody without being told anything.
     """
-    device = f"mdmcode_{secrets.token_hex(4)}"
+    device = f"mdmcode{secrets.token_hex(4)}"
     human = f"humancode_{secrets.token_hex(4)}"
     made = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": device, "mdm": True})
     assert made.status_code == 200
@@ -986,7 +986,7 @@ async def test_two_devices_cannot_both_claim_one_planned_callsign() -> None:
     and the write are one UPDATE for exactly this reason, so the guarantee is the database's and
     not a check-then-act in Python.
     """
-    callsign = f"mdmrace_{secrets.token_hex(4)}"
+    callsign = f"mdmrace{secrets.token_hex(4)}"
     planned = await Enrollment.create_for_callsign(callsign=callsign, extra={"mdm": True})
 
     first, second = await asyncio.gather(
@@ -1057,7 +1057,7 @@ async def test_a_device_request_may_not_choose_what_it_is_issued(
         ("san", {"san": "evil.example"}),
         ("ca", {"ca": True}),
     ):
-        callsign = f"mdmoverreach_{secrets.token_hex(4)}"
+        callsign = f"mdmoverreach{secrets.token_hex(4)}"
         resp = await tilauspalvelu_jwt_admin_client.post(
             "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
         )
@@ -1075,7 +1075,7 @@ async def test_an_ordinary_device_request_is_still_accepted(
     tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, nice_tmpdir: str
 ) -> None:
     """The guard must not refuse what an MDM actually sends"""
-    callsign = f"mdmplain_{secrets.token_hex(4)}"
+    callsign = f"mdmplain{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post(
         "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
     )
@@ -1084,3 +1084,15 @@ async def test_an_ordinary_device_request_is_still_accepted(
     csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="plain", code=code)
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem})
     assert resp.status_code == 200, resp.text
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize("callsign", ["KÄRPPÄ1", "OTTER-1", "AB", "A" * 31])
+async def test_mdm_plan_refuses_callsign_the_proof_cannot_carry(
+    tilauspalvelu_jwt_admin_client: TestClient, callsign: str
+) -> None:
+    """Planned under such a name, the device would wait forever: no request can prove it"""
+    resp = await tilauspalvelu_jwt_admin_client.post(
+        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
+    )
+    assert resp.status_code == 400, resp.text
