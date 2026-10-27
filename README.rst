@@ -332,6 +332,10 @@ You can use ``bump-my-version show-bump`` to see how each option would affect th
 TAK federation orchestration
 ----------------------------
 
+Federation orchestration is specified only for TAK Servers because there
+is urgent need for it and this compose based deployment is being deprecated.
+A generic federation orchestration system will be specified for https://github.com/opendefence/core
+
 A service whose JWT signing public key RMAPI trusts can call:
 
 * ``POST /api/v1/federation/tak/trust``
