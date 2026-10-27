@@ -125,13 +125,6 @@ class RMSettings(BaseSettings):
     # edge, which is far more than completing a planned enrolment needs.
     mdm_agent_cns: str = ""
 
-    # The SCEP challenge the MDM is configured with, so the admin UI can show what to type there.
-    # Deliberately not a secret: it sits in the MDM's own configuration, the MDM hands it to every
-    # device, and it is a nuisance filter and nothing more. What actually decides whether a device
-    # may have a callsign is the per-enrolment code in its certificate request. Empty unless the
-    # deployment passes it in, and then the UI says where to look instead.
-    mdm_scep_challenge: str = ""
-
     persistent_data_dir: str = "/data/persistent"
 
     # mtls

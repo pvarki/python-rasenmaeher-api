@@ -1084,28 +1084,3 @@ async def test_an_ordinary_device_request_is_still_accepted(
     csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="plain", code=code)
     resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem})
     assert resp.status_code == 200, resp.text
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_mdm_settings_says_what_to_configure(
-    tilauspalvelu_jwt_admin_client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """The challenge is not a secret, so an admin reads it here rather than off the server
-
-    It sits in the MDM's own configuration and the MDM hands it to every device. What decides
-    whether a device may have a callsign is the per-enrolment code, not this.
-    """
-    monkeypatch.setattr(RMSettings.singleton(), "mdm_scep_challenge", "a-challenge-not-a-secret")
-    resp = await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/mdm-settings")
-    assert resp.status_code == 200, resp.text
-    body = resp.json()
-    assert body["challenge"] == "a-challenge-not-a-secret"
-    assert body["scep_url"].endswith("/scep")
-    assert not body["scep_url"].startswith("https://mtls."), "the responder is on the plain host"
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_mdm_settings_is_admin_only(tilauspalvelu_jwt_user_client: TestClient) -> None:
-    """No reason for anybody but an admin to read it, secret or not"""
-    resp = await tilauspalvelu_jwt_user_client.get("/api/v1/enrollment/mdm-settings")
-    assert resp.status_code == 403, resp.text
