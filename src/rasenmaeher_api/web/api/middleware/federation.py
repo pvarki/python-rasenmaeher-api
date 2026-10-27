@@ -31,7 +31,7 @@ def federation_error(
     )
 
 
-def audit_federation(request: Request, peer: FederationRequest, *, error: HTTPException | None = None) -> None:
+def audit_federation(request: Request, peer: FederationRequest | None, *, error: HTTPException | None = None) -> None:
     """Attribute only cryptographically verified claims, never the encoded token."""
     claims = getattr(request.state, "jwt", None) or {}
     fields = {name: value[:256] for name in ("iss", "sub", "nonce") if isinstance(value := claims.get(name), str)}
@@ -42,7 +42,7 @@ def audit_federation(request: Request, peer: FederationRequest, *, error: HTTPEx
             action=f"tak_federation_{request.url.path.rsplit('/', 1)[-1]}",
             outcome="failure" if error else "success",
             actor=fields.get("sub", "unknown"),
-            target=peer.remote_base,
+            target=peer.remote_base if peer else None,
             request=request,
             issuer=fields.get("iss"),
             nonce=fields.get("nonce"),

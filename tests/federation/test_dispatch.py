@@ -246,12 +246,39 @@ def test_invalid_token_no_dispatch(public: TestClient, product: MagicMock, issue
     product.post.assert_not_called()
 
 
+@pytest.mark.parametrize("action", ["trust", "outgoing"])
 def test_audit_outcome(
-    public: TestClient, product: MagicMock, issuer_cl: Issuer, caplog: pytest.LogCaptureFixture
+    public: TestClient, product: MagicMock, issuer_cl: Issuer, caplog: pytest.LogCaptureFixture, action: str
 ) -> None:
+    product.response.json.return_value = success(action)
     with caplog.at_level("AUDIT"):
-        assert post(public, issuer_cl).status_code == 200
-    record = next(record for record in caplog.records if record.message == "TAK federation request")
+        assert post(public, issuer_cl, action).status_code == 200
+    records = [record for record in caplog.records if record.message == "TAK federation request"]
+    assert len(records) == 1
+    record = records[0]
+    assert record.levelname == "AUDIT"
+    assert record.__dict__["event.action"] == f"tak_federation_{action}"
     assert record.__dict__["event.outcome"] == "success"
+    assert record.__dict__["destination.user.name"] == REMOTE
     assert record.issuer == "orchestrator"
     assert record.nonce
+
+
+def test_audit_invalid_request(
+    public: TestClient, product: MagicMock, issuer_cl: Issuer, caplog: pytest.LogCaptureFixture
+) -> None:
+    token = sign(issuer_cl, claims())
+    with caplog.at_level("AUDIT"):
+        response = public.post(
+            "/api/v1/federation/tak/trust",
+            json={"remote_base": "invalid peer", "secret": "do not log"},  # pragma: allowlist secret
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    assert response.status_code == 422
+    records = [record for record in caplog.records if record.message == "TAK federation request"]
+    assert len(records) == 1
+    assert records[0].__dict__["event.outcome"] == "failure"
+    assert records[0].stage == "validate"
+    assert token not in caplog.text
+    assert "do not log" not in caplog.text
+    product.post.assert_not_called()

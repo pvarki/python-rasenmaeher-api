@@ -1,11 +1,15 @@
 """Dispatch authorized requests only to the local TAK integration API."""
 
 import asyncio
+from collections.abc import Callable
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
 import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.routing import APIRoute
+from starlette.responses import Response
 
 from rasenmaeher_api.mtlsinit import get_session_winit
 from rasenmaeher_api.rmsettings import RMSettings
@@ -13,7 +17,26 @@ from rasenmaeher_api.rmsettings import RMSettings
 from ..middleware.federation import audit_federation, authorize_federation, federation_error
 from .schema import FederationOutgoingResponse, FederationRequest, FederationTrustResponse
 
-router = APIRouter()
+
+class FederationRoute(APIRoute):
+    def get_route_handler(self) -> Callable[[Request], Any]:
+        handler = super().get_route_handler()
+
+        async def audited_handler(request: Request) -> Response:
+            try:
+                return await handler(request)
+            except RequestValidationError:
+                audit_federation(
+                    request,
+                    None,
+                    error=federation_error(422, "invalid_request", "validate", "Invalid federation request"),
+                )
+                raise
+
+        return audited_handler
+
+
+router = APIRouter(route_class=FederationRoute)
 
 
 async def dispatch[Response: (FederationTrustResponse, FederationOutgoingResponse)](
