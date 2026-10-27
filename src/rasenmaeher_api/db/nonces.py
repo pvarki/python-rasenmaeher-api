@@ -20,7 +20,9 @@ class SeenToken(ORMBaseModel, table=True):
     __tablename__ = "seentokens"
 
     token: str = Field(nullable=False, index=True, unique=True)
-    auditmeta: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    auditmeta: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
 
     @classmethod
     async def use_token(cls, token: str, auditmeta: dict[str, Any] | None = None) -> None:
