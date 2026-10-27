@@ -2,7 +2,7 @@
 #############################################
 # Tox testsuite for multiple python version #
 #############################################
-FROM advian/tox-base:debian-trixie as tox
+FROM advian/tox-base:debian-trixie AS tox
 ARG PYTHON_VERSIONS="3.14 3.12"
 ARG UV_VERSION="0.13.6"
 RUN export RESOLVED_VERSIONS=`pyenv_resolve $PYTHON_VERSIONS` \
@@ -37,7 +37,7 @@ RUN uv sync --frozen \
 ######################
 # Base builder image #
 ######################
-FROM python:3.14-trixie as builder_base
+FROM python:3.14-trixie AS builder_base
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /uvx /usr/local/bin/
 
 ENV \
@@ -96,7 +96,7 @@ RUN --mount=type=ssh uv venv /.venv \
 ####################################
 # Base stage for production builds #
 ####################################
-FROM builder_base as production_build
+FROM builder_base AS production_build
 # Copy entrypoint script
 COPY ./docker/entrypoint.sh /docker-entrypoint.sh
 COPY ./docker/container-init.sh /container-init.sh
@@ -117,7 +117,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 #########################
 # Main production build #
 #########################
-FROM python:3.14-slim-trixie as production
+FROM python:3.14-slim-trixie AS production
 COPY --from=production_build /tmp/wheelhouse /tmp/wheelhouse
 COPY --from=production_build /docker-entrypoint.sh /docker-entrypoint.sh
 COPY --from=production_build /container-init.sh /container-init.sh
@@ -139,14 +139,14 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
     && true
 ENTRYPOINT ["/usr/bin/tini", "--", "/docker-entrypoint.sh"]
 
-FROM production as openapi
+FROM production AS openapi
 CMD ["rasenmaeher_api", "openapi"]
 
 
 #####################################
 # Base stage for development builds #
 #####################################
-FROM builder_base as devel_build
+FROM builder_base AS devel_build
 COPY . /app
 WORKDIR /app
 COPY ./docker/container-init.sh /container-init.sh
@@ -170,7 +170,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 #0############
 # Run tests #
 #############
-FROM devel_build as test
+FROM devel_build AS test
 COPY . /app
 WORKDIR /app
 ENTRYPOINT ["/usr/bin/tini", "--", "docker/entrypoint-test.sh"]
@@ -184,7 +184,7 @@ RUN --mount=type=ssh source /.venv/bin/activate \
 ###########
 # Hacking #
 ###########
-FROM devel_build as devel_shell
+FROM devel_build AS devel_shell
 # Copy everything to the image
 COPY . /app
 WORKDIR /app
