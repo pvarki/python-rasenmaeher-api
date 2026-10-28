@@ -23,7 +23,12 @@ def verify_csr(csrpem: str, callsign: str) -> bool:
     if len(csr.subject) != 1 or len(cns) != 1 or cns[0].value != callsign:
         LOGGER.warning(f"Callsign does not match CSR subject. DN={dn} callsign={callsign}")
         return False
-    if extra := disallowed_usages(csrpem, callsign):
+    try:
+        extra = disallowed_usages(csrpem, callsign)
+    except ValueError as exc:
+        LOGGER.warning(f"CSR usages could not be checked. error={exc} callsign={callsign}")
+        return False
+    if extra:
         LOGGER.warning(f"CSR requests usages not allowed for callsign. usages={sorted(extra)} callsign={callsign}")
         return False
     return True
