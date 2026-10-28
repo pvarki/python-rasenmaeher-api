@@ -183,5 +183,12 @@ class RMSettings(BaseSettings):
         self.load_manifest()
         return [product["certcn"] for product in self.kraftwerk_manifest_dict["products"].values()]
 
+    def is_reserved_cn(self, cn: str) -> bool:
+        """True for CNs that belong to services, never to users"""
+        normalized_cn = cn.lower()
+        return normalized_cn == self.mtls_client_cert_cn.lower() or normalized_cn in (
+            product_cn.lower() for product_cn in self.valid_product_cns
+        )
+
 
 switchme_to_singleton_call = RMSettings.singleton()

@@ -33,6 +33,23 @@ def test_settings() -> None:
     assert "fake.localmaeher.dev.pvarki.fi" in conf.valid_product_cns
 
 
+@pytest.mark.parametrize(
+    ("cn", "expected"),
+    [
+        ("rasenmaeher", True),
+        ("RASENMAEHER", True),
+        ("fake.localmaeher.dev.pvarki.fi", True),
+        ("Fake.Localmaeher.Dev.Pvarki.Fi", True),
+        ("kissa", False),
+        ("rasenmaeher2", False),
+    ],
+)
+def test_is_reserved_cn(cn: str, expected: bool) -> None:
+    """Test service CN detection is case-insensitive"""
+    conf = RMSettings.singleton()
+    assert conf.is_reserved_cn(cn) == expected
+
+
 # FIXME: Figure out WTF is asyncios problem
 @pytest.mark.skip(reason="asyncio/asyncpg is weird under pytest")
 @pytest.mark.asyncio(loop_scope="session")

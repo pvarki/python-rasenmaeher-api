@@ -96,13 +96,11 @@ class Person(ORMBaseModel, table=True):
         cls, callsign: str, extra: dict[str, Any] | None = None, csrpem: str | None = None
     ) -> "Person":
         """Create the cert etc and save the person"""
+        cnf = RMSettings.singleton()
+        if cnf.is_reserved_cn(callsign):
+            raise CallsignReserved("Using service CNs as callsigns is forbidden")
         if csrpem and not verify_csr(csrpem, callsign):
             raise CallsignReserved("CSR CN must match callsign")
-        cnf = RMSettings.singleton()
-        if callsign in cnf.valid_product_cns:
-            raise CallsignReserved("Using product CNs as callsigns is forbidden")
-        if callsign == cnf.mtls_client_cert_cn:
-            raise CallsignReserved("Using the rasenmaeher service CN as a callsign is forbidden")
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()
