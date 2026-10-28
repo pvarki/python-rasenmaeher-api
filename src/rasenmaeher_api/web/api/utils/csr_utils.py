@@ -55,9 +55,10 @@ def csr_carries_enrolment_proof(csrpem: str, callsign: str, approvecode: str) ->
     last gate is a callsign, which is a short human-chosen string an attacker can guess.
 
     The MDM carries the proof by putting ``<callsign>@<approvecode>`` in the one per-host field it
-    can substitute into a subject, rendered into an attribute beside the common name. Every
-    attribute other than the common name is searched rather than one named position, because which
-    attribute the MDM renders it into is the MDM's business and not something to hard-code.
+    can substitute into a subject, rendered into an attribute beside the common name. Which
+    attribute it renders into is the MDM's business and not something to hard-code, but exactly
+    one attribute may carry an "@": otherwise one request could hold a guess per attribute and
+    test hundreds of codes at once.
     """
     wanted = f"{callsign}@{approvecode}"
     if not approvecode or not wanted.isascii():
@@ -66,13 +67,12 @@ def csr_carries_enrolment_proof(csrpem: str, callsign: str, approvecode: str) ->
         csr = x509.load_pem_x509_csr(ensure_utf8(csrpem))
     except ValueError:
         return False
-    for attribute in csr.subject:
-        if attribute.oid == NameOID.COMMON_NAME:
-            continue
-        value = attribute.value
-        if not isinstance(value, str) or not value.isascii():
-            # compare_digest raises on non-ascii str, and nothing we issue for is non-ascii
-            continue
-        if secrets.compare_digest(value, wanted):
-            return True
-    return False
+    carriers = [
+        attribute.value
+        for attribute in csr.subject
+        if attribute.oid != NameOID.COMMON_NAME and isinstance(attribute.value, str) and "@" in attribute.value
+    ]
+    if len(carriers) != 1 or not carriers[0].isascii():
+        # compare_digest raises on non-ascii str, and nothing we issue for is non-ascii
+        return False
+    return secrets.compare_digest(carriers[0], wanted)

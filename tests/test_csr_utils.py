@@ -122,6 +122,18 @@ def test_the_proof_is_found_wherever_the_mdm_renders_it() -> None:
         assert csr_carries_enrolment_proof(csrpem, "OTTER1", "7F3A9C2B")
 
 
+def test_one_request_is_one_guess() -> None:
+    """A guess per attribute would test hundreds of codes in one request, so two proofs are none"""
+    batched = _csr_with_subject(
+        [
+            (NameOID.COMMON_NAME, "OTTER1"),
+            (NameOID.ORGANIZATIONAL_UNIT_NAME, "OTTER1@AAAAAAAA"),
+            (NameOID.ORGANIZATIONAL_UNIT_NAME, "OTTER1@7F3A9C2B"),
+        ]
+    )
+    assert not csr_carries_enrolment_proof(batched, "OTTER1", "7F3A9C2B")
+
+
 def test_the_common_name_cannot_be_the_proof() -> None:
     """Otherwise a caller who guessed the callsign could satisfy the check with it"""
     csrpem = _csr_with_subject([(NameOID.COMMON_NAME, "OTTER1@7F3A9C2B")])
