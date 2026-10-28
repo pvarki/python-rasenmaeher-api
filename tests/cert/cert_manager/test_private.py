@@ -150,30 +150,6 @@ def test_common_name_absent_is_none(mint_csr: CsrFactory) -> None:
     assert private._csr_common_name(mint_csr(None)) is None
 
 
-# _csr_usages
-def test_usages_empty_without_extensions(csr_pem: str) -> None:
-    """A CSR with no KeyUsage or ExtendedKeyUsage extensions derives no usages"""
-    assert private._csr_usages(csr_pem) == []
-
-
-def test_key_usage_flags_mapped(mint_csr: CsrFactory, key_usage: KeyUsageFactory) -> None:
-    """KeyUsage bits map to their cert-manager names, dependent flags last"""
-    plain = mint_csr("example", key_usage(digital_signature=True, key_encipherment=True))
-    assert private._csr_usages(plain) == ["digital signature", "key encipherment"]
-    agreement_only = mint_csr("example", key_usage(key_agreement=True))
-    assert private._csr_usages(agreement_only) == ["key agreement"]
-    agreement = mint_csr("example", key_usage(key_agreement=True, encipher_only=True, decipher_only=True))
-    assert private._csr_usages(agreement) == ["key agreement", "encipher only", "decipher only"]
-
-
-def test_ext_key_usage_oids_mapped(mint_csr: CsrFactory) -> None:
-    """Known ExtendedKeyUsage OIDs map to their names, unknown ones are dropped"""
-    known = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.SERVER_AUTH])
-    assert private._csr_usages(known) == ["server auth"]
-    unknown = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC])
-    assert private._csr_usages(unknown) == []
-
-
 # sign_csr
 @pytest.mark.asyncio(loop_scope="function")
 async def test_sign_csr_returns_bundle(fake_k8s: FakeK8s, cm_settings: RMSettings, csr_pem: str) -> None:

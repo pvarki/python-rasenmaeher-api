@@ -9,15 +9,15 @@ the OCSP responder), so the revoke functions only best-effort clean up the CR.
 import base64
 import logging
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 import cryptography.x509
 from cloudcoil.errors import APIError, ResourceConflict, ResourceNotFound, WaitTimeout
 from cloudcoil.models.cert_manager.v1 import CertificateRequest
 from cryptography.hazmat.primitives import serialization
-from cryptography.x509.oid import ExtendedKeyUsageOID
 
 from ...rmsettings import RMSettings
+from ..usages import KeyUsages, csr_usages, disallowed_usages
 from .base import CertManagerError
 from .chain import lean_chain
 from .names import cr_name
@@ -49,102 +49,10 @@ def _csr_common_name(csr_pem: str) -> str | None:
     return None
 
 
-type KeyUsages = Literal[
-    "signing",
-    "digital signature",
-    "content commitment",
-    "key encipherment",
-    "key agreement",
-    "data encipherment",
-    "cert sign",
-    "crl sign",
-    "encipher only",
-    "decipher only",
-    "any",
-    "server auth",
-    "client auth",
-    "code signing",
-    "email protection",
-    "s/mime",
-    "ipsec end system",
-    "ipsec tunnel",
-    "ipsec user",
-    "timestamping",
-    "ocsp signing",
-    "microsoft sgc",
-    "netscape sgc",
-]
-
-_KEY_USAGE_NAMES: tuple[tuple[str, KeyUsages], ...] = (
-    ("digital_signature", "digital signature"),
-    ("content_commitment", "content commitment"),
-    ("key_encipherment", "key encipherment"),
-    ("data_encipherment", "data encipherment"),
-    ("key_agreement", "key agreement"),
-    ("key_cert_sign", "cert sign"),
-    ("crl_sign", "crl sign"),
-)
-
-_EXT_KEY_USAGE_NAMES: dict[cryptography.x509.ObjectIdentifier, KeyUsages] = {
-    ExtendedKeyUsageOID.SERVER_AUTH: "server auth",
-    ExtendedKeyUsageOID.CLIENT_AUTH: "client auth",
-    ExtendedKeyUsageOID.CODE_SIGNING: "code signing",
-    ExtendedKeyUsageOID.EMAIL_PROTECTION: "email protection",
-    ExtendedKeyUsageOID.TIME_STAMPING: "timestamping",
-    ExtendedKeyUsageOID.OCSP_SIGNING: "ocsp signing",
-}
-
-
-def _csr_usages(csr_pem: str) -> list[KeyUsages]:
-    """Extract cert-manager `spec.usages` values from a CSR's KeyUsage extensions.
-
-    cert-manager's admission webhook rejects requests whose declared ``usages``
-    don't match the KeyUsage/ExtendedKeyUsage extensions in the CSR. Derive the
-    list dynamically so we honor whatever the caller embedded.
-    """
-    csr = cryptography.x509.load_pem_x509_csr(csr_pem.encode("utf-8"))
-    out: list[KeyUsages] = []
-    try:
-        ku = csr.extensions.get_extension_for_class(cryptography.x509.KeyUsage).value
-        for attr, name in _KEY_USAGE_NAMES:
-            if getattr(ku, attr, False):
-                out.append(name)
-        if ku.key_agreement:
-            if getattr(ku, "encipher_only", False):
-                out.append("encipher only")
-            if getattr(ku, "decipher_only", False):
-                out.append("decipher only")
-    except cryptography.x509.ExtensionNotFound:
-        pass
-    try:
-        eku = csr.extensions.get_extension_for_class(cryptography.x509.ExtendedKeyUsage).value
-        for oid in eku:
-            eku_name = _EXT_KEY_USAGE_NAMES.get(oid)
-            if eku_name:
-                out.append(eku_name)
-    except cryptography.x509.ExtensionNotFound:
-        pass
-    return out
-
-
-_CLIENT_USAGES: frozenset[KeyUsages] = frozenset(
-    {"digital signature", "content commitment", "key encipherment", "client auth"}
-)
-
-
-def _check_usages(csr_pem: str, cn: str | None, settings: RMSettings) -> None:
-    """Allow client usages for everyone and server auth only for service CNs"""
-    extra = set(_csr_usages(csr_pem)) - _CLIENT_USAGES
-    if extra == {"server auth"} and cn is not None and settings.is_reserved_cn(cn):
-        return
-    if extra:
-        raise CertManagerError(f"CSR for {cn} requests usages not allowed for it: {sorted(extra)}")
-
-
 async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> CertificateRequest:
     """Create the CertificateRequest and return it."""
     try:
-        usages: list[KeyUsages] = _csr_usages(csr_pem)
+        usages: list[KeyUsages] = csr_usages(csr_pem)
         if not usages:
             # Default for clients that ship a CSR without explicit KeyUsage extensions.
             usages = ["digital signature", "key encipherment", "client auth"]
@@ -209,7 +117,8 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     settings = RMSettings.singleton()
     cn = _csr_common_name(csr)
-    _check_usages(csr, cn, settings)
+    if extra := disallowed_usages(csr, cn):
+        raise CertManagerError(f"CSR for {cn} requests usages not allowed for it: {sorted(extra)}")
     name = cr_name(csr, cn)
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
