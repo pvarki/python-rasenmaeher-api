@@ -4,7 +4,7 @@
 #
 # Set python exectuable path to /.venv/bin/python
 ###
-FROM rasenmaeher_api:devel_shell as pycharm
+FROM rasenmaeher_api:devel_shell AS pycharm
 RUN source /root/.profile \
     && uv sync \
     && true

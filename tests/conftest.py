@@ -164,7 +164,7 @@ def session_env_config(
         # Apparently we are too late in setting the env for settings to take effect
         mpatch.setattr(switchme_to_singleton_call, "integration_api_timeout", 6.0)
         mpatch.setenv("RM_INTEGRATION_API_TIMEOUT", str(switchme_to_singleton_call.integration_api_timeout))
-        mpatch.setattr(switchme_to_singleton_call, "cfssl_timeout", 5.0)
+        mpatch.setattr(switchme_to_singleton_call, "cfssl_timeout", 65.0)
         mpatch.setenv("RM_CFSSL_TIMEOUT", str(switchme_to_singleton_call.cfssl_timeout))
         mpatch.setattr(switchme_to_singleton_call, "cfssl_port", docker_services.port_for("cfssl", 7777))
         mpatch.setenv("RM_CFSSL_PORT", str(switchme_to_singleton_call.cfssl_port))

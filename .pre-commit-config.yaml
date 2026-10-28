@@ -73,7 +73,7 @@ repos:
         exclude: "poetry.lock|ui/pnpm-lock.yaml"
         args: [--baseline, .secrets.baseline]
   - repo: https://github.com/astral-sh/uv-pre-commit
-    rev: 0.11.9
+    rev: 0.13.6
     hooks:
       - id: uv-lock
   - repo: https://github.com/astral-sh/ruff-pre-commit
