@@ -450,14 +450,26 @@ async def test_pfx_parse(dbinit_func) -> None:
     assert pfxdata.cert
 
 
+@pytest.mark.parametrize("callsign", ["fake.localmaeher.dev.pvarki.fi", "FAKE.localmaeher.dev.pvarki.fi"])
 @pytest.mark.asyncio(loop_scope="session")
-async def test_productcn_forbid(dbinit_func) -> None:
-    """Test that trying to create enrollment or person with callsign that matches a product CN fails"""
+async def test_productcn_forbid(dbinit_func, callsign: str) -> None:
+    """Test that trying to create enrollment or person with callsign that matches a product CN fails, regardless of case"""
     _ = dbinit_func
     with pytest.raises(CallsignReserved):
-        await Person.create_with_cert("fake.localmaeher.dev.pvarki.fi")
+        await Person.create_with_cert(callsign)
     with pytest.raises(CallsignReserved):
-        await Enrollment.create_for_callsign("fake.localmaeher.dev.pvarki.fi")
+        await Enrollment.create_for_callsign(callsign)
+
+
+@pytest.mark.parametrize("callsign", ["rasenmaeher", "RASENMAEHER", "RasenMaeher"])
+@pytest.mark.asyncio(loop_scope="session")
+async def test_servicecn_forbid(dbinit_func, callsign: str) -> None:
+    """Test that rasenmaeher service cn is forbidden as a callsign regardless of case"""
+    _ = dbinit_func
+    with pytest.raises(CallsignReserved):
+        await Person.create_with_cert(callsign)
+    with pytest.raises(CallsignReserved):
+        await Enrollment.create_for_callsign(callsign)
 
 
 def _self_signed_pem(common_name: str) -> str:
