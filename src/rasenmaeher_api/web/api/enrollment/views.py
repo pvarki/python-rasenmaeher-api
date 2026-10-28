@@ -13,7 +13,7 @@ from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
-from ....db import Enrollment, EnrollmentPool, EnrollmentState, Person
+from ....db import Enrollment, EnrollmentPool, EnrollmentState, MdmEnrolment, Person
 from ....db.errors import Deleted, NotFound
 from ....rmsettings import RMSettings
 from ..middleware.datatypes import MTLSorJWTPayloadType
@@ -44,6 +44,8 @@ from .schema import (
     EnrollmentShowVerificationCodeOut,
     EnrollmentStatusIn,
     EnrollmentStatusOut,
+    MdmSettingsIn,
+    MdmSettingsOut,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -624,6 +626,13 @@ async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
         )
         return HTTPException(status_code=status_code, detail=detail)
 
+    # First, so that while enrolment is closed nothing behind it can be probed or guessed at.
+    enrolment = await MdmEnrolment.current()
+    if not enrolment.is_open:
+        raise refuse(403, "MDM_CLOSED")
+    if not enrolment.accepts(request_in.challenge):
+        raise refuse(403, "WRONG_CHALLENGE")
+
     csrpem = request_in.csr
     if not csrpem:
         raise refuse(400, "CSR_MISSING", "The device CSR is required")
@@ -707,6 +716,64 @@ async def mdm_repeat(
         extra=f"Approved {person.callsign}",
         certificate=certpem,
     )
+
+
+async def human_admin(request: Request) -> Person:
+    """An admin who is a person
+
+    ValidUser lets a product certificate through without a Person or a role check. Products have
+    no business switching device enrolment: that is the operator's decision.
+    """
+    admin = await ValidUser(auto_error=True, require_roles=["admin"])(request)
+    if not admin:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    return admin
+
+
+def _mdm_settings(request: Request, enrolment: MdmEnrolment) -> MdmSettingsOut:
+    host = (request.url.hostname or "").removeprefix("mtls.")
+    return MdmSettingsOut(
+        scep_url=f"https://{host}/scep" if host else "",
+        challenge=enrolment.challenge,
+        open_until=enrolment.open_until if enrolment.is_open else None,
+    )
+
+
+@ENROLLMENT_ROUTER.get(
+    "/mdm-settings",
+    response_model=MdmSettingsOut,
+    dependencies=[Depends(human_admin)],
+)
+async def request_mdm_settings(request: Request) -> MdmSettingsOut:
+    """What to configure the MDM with, and until when devices may enrol through it
+
+    Admin only, though the challenge is no secret: there is no reason for anybody else to read it.
+    """
+    return _mdm_settings(request, await MdmEnrolment.current())
+
+
+@ENROLLMENT_ROUTER.put("/mdm-settings", response_model=MdmSettingsOut)
+async def put_mdm_settings(
+    request: Request,
+    request_in: MdmSettingsIn = Body(),
+    admin: Person = Depends(human_admin),
+) -> MdmSettingsOut:
+    """Open MDM enrolment for some hours, or close it with 0
+
+    It closes itself when the time runs out, so a forgotten window does not stay open.
+    """
+    enrolment = await (await MdmEnrolment.current()).open_for(request_in.hours)
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "MDM enrolment opened" if request_in.hours else "MDM enrolment closed",
+        extra=build_audit_extra(
+            action="mdm_enrolment_window",
+            outcome="success",
+            actor=admin.callsign,
+            request=request,
+            hours=request_in.hours,
+        ),
+    )
+    return _mdm_settings(request, enrolment)
 
 
 @ENROLLMENT_ROUTER.post(

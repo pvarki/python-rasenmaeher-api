@@ -1,5 +1,6 @@
 """Schema for enrollment."""
 
+import datetime
 from typing import Any
 
 from libpvarki.schemas.generic import OperationResultResponse
@@ -213,6 +214,10 @@ class EnrollmentAcceptIn(BaseModel):
         description=(
             "CSR the device generated, PEM. Only for an MDM agent completing an enrolment planned with mdm=true."
         ),
+        default=None,
+    )
+    challenge: str | None = Field(
+        description="The SCEP challenge the device sent. Only for an MDM agent, which passes it on unchecked.",
         default=None,
     )
 
@@ -469,3 +474,22 @@ class EnrollmentInviteCodeDeleteIn(BaseModel):
     )
 
     invite_code: str
+
+
+class MdmSettingsOut(BaseModel):
+    """What an operator configures the MDM with, and whether devices may enrol now"""
+
+    #: Where the MDM sends each device's certificate request
+    scep_url: str
+    #: The SCEP challenge. Not a secret: the MDM hands it to every device
+    challenge: str
+    #: When the enrolment window closes, or None while it is closed
+    open_until: datetime.datetime | None
+
+
+class MdmSettingsIn(BaseModel):
+    """Open the enrolment window for some hours, or close it"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hours: int = Field(description="Hours to keep enrolment open from now, 0 closes it", ge=0, le=168)
