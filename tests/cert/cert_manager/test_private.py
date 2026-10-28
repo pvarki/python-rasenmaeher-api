@@ -275,6 +275,18 @@ async def test_sign_csr_rejects_disallowed_usages(
 
 
 @pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_rejects_unknown_ext_key_usage(
+    fake_k8s: FakeK8s, cm_settings: RMSettings, mint_csr: CsrFactory
+) -> None:
+    """An ExtendedKeyUsage OID without a name is refused before any CR is created"""
+    _ = cm_settings
+    csr = mint_csr("kissa", ext_key_usage=[ExtendedKeyUsageOID.CLIENT_AUTH, ExtendedKeyUsageOID.ANY_EXTENDED_KEY_USAGE])
+    with pytest.raises(ValueError, match="Unsupported extended key usage"):
+        await private.sign_csr(csr, bundle=False)
+    assert not fake_k8s.created
+
+
+@pytest.mark.asyncio(loop_scope="function")
 async def test_sign_csr_conflict_polls_existing(
     fake_k8s: FakeK8s, cm_settings: RMSettings, csr_pem: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:

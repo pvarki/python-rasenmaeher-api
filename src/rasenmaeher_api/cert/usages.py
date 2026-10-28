@@ -82,8 +82,9 @@ def csr_usages(csr_pem: str) -> list[KeyUsages]:
         eku = csr.extensions.get_extension_for_class(cryptography.x509.ExtendedKeyUsage).value
         for oid in eku:
             eku_name = _EXT_KEY_USAGE_NAMES.get(oid)
-            if eku_name:
-                out.append(eku_name)
+            if eku_name is None:
+                raise ValueError(f"Unsupported extended key usage {oid.dotted_string}")
+            out.append(eku_name)
     except cryptography.x509.ExtensionNotFound:
         pass
     return out

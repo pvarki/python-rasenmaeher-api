@@ -3,9 +3,11 @@
 from pathlib import Path
 
 import pytest
+from cryptography.x509.oid import ExtendedKeyUsageOID
 from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair, async_create_server_csr
 
 from rasenmaeher_api.web.api.utils.csr_utils import verify_csr
+from tests.cert.helpers import CsrFactory
 
 
 @pytest.mark.asyncio
@@ -32,4 +34,12 @@ async def test_verify_csr_rejects_server_csr(nice_tmpdir: str) -> None:
     tempdir = Path(nice_tmpdir)
     ckp = await async_create_keypair(tempdir / "user.key", tempdir / "user.pub")
     csrpem = await async_create_server_csr(ckp, tempdir / "user.csr", ["csr_test"])
+    assert verify_csr(csrpem, "csr_test") is False
+
+
+def test_verify_csr_rejects_unknown_ext_key_usage(mint_csr: CsrFactory) -> None:
+    """An ExtendedKeyUsage OID without a name fails verification instead of raising"""
+    csrpem = mint_csr(
+        "csr_test", ext_key_usage=[ExtendedKeyUsageOID.CLIENT_AUTH, ExtendedKeyUsageOID.ANY_EXTENDED_KEY_USAGE]
+    )
     assert verify_csr(csrpem, "csr_test") is False

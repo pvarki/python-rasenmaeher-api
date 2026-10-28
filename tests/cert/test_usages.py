@@ -24,11 +24,19 @@ def test_key_usage_flags_mapped(mint_csr: CsrFactory, key_usage: KeyUsageFactory
 
 
 def test_ext_key_usage_oids_mapped(mint_csr: CsrFactory) -> None:
-    """Known ExtendedKeyUsage OIDs map to their names, unknown ones are dropped"""
+    """Known ExtendedKeyUsage OIDs map to their names"""
     known = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.SERVER_AUTH])
     assert csr_usages(known) == ["server auth"]
-    unknown = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC])
-    assert csr_usages(unknown) == []
+
+
+@pytest.mark.parametrize(
+    "unknown_oid", [ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC, ExtendedKeyUsageOID.ANY_EXTENDED_KEY_USAGE]
+)
+def test_unknown_ext_key_usage_oid_raises(mint_csr: CsrFactory, unknown_oid: ObjectIdentifier) -> None:
+    """ExtendedKeyUsage OIDs without a name are refused, even next to allowed ones"""
+    csr = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.CLIENT_AUTH, unknown_oid])
+    with pytest.raises(ValueError, match=unknown_oid.dotted_string):
+        csr_usages(csr)
 
 
 @pytest.mark.parametrize(
