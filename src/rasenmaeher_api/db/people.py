@@ -100,7 +100,7 @@ class Person(ORMBaseModel, table=True):
         if cnf.is_reserved_cn(callsign):
             raise CallsignReserved("Using service CNs as callsigns is forbidden")
         if csrpem and not verify_csr(csrpem, callsign):
-            raise CallsignReserved("CSR CN must match callsign")
+            raise CallsignReserved("CSR subject or key usages not allowed for callsign")
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()

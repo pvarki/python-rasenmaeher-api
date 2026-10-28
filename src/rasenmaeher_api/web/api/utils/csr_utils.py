@@ -6,6 +6,8 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 from libadvian.binpackers import ensure_utf8
 
+from ....cert.usages import disallowed_usages
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -13,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 def verify_csr(csrpem: str, callsign: str) -> bool:
-    """Verify CSR matches our rules for CN/DN for the given callsign"""
+    """Verify CSR matches our rules for CN/DN and key usages for the given callsign"""
     csr = x509.load_pem_x509_csr(ensure_utf8(csrpem))
     dn = csr.subject.rfc4514_string()
     LOGGER.debug(f"DN={dn} callsign={callsign}")
@@ -21,7 +23,7 @@ def verify_csr(csrpem: str, callsign: str) -> bool:
     if len(csr.subject) != 1 or len(cns) != 1 or cns[0].value != callsign:
         LOGGER.warning(f"Callsign does not match CSR subject. DN={dn} callsign={callsign}")
         return False
-    # TODO: check that keyusages in the CSR are fine
-    #       crypto.X509Extension(b"keyUsage", True, b"digitalSignature,nonRepudiation,keyEncipherment"),
-    #       crypto.X509Extension(b"extendedKeyUsage", True, b"clientAuth"),
+    if extra := disallowed_usages(csrpem, callsign):
+        LOGGER.warning(f"CSR requests usages not allowed for callsign. usages={sorted(extra)} callsign={callsign}")
+        return False
     return True
