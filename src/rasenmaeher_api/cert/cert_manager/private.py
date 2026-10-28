@@ -127,6 +127,20 @@ def _csr_usages(csr_pem: str) -> list[KeyUsages]:
     return out
 
 
+_CLIENT_USAGES: frozenset[KeyUsages] = frozenset(
+    {"digital signature", "content commitment", "key encipherment", "client auth"}
+)
+
+
+def _check_usages(csr_pem: str, cn: str | None, settings: RMSettings) -> None:
+    """Allow client usages for everyone and server auth only for service CNs"""
+    extra = set(_csr_usages(csr_pem)) - _CLIENT_USAGES
+    if extra == {"server auth"} and cn is not None and settings.is_reserved_cn(cn):
+        return
+    if extra:
+        raise CertManagerError(f"CSR for {cn} requests usages not allowed for it: {sorted(extra)}")
+
+
 async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, settings: RMSettings) -> CertificateRequest:
     """Create the CertificateRequest and return it."""
     try:
@@ -195,6 +209,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     """
     settings = RMSettings.singleton()
     cn = _csr_common_name(csr)
+    _check_usages(csr, cn, settings)
     name = cr_name(csr, cn)
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
