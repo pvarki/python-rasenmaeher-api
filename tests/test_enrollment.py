@@ -1,6 +1,5 @@
 """Test enrollment endpoint"""
 
-import asyncio
 import datetime
 import logging
 import re
@@ -25,11 +24,10 @@ from rasenmaeher_api.db import (
     EngineWrapper,
     Enrollment,
     EnrollmentPool,
-    EnrollmentState,
     MdmEnrolment,
     Person,
 )
-from rasenmaeher_api.db.errors import CallsignReserved
+from rasenmaeher_api.db.errors import CallsignReserved, NotFound
 from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
@@ -236,11 +234,7 @@ async def test_list_as_adm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
     LOGGER.debug(resp_dict)
     assert resp_dict["callsign_list"] is not None
     assert resp_dict["callsign_list"][0]["callsign"]
-    # Every person's code, not just whichever row the database happened to return first: a device
-    # planned for MDM carries its code on purpose, so an index-0 check is a coin flip on what
-    # earlier tests left behind. Which kind may show its code is pinned in
-    # test_the_list_carries_the_code_for_devices_but_not_for_people, on rows it created itself.
-    assert all(not row["approvecode"] for row in resp_dict["callsign_list"] if not row["mdm"])
+    assert not resp_dict["callsign_list"][0]["approvecode"]
     assert resp.status_code == 200
 
 
@@ -775,21 +769,13 @@ async def mdm_challenge(mdm_agent_client: TestClient) -> str:
     return (await (await MdmEnrolment.current()).open_for(1)).challenge
 
 
-async def _device_csr(tempdir: Path, callsign: str, name: str = "device", code: str = "") -> str:
-    """A CSR the way a device would send one: its own key, its callsign as the CN
-
-    With a code, also the way an MDM sends one: ``<callsign>@<approvecode>`` rendered into the one
-    per-host subject field an MDM can substitute, which is what proves the MDM assigned this
-    device this callsign. Without it, what a caller who only guessed the callsign would send.
-    """
+async def _device_csr(tempdir: Path, callsign: str, name: str = "device") -> str:
+    """A CSR the way a device sends one through its MDM: its own key, the name the MDM gave it as the CN"""
     privkeyfile = Path(tempdir) / f"{name}.key"
     pubkeyfile = Path(tempdir) / f"{name}.pub"
     csrfile = Path(tempdir) / f"{name}.csr"
-    reqdn = {"CN": callsign}
-    if code:
-        reqdn["OU"] = f"{callsign}@{code}"
     ckp = await async_create_keypair(privkeyfile, pubkeyfile)
-    return str(await async_create_client_csr(ckp, csrfile, reqdn))
+    return str(await async_create_client_csr(ckp, csrfile, {"CN": callsign}))
 
 
 def _public_key_der(pem: str) -> bytes:
@@ -800,77 +786,52 @@ def _public_key_der(pem: str) -> bytes:
     return x509.load_pem_x509_certificate(pem.encode("utf-8")).public_key().public_bytes(encoding, fmt)
 
 
-@pytest.mark.asyncio(loop_scope="session")
-async def test_mdm_planned_enrollment_is_not_approvable_by_hand(
-    tilauspalvelu_jwt_admin_client: TestClient,
-) -> None:
-    """An admin planning a device must not be able to approve it and spend the callsign"""
-    callsign = f"mdmplanned{secrets.token_hex(4)}"
-    resp = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-    )
-    assert resp.status_code == 200
-    planned = resp.json()
-    assert planned["callsign"] == callsign
-    # No credential for the device is handed to the admin planning it
-    assert planned["jwt"] == ""
+async def _mdm_enrol(client: TestClient, callsign: str, csrpem: str | None, challenge: str | None) -> Any:
+    body: dict[str, Any] = {"callsign": callsign, "challenge": challenge}
+    if csrpem is not None:
+        body["csr"] = csrpem
+    return await client.post("/api/v1/enrollment/accept", json=body)
 
-    resp = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": callsign, "approvecode": planned["approvecode"]}
-    )
-    assert resp.status_code == 409
-    # and the enrollment is untouched, so the device can still take it
-    still_pending = await Enrollment.by_callsign(callsign)
-    assert still_pending.state == 0
-    assert still_pending.csr is None
+
+async def _no_person(callsign: str) -> bool:
+    try:
+        await Person.by_callsign(callsign, allow_deleted=True)
+    except NotFound:
+        return True
+    return False
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_mdm_agent_completes_planned_enrollment(
-    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
+async def test_mdm_agent_enrols_a_device_under_its_mdm_name(
+    mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
 ) -> None:
-    """The whole agent path: plan, complete with the device CSR, and survive a repeat"""
+    """The whole agent path: the MDM names the device, and a repeat gets the same certificate"""
     tempdir = Path(nice_tmpdir)
-    callsign = f"mdmdevice{secrets.token_hex(4)}"
-    resp = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-    )
-    assert resp.status_code == 200
-    code = resp.json()["approvecode"]
-
-    csrpem = await _device_csr(tempdir, callsign, code=code)
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem, "challenge": mdm_challenge}
-    )
-    assert resp.status_code == 200
+    callsign = f"R58N{secrets.token_hex(4).upper()}"
+    csrpem = await _device_csr(tempdir, callsign)
+    resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
+    assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["success"] is True
     certpem = body["certificate"]
-    assert certpem
 
     # The certificate must be for the key the device holds. If this ever regresses, rasenmaeher
     # generated a keypair of its own and the device received a certificate it cannot use.
     assert _public_key_der(certpem) == _public_key_der(csrpem)
-    # The mTLS edge authorises on the CN it reads off the certificate, so exactly one and it is
-    # the callsign. The signer copies the rest of the request's subject verbatim, which is why the
-    # enrolment code rides along -- spent by the time it is in there, but worth noticing if the
-    # signer ever starts naming the certificate itself instead.
+    # The mTLS edge authorises on the CN it reads off the certificate: exactly one, the MDM's name
     issued = x509.load_pem_x509_certificate(certpem.encode("utf-8"))
     assert [attr.value for attr in issued.subject.get_attributes_for_oid(NameOID.COMMON_NAME)] == [callsign]
-    assert [attr.value for attr in issued.subject] == [f"{callsign}@{code}", callsign]
+    person = await Person.by_callsign(callsign)
+    assert person.extra == {"mdm": True}, "the admin UI lists devices by this mark"
 
     # The reply can be lost on the way back to the MDM, which then repeats the request verbatim
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem, "challenge": mdm_challenge}
-    )
+    resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
     assert resp.status_code == 200
     assert resp.json()["certificate"] == certpem
 
-    # ...but a different key for the same callsign is somebody else
-    other_csr = await _device_csr(tempdir, callsign, name="imposter", code=code)
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": callsign, "csr": other_csr, "challenge": mdm_challenge}
-    )
+    # ...but a different key for the same name is somebody else
+    other_csr = await _device_csr(tempdir, callsign, name="imposter")
+    resp = await _mdm_enrol(mdm_agent_client, callsign, other_csr, mdm_challenge)
     assert resp.status_code == 403
 
 
@@ -885,81 +846,67 @@ async def test_mdm_agent_refusals(
     """What the agent may not do"""
     tempdir = Path(nice_tmpdir)
 
-    # A callsign nobody planned
-    unplanned = f"mdmunplanned{secrets.token_hex(4)}"
-    csrpem = await _device_csr(tempdir, unplanned, name="unplanned")
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": unplanned, "csr": csrpem, "challenge": mdm_challenge}
-    )
+    # A request whose CN is not the name being enrolled
+    name = f"mdmmismatch{secrets.token_hex(4)}"
+    wrong_csr = await _device_csr(tempdir, f"{name}X", name="mismatch")
+    resp = await _mdm_enrol(mdm_agent_client, name, wrong_csr, mdm_challenge)
     assert resp.status_code == 403
-    with pytest.raises(Exception):  # noqa: B017 -- NotFound, and nothing was written
-        await Enrollment.by_callsign(unplanned)
-
-    # A CSR for a different callsign than the one being completed
-    planned = f"mdmmismatch{secrets.token_hex(4)}"
-    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": planned, "mdm": True})
-    assert resp.status_code == 200
-    wrong_csr = await _device_csr(tempdir, f"{planned}X", name="mismatch")
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": planned, "csr": wrong_csr, "challenge": mdm_challenge}
-    )
-    assert resp.status_code == 403
-    assert (await Enrollment.by_callsign(planned)).csr is None
+    assert await _no_person(name)
 
     # No CSR at all
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": planned, "challenge": mdm_challenge}
-    )
+    resp = await _mdm_enrol(mdm_agent_client, name, None, mdm_challenge)
     assert resp.status_code == 400
 
     # And without the agent certificate the route is what it always was
-    resp = await unauth_client_session.post("/api/v1/enrollment/accept", json={"callsign": planned, "csr": wrong_csr})
+    resp = await unauth_client_session.post("/api/v1/enrollment/accept", json={"callsign": name, "csr": wrong_csr})
     assert resp.status_code == 403
 
-    # An enrollment a human started: not the agent's business.
+    # A name a person is waiting for an admin under.
     # A plain init hands the caller the new callsign's JWT as a session cookie, and JWTBearer
     # prefers that cookie over the Authorization header, so this client would stop being an admin.
-    # Clean up after it here; not issuing it at all is exactly what the mdm form is for.
     human = f"mdmhuman{secrets.token_hex(4)}"
     resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
     assert resp.status_code == 200
     if tilauspalvelu_jwt_admin_client.cookie_jar is not None:
         tilauspalvelu_jwt_admin_client.cookie_jar.clear()
-    human_csr = await _device_csr(tempdir, human, name="human")
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": human, "csr": human_csr, "challenge": mdm_challenge}
-    )
+    resp = await _mdm_enrol(mdm_agent_client, human, await _device_csr(tempdir, human, name="human"), mdm_challenge)
     assert resp.status_code == 403
-    assert (await Enrollment.by_callsign(human)).csr is None
+    assert await _no_person(human)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize("name", ["KÄRPPÄ1", "OTTER-1", "AB", "A" * 31, "fake.localmaeher.dev.pvarki.fi"])
+async def test_mdm_agent_refuses_a_name_not_every_product_takes(
+    mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str, name: str
+) -> None:
+    """The MDM's name becomes the callsign everywhere, so it has to fit the rule people's do"""
+    resp = await _mdm_enrol(mdm_agent_client, name, await _device_csr(Path(nice_tmpdir), name), mdm_challenge)
+    assert resp.status_code == 403
+    assert await _no_person(name)
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_the_enrolment_window_and_challenge_gate_the_agent(
-    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
+    mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
 ) -> None:
     """A request that would otherwise succeed is refused while closed or with the wrong challenge
 
-    And it claims nothing, so the device can still enrol once the operator opens the window.
+    And it creates nothing, so the device can still enrol once the operator opens the window.
     """
     callsign = f"mdmwindow{secrets.token_hex(4)}"
-    resp = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-    )
-    assert resp.status_code == 200
-    csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="window", code=resp.json()["approvecode"])
-    accept = {"callsign": callsign, "csr": csrpem}
+    csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="window")
 
     for wrong in (None, "", "0" * 32, f"{mdm_challenge}x"):
-        resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={**accept, "challenge": wrong})
+        resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, wrong)
         assert resp.status_code == 403, f"challenge {wrong!r} must be refused"
 
     await (await MdmEnrolment.current()).open_for(0)
-    resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={**accept, "challenge": mdm_challenge})
+    resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
     assert resp.status_code == 403, "a closed window must refuse even a correct request"
-    assert (await Enrollment.by_callsign(callsign)).csr is None
+    assert await _no_person(callsign)
 
     await (await MdmEnrolment.current()).open_for(1)
-    resp = await mdm_agent_client.post("/api/v1/enrollment/accept", json={**accept, "challenge": mdm_challenge})
+    resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
     assert resp.status_code == 200, resp.text
 
 
@@ -1006,104 +953,11 @@ async def test_an_admin_opens_and_closes_mdm_enrolment(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_planning_many_devices_keeps_the_admin_session(
-    tilauspalvelu_jwt_admin_client: TestClient,
-) -> None:
-    """Planning a fleet is one call per device and must not log the admin out on the first one
-
-    A plain /enrollment/init issues the new callsign's JWT and sets it as the session cookie of
-    whoever called it, and JWTBearer prefers that cookie over the Authorization header -- so the
-    next call would arrive as a freshly created non-admin user. Devices planned for MDM get no JWT
-    at all, nobody should be holding a device's credential anyway, so this stays an admin.
-    """
-    for _ in range(3):
-        callsign = f"mdmfleet{secrets.token_hex(4)}"
-        resp = await tilauspalvelu_jwt_admin_client.post(
-            "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-        )
-        assert resp.status_code == 200
-        assert resp.json()["jwt"] == ""
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_list_marks_devices_planned_for_mdm(tilauspalvelu_jwt_admin_client: TestClient) -> None:
-    """An admin has to be able to tell a planned device from a person waiting for approval
-
-    Both sit in the list in state PENDING, but a device is waiting for its own CSR through the
-    agent and approving it by hand is refused, so without the marker the approve-users queue fills
-    with rows nobody may act on.
-    """
-    device = f"mdmlisted{secrets.token_hex(4)}"
-    human = f"humanlisted_{secrets.token_hex(4)}"
-    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": device, "mdm": True})
-    assert resp.status_code == 200
-    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
-    assert resp.status_code == 200
-    # A plain init hands back the new callsign's JWT as a cookie, which would unseat the admin
-    if tilauspalvelu_jwt_admin_client.cookie_jar is not None:
-        tilauspalvelu_jwt_admin_client.cookie_jar.clear()
-
-    listed = (await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list")).json()["callsign_list"]
-    marks = {row["callsign"]: row["mdm"] for row in listed if row["callsign"] in (device, human)}
-    assert marks == {device: True, human: False}
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_the_list_carries_the_code_for_devices_but_not_for_people(
-    tilauspalvelu_jwt_admin_client: TestClient,
-) -> None:
-    """A device's code is configuration an admin must type into the MDM; a person's is a secret
-
-    Withholding it for devices would mean an admin who plans a hundred of them can only read the
-    codes once, at the moment of creation. Exposing it for people would let any admin approve
-    anybody without being told anything.
-    """
-    device = f"mdmcode{secrets.token_hex(4)}"
-    human = f"humancode_{secrets.token_hex(4)}"
-    made = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": device, "mdm": True})
-    assert made.status_code == 200
-    expected = made.json()["approvecode"]
-    assert await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/init", json={"callsign": human})
-    if tilauspalvelu_jwt_admin_client.cookie_jar is not None:
-        tilauspalvelu_jwt_admin_client.cookie_jar.clear()
-
-    listed = (await tilauspalvelu_jwt_admin_client.get("/api/v1/enrollment/list")).json()["callsign_list"]
-    codes = {row["callsign"]: row["approvecode"] for row in listed if row["callsign"] in (device, human)}
-    assert codes[device] == expected, "a device's code has to be readable again after creation"
-    assert codes[human] == "", "a person's code is theirs to tell the admin"
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_two_devices_cannot_both_claim_one_planned_callsign() -> None:
-    """The clause the MVP plan will not sign off without
-
-    A callsign is spent the moment it is used and can never be released, so if two devices both
-    got past the claim one of them would receive a certificate for an identity the other also
-    holds, and the loser could never be enrolled under any name it had been promised. The check
-    and the write are one UPDATE for exactly this reason, so the guarantee is the database's and
-    not a check-then-act in Python.
-    """
-    callsign = f"mdmrace{secrets.token_hex(4)}"
-    planned = await Enrollment.create_for_callsign(callsign=callsign, extra={"mdm": True})
-
-    first, second = await asyncio.gather(
-        (await Enrollment.by_callsign(callsign)).claim_with_csr("csr-from-device-one"),
-        (await Enrollment.by_callsign(callsign)).claim_with_csr("csr-from-device-two"),
-    )
-    assert sorted([first, second]) == [False, True], "exactly one device may claim a planned callsign"
-
-    settled = await Enrollment.by_callsign(callsign)
-    assert settled.csr in ("csr-from-device-one", "csr-from-device-two")
-    assert settled.state == EnrollmentState.PENDING, "claiming must not decide the enrollment"
-    _ = planned
-
-
-@pytest.mark.asyncio(loop_scope="session")
 async def test_agent_cn_cannot_be_taken_as_a_callsign(monkeypatch: pytest.MonkeyPatch) -> None:
     """The agent CN is a service identity, not a name anyone may enroll under
 
     A certificate carrying it is accepted as the MDM agent on sight, with no Person, role or
-    product check, so issuing one to a person would hand them every planned device's identity.
+    product check, so issuing one to a person would let them enrol devices.
     Both creation paths have to refuse it, and case cannot be used to slip past: callsign lookups
     fold case, so a near-miss would be a confusing collision rather than a second identity.
 
@@ -1140,7 +994,7 @@ def _csr_asking_for(callsign: str, **extensions: Any) -> str:
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_a_device_request_may_not_choose_what_it_is_issued(
-    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, mdm_challenge: str
+    mdm_agent_client: TestClient, mdm_challenge: str
 ) -> None:
     """The signer picks its profile from what the request asks for
 
@@ -1155,43 +1009,6 @@ async def test_a_device_request_may_not_choose_what_it_is_issued(
         ("ca", {"ca": True}),
     ):
         callsign = f"mdmoverreach{secrets.token_hex(4)}"
-        resp = await tilauspalvelu_jwt_admin_client.post(
-            "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-        )
-        assert resp.status_code == 200
-        resp = await mdm_agent_client.post(
-            "/api/v1/enrollment/accept",
-            json={"callsign": callsign, "csr": _csr_asking_for(callsign, **kwargs), "challenge": mdm_challenge},
-        )
+        resp = await _mdm_enrol(mdm_agent_client, callsign, _csr_asking_for(callsign, **kwargs), mdm_challenge)
         assert resp.status_code == 403, f"{label} must be refused"
-        assert (await Enrollment.by_callsign(callsign)).csr is None, f"{label} must not claim the callsign"
-
-
-@pytest.mark.asyncio(loop_scope="session")
-async def test_an_ordinary_device_request_is_still_accepted(
-    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
-) -> None:
-    """The guard must not refuse what an MDM actually sends"""
-    callsign = f"mdmplain{secrets.token_hex(4)}"
-    resp = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-    )
-    assert resp.status_code == 200
-    code = resp.json()["approvecode"]
-    csrpem = await _device_csr(Path(nice_tmpdir), callsign, name="plain", code=code)
-    resp = await mdm_agent_client.post(
-        "/api/v1/enrollment/accept", json={"callsign": callsign, "csr": csrpem, "challenge": mdm_challenge}
-    )
-    assert resp.status_code == 200, resp.text
-
-
-@pytest.mark.asyncio(loop_scope="session")
-@pytest.mark.parametrize("callsign", ["KÄRPPÄ1", "OTTER-1", "AB", "A" * 31])
-async def test_mdm_plan_refuses_callsign_the_proof_cannot_carry(
-    tilauspalvelu_jwt_admin_client: TestClient, callsign: str
-) -> None:
-    """Planned under such a name, the device would wait forever: no request can prove it"""
-    resp = await tilauspalvelu_jwt_admin_client.post(
-        "/api/v1/enrollment/init", json={"callsign": callsign, "mdm": True}
-    )
-    assert resp.status_code == 400, resp.text
+        assert await _no_person(callsign), f"{label} must not spend the name"

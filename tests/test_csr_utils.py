@@ -5,7 +5,6 @@ Build certificate requests in memory and check what
 """
 
 import logging
-from typing import Any
 
 import pytest
 from cryptography import x509
@@ -13,7 +12,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.x509.oid import NameOID
 
-from rasenmaeher_api.web.api.utils.csr_utils import csr_carries_enrolment_proof, verify_csr
+from rasenmaeher_api.web.api.utils.csr_utils import verify_csr
 
 LOGGER = logging.getLogger(__name__)
 
@@ -95,54 +94,3 @@ def test_unsigned_csr_is_refused() -> None:
     broken_pem = broken.public_bytes(serialization.Encoding.PEM).decode("utf-8")
     assert not broken.is_signature_valid, "precondition: the signature must actually be invalid"
     assert not verify_csr(broken_pem, "OTTER1")
-
-
-def _csr_with_subject(attrs: list[tuple[Any, str]]) -> str:
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    name = x509.Name([x509.NameAttribute(oid, value) for oid, value in attrs])
-    csr = x509.CertificateSigningRequestBuilder().subject_name(name).sign(key, hashes.SHA256())
-    return csr.public_bytes(serialization.Encoding.PEM).decode("utf-8")
-
-
-def test_the_enrolment_proof_is_required_and_exact() -> None:
-    """The callsign alone is a short guessable string, so it cannot be the last gate"""
-    good = _csr_with_subject([(NameOID.COMMON_NAME, "OTTER1"), (NameOID.ORGANIZATIONAL_UNIT_NAME, "OTTER1@7F3A9C2B")])
-    assert csr_carries_enrolment_proof(good, "OTTER1", "7F3A9C2B")
-    assert not csr_carries_enrolment_proof(good, "OTTER1", "WRONGONE")
-    assert not csr_carries_enrolment_proof(good, "OTTER2", "7F3A9C2B"), "a code is bound to its callsign"
-
-    bare = _csr_with_subject([(NameOID.COMMON_NAME, "OTTER1")])
-    assert not csr_carries_enrolment_proof(bare, "OTTER1", "7F3A9C2B"), "what a guesser would send"
-
-
-def test_the_proof_is_found_wherever_the_mdm_renders_it() -> None:
-    """Which attribute carries it is the MDM's business, so do not hard-code one"""
-    for oid in (NameOID.ORGANIZATIONAL_UNIT_NAME, NameOID.ORGANIZATION_NAME, NameOID.STATE_OR_PROVINCE_NAME):
-        csrpem = _csr_with_subject([(NameOID.COMMON_NAME, "OTTER1"), (oid, "OTTER1@7F3A9C2B")])
-        assert csr_carries_enrolment_proof(csrpem, "OTTER1", "7F3A9C2B")
-
-
-def test_one_request_is_one_guess() -> None:
-    """A guess per attribute would test hundreds of codes in one request, so two proofs are none"""
-    batched = _csr_with_subject(
-        [
-            (NameOID.COMMON_NAME, "OTTER1"),
-            (NameOID.ORGANIZATIONAL_UNIT_NAME, "OTTER1@AAAAAAAA"),
-            (NameOID.ORGANIZATIONAL_UNIT_NAME, "OTTER1@7F3A9C2B"),
-        ]
-    )
-    assert not csr_carries_enrolment_proof(batched, "OTTER1", "7F3A9C2B")
-
-
-def test_the_common_name_cannot_be_the_proof() -> None:
-    """Otherwise a caller who guessed the callsign could satisfy the check with it"""
-    csrpem = _csr_with_subject([(NameOID.COMMON_NAME, "OTTER1@7F3A9C2B")])
-    assert not csr_carries_enrolment_proof(csrpem, "OTTER1@7F3A9C2B", "7F3A9C2B")
-
-
-def test_odd_input_is_refused_rather_than_raising() -> None:
-    """This runs on bytes that reached us from a public endpoint"""
-    assert not csr_carries_enrolment_proof("not a csr", "OTTER1", "7F3A9C2B")
-    assert not csr_carries_enrolment_proof(_csr_with_subject([(NameOID.COMMON_NAME, "OTTER1")]), "OTTER1", "")
-    unicode_ou = _csr_with_subject([(NameOID.COMMON_NAME, "OTTER1"), (NameOID.ORGANIZATIONAL_UNIT_NAME, "ÄÄÄ")])
-    assert not csr_carries_enrolment_proof(unicode_ou, "OTTER1", "7F3A9C2B"), "must not raise on non-ascii"

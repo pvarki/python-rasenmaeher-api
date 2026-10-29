@@ -13,14 +13,14 @@ from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
-from ....db import Enrollment, EnrollmentPool, EnrollmentState, MdmEnrolment, Person
-from ....db.errors import Deleted, NotFound
+from ....db import Enrollment, EnrollmentPool, MdmEnrolment, Person
+from ....db.errors import CallsignReserved, Deleted, NotFound
 from ....rmsettings import RMSettings
 from ..middleware.datatypes import MTLSorJWTPayloadType
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
-from ..utils.csr_utils import csr_carries_enrolment_proof, verify_csr
+from ..utils.csr_utils import verify_csr
 from .schema import (
     EnrollmentAcceptIn,
     EnrollmentAcceptResultOut,
@@ -49,8 +49,8 @@ from .schema import (
 )
 
 LOGGER = logging.getLogger(__name__)
-#: A device callsign must fit the enrolment proof, <callsign>@<approvecode> in the certificate
-#: subject. Same rule the UI applies to people.
+#: The name an MDM gives a device becomes its callsign in every product, so it has to be one they all
+#: take: the rule the UI applies to people.
 MDM_CALLSIGN = re.compile(r"[A-Za-z0-9]{3,30}")
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
@@ -188,34 +188,12 @@ async def request_enrollment_list(code: str | None = None) -> EnrollmentListOut:
     if code:
         try:
             enrollment = await Enrollment.by_approvecode(code)
-            result_list.append(
-                {
-                    "callsign": enrollment.callsign,
-                    "approvecode": code,
-                    "state": enrollment.state,
-                    "mdm": enrollment.planned_for_mdm,
-                }
-            )
+            result_list.append({"callsign": enrollment.callsign, "approvecode": code, "state": enrollment.state})
         except NotFound:
             pass
         return EnrollmentListOut(callsign_list=result_list)
     async for enrollment in Enrollment.list():
-        # mdm marks a device an admin planned for MDM enrolment. It is waiting for the device's own
-        # CSR through the agent, not for a human to approve it, and approving it by hand is refused.
-        #
-        # The code is withheld for people: there it is a secret the person tells the admin, and
-        # listing it would let any admin approve anybody without being told anything. For a device
-        # it is the opposite -- the admin has to type it into the MDM for the device to enrol at
-        # all, and nobody else ever learns it. Withholding it there would mean an admin who plans a
-        # hundred devices can only ever read the codes once, at the moment of creation.
-        result_list.append(
-            {
-                "callsign": enrollment.callsign,
-                "approvecode": enrollment.approvecode if enrollment.planned_for_mdm else "",
-                "state": enrollment.state,
-                "mdm": enrollment.planned_for_mdm,
-            }
-        )
+        result_list.append({"callsign": enrollment.callsign, "approvecode": "", "state": enrollment.state})
 
     return EnrollmentListOut(callsign_list=result_list)
 
@@ -250,19 +228,13 @@ async def request_enrollment_init(
     Add new callsign (enrollment) to environment.
     """
     callsign = request_in.callsign
-    if request_in.mdm and not MDM_CALLSIGN.fullmatch(callsign):
-        # Accepted, it would wait forever: no certificate request can prove it.
-        raise HTTPException(status_code=400, detail="A device callsign is 3-30 letters A-Z or digits")
 
     # TODO ADD POOL NAME CHECK
 
-    extra: dict[str, Any] = {"mdm": True} if request_in.mdm else {}
-    new_enrollment = await Enrollment.create_for_callsign(callsign=callsign, pool=None, extra=extra, csr=request_in.csr)
-    # Create JWT token for user. Never for a device planned for MDM enrolment: that token is a live
-    # credential for the callsign, the device will never use it (it receives a certificate through
-    # the agent), and issuing it here also overwrites the calling admin's own session cookie, which
-    # is unhelpful when planning three hundred of them.
-    new_jwt = "" if request_in.mdm else issue_enrollment_jwt(response, {"sub": callsign})
+    new_enrollment = await Enrollment.create_for_callsign(callsign=callsign, pool=None, extra={}, csr=request_in.csr)
+    # Create JWT token for user
+    claims = {"sub": callsign}
+    new_jwt = issue_enrollment_jwt(response, claims)
 
     LOGGER.audit(  # type: ignore[attr-defined]
         "Enrollment initiated by admin",
@@ -271,7 +243,6 @@ async def request_enrollment_init(
             outcome="success",
             target=callsign,
             request=request,
-            mdm=request_in.mdm,
         ),
     )
 
@@ -439,8 +410,8 @@ async def request_enrollment_lock(
 
 
 # One detail for every MDM refusal. The agent sees only "no", so a caller holding the agent
-# certificate cannot use the reply to learn which callsigns exist or which are planned. The real
-# reason goes to the audit log.
+# certificate cannot use the reply to learn which callsigns exist. The real reason goes to the
+# audit log.
 MDM_REFUSED = "Not a device enrolment this agent may complete"
 
 
@@ -449,8 +420,8 @@ def mdm_agent_cn(request: Request) -> str | None:
 
     The agent authenticates with its own client certificate from the deployment CA -- in a meshed
     deployment, with its mesh identity, which reaches us through the same header. It is not a
-    Person and holds no role. The single thing this CN may do is complete a device enrolment an
-    admin has already planned.
+    Person and holds no role. The single thing this CN may do is enrol a device while an admin has
+    MDM enrolment open.
     """
     payload = getattr(request.state, "mtls_or_jwt", None)
     if not payload or payload.type != MTLSorJWTPayloadType.MTLS or not payload.userid:
@@ -515,9 +486,9 @@ async def post_enrollment_accept(
     Accept callsign_hash (callsign/enrollment)
 
     Two kinds of caller. An admin approving a person by hand, which is unchanged. Or the MDM
-    enrolment agent completing a device enrolment an admin planned, supplying the CSR the device
-    generated. Authorisation for the second is the agent's own certificate, checked here rather
-    than inferred from where the request came from.
+    enrolment agent enrolling a device, supplying the CSR the device generated. Authorisation for
+    the second is the agent's own certificate, checked here rather than inferred from where the
+    request came from.
     """
     agent_cn = mdm_agent_cn(request)
     if agent_cn:
@@ -566,25 +537,6 @@ async def accept_as_admin(
         )
         raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
 
-    if pending_enrollment.planned_for_mdm and not pending_enrollment.csr:
-        # Approving it here would have rasenmaeher generate the keypair, and the device could then
-        # never have this callsign: callsigns are unique and are never released.
-        LOGGER.audit(  # type: ignore[attr-defined]
-            "Enrollment approval refused - planned for MDM",
-            extra=build_audit_extra(
-                action="enrollment_approve",
-                outcome="failure",
-                actor=admin_user.callsign,
-                target=target_callsign,
-                request=request,
-                error_code="PLANNED_FOR_MDM",
-            ),
-        )
-        raise HTTPException(
-            status_code=409,
-            detail="This device enrolls itself through the MDM, approving it by hand would spend the callsign",
-        )
-
     new_approved_user = await pending_enrollment.approve(approver=admin_user)
 
     LOGGER.audit(  # type: ignore[attr-defined]
@@ -600,15 +552,17 @@ async def accept_as_admin(
     return EnrollmentAcceptResultOut(success=True, extra=f"Approved {new_approved_user.callsign}")
 
 
-async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
+async def accept_as_mdm_agent(
     request: Request,
     request_in: EnrollmentAcceptIn,
     agent_cn: str,
 ) -> EnrollmentAcceptResultOut:
-    """The MDM agent completes a device enrollment an admin planned
+    """The MDM agent enrols a device under the name its MDM gave it
 
-    Everything is checked before the enrollment is claimed, so a request we are going to refuse
-    never consumes the callsign.
+    The MDM decides who a device is: the common name of the device's own request becomes its
+    callsign. What stands between the public SCEP endpoint and a new identity is the window an
+    admin opened and the challenge, so keep the window short. A name already in use is never handed
+    to a second key, and everything is checked before anything is written.
     """
     target_callsign = request_in.callsign
 
@@ -626,7 +580,7 @@ async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
         )
         return HTTPException(status_code=status_code, detail=detail)
 
-    # First, so that while enrolment is closed nothing behind it can be probed or guessed at.
+    # First, so that while enrolment is closed nothing behind it can be probed.
     enrolment = await MdmEnrolment.current()
     if not enrolment.is_open:
         raise refuse(403, "MDM_CLOSED")
@@ -636,42 +590,34 @@ async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
     csrpem = request_in.csr
     if not csrpem:
         raise refuse(400, "CSR_MISSING", "The device CSR is required")
-
-    try:
-        planned = await Enrollment.by_callsign(callsign=target_callsign)
-    except NotFound as exc:
-        raise refuse(403, "NOT_PLANNED") from exc
-    if not planned.planned_for_mdm:
-        raise refuse(403, "NOT_PLANNED_FOR_MDM")
-    if not verify_csr(csrpem, planned.callsign):
+    if not MDM_CALLSIGN.fullmatch(target_callsign):
+        raise refuse(403, "CALLSIGN_FORMAT")
+    if not verify_csr(csrpem, target_callsign):
         raise refuse(403, "CSR_SUBJECT")
-    overreach = device_csr_overreach(csrpem)
-    if overreach:
+    if device_csr_overreach(csrpem):
         raise refuse(403, "CSR_OVERREACH")
-    if not csr_carries_enrolment_proof(csrpem, planned.callsign, planned.approvecode):
-        # The callsign alone is not proof: it is a short human-chosen string, and the SCEP
-        # challenge in front of it is not a secret. The per-enrolment code is what says the MDM
-        # assigned THIS device THIS callsign. Refused before anything is claimed, so guessing
-        # cannot spend a callsign either.
-        raise refuse(403, "NO_ENROLMENT_PROOF")
 
-    if planned.state != EnrollmentState.PENDING or planned.csr:
-        return await mdm_repeat(request, csrpem, planned, refuse)
-
-    if not await planned.claim_with_csr(csrpem):
-        raise refuse(403, "ALREADY_CLAIMED")
-    # Re-read: approve() takes the CSR off the instance, and the claim was a separate statement.
-    claimed = await Enrollment.by_callsign(callsign=target_callsign)
     try:
-        person = await claimed.approve(approver=None)
-    except Exception:
-        # Issuing is a network call to the CA. Let the device's next attempt have the callsign
-        # back -- unless a Person row was already committed, which mdm_repeat then reports.
-        await claimed.release_claim()
-        raise
+        existing = await Person.by_callsign(target_callsign, allow_deleted=True)
+    except NotFound:
+        existing = None
+    if existing:
+        return await mdm_repeat(csrpem, existing, refuse)
+    try:
+        await Enrollment.by_callsign(target_callsign)
+    except (NotFound, Deleted):
+        pass
+    else:
+        # A person enrolled, or is waiting for an admin, under this name; taking it would strand them.
+        raise refuse(403, "CALLSIGN_PENDING")
+
+    try:
+        person = await Person.create_with_cert(target_callsign, extra={"mdm": True}, csrpem=csrpem)
+    except CallsignReserved as exc:
+        raise refuse(403, "CALLSIGN_RESERVED") from exc
 
     LOGGER.audit(  # type: ignore[attr-defined]
-        "Enrollment completed by MDM agent",
+        "Device enrolled by MDM agent",
         extra=build_audit_extra(
             action="enrollment_mdm_accept",
             outcome="success",
@@ -687,30 +633,22 @@ async def accept_as_mdm_agent(  # pylint: disable=too-many-return-statements
     )
 
 
-async def mdm_repeat(
-    request: Request,
-    csrpem: str,
-    planned: Enrollment,
-    refuse: Any,
-) -> EnrollmentAcceptResultOut:
-    """The agent asked again for a callsign that is no longer waiting
+async def mdm_repeat(csrpem: str, person: Person, refuse: Any) -> EnrollmentAcceptResultOut:
+    """The agent asked for a name that is already somebody's
 
     Almost always the reply was lost on the way back and the MDM repeated the identical request,
     so hand the same certificate over again -- it is public, and the alternative is a device
-    stranded behind "callsign already taken".
+    stranded behind "callsign already taken". Any other key is somebody else.
     """
-    _ = request
-    try:
-        person = await Person.by_callsign(planned.callsign)
-    except (NotFound, Deleted) as exc:
-        raise refuse(403, "ALREADY_DECIDED") from exc
+    if person.deleted:
+        raise refuse(403, "CALLSIGN_REVOKED")
     if not person.certfile.exists():
         # The Person row is committed before the CA is called and that commit cannot be rolled
-        # back, so a CA failure at just the wrong moment leaves the callsign unusable for good.
-        raise refuse(409, "CALLSIGN_SPENT", "That callsign was spent by a failed issue, plan another")
+        # back, so a CA failure at just the wrong moment leaves the name unusable for good.
+        raise refuse(409, "CALLSIGN_SPENT", "That name was spent by a failed issue, give the device another")
     certpem = person.certfile.read_text(encoding="utf-8")
     if not same_public_key(csrpem, certpem):
-        raise refuse(403, "DIFFERENT_KEY")
+        raise refuse(403, "CALLSIGN_TAKEN")
     return EnrollmentAcceptResultOut(
         success=True,
         extra=f"Approved {person.callsign}",

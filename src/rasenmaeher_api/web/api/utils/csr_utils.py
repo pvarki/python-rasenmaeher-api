@@ -1,7 +1,6 @@
 """Utils for checking CSR:s etc"""
 
 import logging
-import secrets
 
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -45,34 +44,3 @@ def verify_csr(csrpem: str, callsign: str) -> bool:
     #       crypto.X509Extension(b"keyUsage", True, b"digitalSignature,nonRepudiation,keyEncipherment"),
     #       crypto.X509Extension(b"extendedKeyUsage", True, b"clientAuth"),
     return True
-
-
-def csr_carries_enrolment_proof(csrpem: str, callsign: str, approvecode: str) -> bool:
-    """Does this request carry the per-enrolment code, proving the MDM assigned this device
-
-    The public SCEP endpoint is reachable by anyone, and the SCEP challenge is not a secret: it
-    sits in the MDM's configuration and travels in every device's request. So without this the
-    last gate is a callsign, which is a short human-chosen string an attacker can guess.
-
-    The MDM carries the proof by putting ``<callsign>@<approvecode>`` in the one per-host field it
-    can substitute into a subject, rendered into an attribute beside the common name. Which
-    attribute it renders into is the MDM's business and not something to hard-code, but exactly
-    one attribute may carry an "@": otherwise one request could hold a guess per attribute and
-    test hundreds of codes at once.
-    """
-    wanted = f"{callsign}@{approvecode}"
-    if not approvecode or not wanted.isascii():
-        return False
-    try:
-        csr = x509.load_pem_x509_csr(ensure_utf8(csrpem))
-    except ValueError:
-        return False
-    carriers = [
-        attribute.value
-        for attribute in csr.subject
-        if attribute.oid != NameOID.COMMON_NAME and isinstance(attribute.value, str) and "@" in attribute.value
-    ]
-    if len(carriers) != 1 or not carriers[0].isascii():
-        # compare_digest raises on non-ascii str, and nothing we issue for is non-ascii
-        return False
-    return secrets.compare_digest(carriers[0], wanted)
