@@ -875,14 +875,31 @@ async def test_mdm_agent_refusals(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-@pytest.mark.parametrize("name", ["KÄRPPÄ1", "OTTER-1", "AB", "A" * 31, "fake.localmaeher.dev.pvarki.fi"])
+@pytest.mark.parametrize(
+    "name", ["KÄRPPÄ1", "AB", "A" * 33, "-OTTER1", "OTTER1-", "OTTER_1", "fake.localmaeher.dev.pvarki.fi"]
+)
 async def test_mdm_agent_refuses_a_name_not_every_product_takes(
     mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str, name: str
 ) -> None:
-    """The MDM's name becomes the callsign everywhere, so it has to fit the rule people's do"""
+    """The MDM's name becomes the callsign everywhere, so it has to be one every product takes"""
     resp = await _mdm_enrol(mdm_agent_client, name, await _device_csr(Path(nice_tmpdir), name), mdm_challenge)
     assert resp.status_code == 403
     assert await _no_person(name)
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_mdm_agent_takes_a_work_profile_enrollment_id(
+    mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
+) -> None:
+    """A work-profile phone reports no serial, only a 32-character hyphenated enrollment-specific ID"""
+    raw = secrets.token_hex(14).upper()
+    name = "-".join([raw[0:4], raw[4:8], raw[8:12], raw[12:17], raw[17:21], raw[21:25], raw[25:26]])
+    assert len(name) == 32
+    resp = await _mdm_enrol(
+        mdm_agent_client, name, await _device_csr(Path(nice_tmpdir), name, name="esid"), mdm_challenge
+    )
+    assert resp.status_code == 200, resp.text
+    assert (await Person.by_callsign(name)).extra == {"mdm": True}
 
 
 @pytest.mark.asyncio(loop_scope="session")

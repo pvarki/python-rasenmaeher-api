@@ -50,8 +50,9 @@ from .schema import (
 
 LOGGER = logging.getLogger(__name__)
 #: The name an MDM gives a device becomes its callsign in every product, so it has to be one they all
-#: take: the rule the UI applies to people.
-MDM_CALLSIGN = re.compile(r"[A-Za-z0-9]{3,30}")
+#: take. Hyphens and 32 characters fit the enrollment-specific ID a work-profile phone reports in place
+#: of its serial; no hyphen at either end, so a name never reads as a command-line flag.
+MDM_CALLSIGN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{1,30}[A-Za-z0-9]")
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 NO_JWT_ENROLLMENT_ROUTER = APIRouter()
