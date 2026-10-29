@@ -1,7 +1,9 @@
 """Schema for enrollment."""
 
+import datetime
 from typing import Any
 
+from libpvarki.schemas.generic import OperationResultResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -191,7 +193,20 @@ class EnrollmentAcceptIn(BaseModel):
 
     callsign: str = Field(description="Callsign to approve")
     approvecode: str = Field(
-        description="Approval code for the callsign, this must have been delivered by the person to be enrolled"
+        description=(
+            "Approval code for the callsign, this must have been delivered by the person to be enrolled. "
+            "Not used when the MDM agent enrols a device: there is no human to deliver it, "
+            "and the agent has authenticated with its own certificate."
+        ),
+        default="",
+    )
+    csr: str | None = Field(
+        description=("CSR the device generated, PEM, its CN the name the MDM gave it. Only for the MDM agent."),
+        default=None,
+    )
+    challenge: str | None = Field(
+        description="The SCEP challenge the device sent. Only for an MDM agent, which passes it on unchecked.",
+        default=None,
     )
 
 
@@ -208,6 +223,20 @@ class EnrollmentAcceptOut(BaseModel):
     )
 
     callsign: str
+
+
+class EnrollmentAcceptResultOut(OperationResultResponse):
+    """Result of accepting an enrollment
+
+    Additive superset of the plain result: an MDM agent gets the issued certificate back here
+    rather than fetching it afterwards. It has no user credential to fetch it with, and in a
+    meshed deployment its own service identity would win over any bearer token anyway.
+    """
+
+    certificate: str | None = Field(
+        description="Issued certificate, PEM. Only set when an MDM agent completed the enrolment.",
+        default=None,
+    )
 
 
 class EnrollmentPromoteIn(BaseModel):
@@ -433,3 +462,22 @@ class EnrollmentInviteCodeDeleteIn(BaseModel):
     )
 
     invite_code: str
+
+
+class MdmSettingsOut(BaseModel):
+    """What an operator configures the MDM with, and whether devices may enrol now"""
+
+    #: Where the MDM sends each device's certificate request
+    scep_url: str
+    #: The SCEP challenge. Not a secret: the MDM hands it to every device
+    challenge: str
+    #: When the enrolment window closes, or None while it is closed
+    open_until: datetime.datetime | None
+
+
+class MdmSettingsIn(BaseModel):
+    """Open the enrolment window for some hours, or close it"""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hours: int = Field(description="Hours to keep enrolment open from now, 0 closes it", ge=0, le=168)

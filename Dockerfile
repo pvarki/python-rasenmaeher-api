@@ -133,7 +133,10 @@ RUN --mount=type=ssh apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/* \
     && chmod a+x /docker-entrypoint.sh \
     && WHEELFILE=`echo /tmp/wheelhouse/rasenmaeher_api-*.whl` \
-    && pip3 install --find-links=/tmp/wheelhouse/ "$WHEELFILE"[all] \
+    # --no-index, or --find-links is merely additive and pip re-resolves against PyPI: the
+    # wheelhouse is built from `uv export --frozen`, but pip would happily pick a newer sqlmodel
+    # that widens its SQLAlchemy range, and the image then ships versions the lock never saw.
+    && pip3 install --no-index --find-links=/tmp/wheelhouse/ "$WHEELFILE"[all] \
     && rm -rf /tmp/wheelhouse/ \
     # Do whatever else you need to
     && true

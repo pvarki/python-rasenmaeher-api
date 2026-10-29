@@ -23,8 +23,13 @@ config = cast(
 class DBConfig:
     """DB config dataclass, functools etc used to avoid import-time side-effects"""
 
+    # Name the DBAPI rather than leaving it to SQLAlchemy's default for postgresql://, which moved
+    # from psycopg2 to psycopg3 in SQLAlchemy 2.1. We ship psycopg2, so the bare name stops
+    # resolving the moment anything builds us against 2.1.
     driver: str = field(
-        default_factory=cast(Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql"))
+        default_factory=cast(
+            Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql+psycopg2")
+        )
     )
     host: str | None = field(default_factory=functools.partial(config, "RM_DATABASE_HOST", default=None))
     port: int = field(

@@ -1,22 +1,29 @@
 """Enrollment API views."""
 
 import logging
+import re
 import uuid
 from typing import Any
 
+from cryptography import x509
+from cryptography.hazmat.primitives import serialization
+from cryptography.x509.oid import ExtendedKeyUsageOID
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
-from ....db import Enrollment, EnrollmentPool, Person
-from ....db.errors import NotFound
+from ....db import Enrollment, EnrollmentPool, MdmEnrolment, Person
+from ....db.errors import CallsignReserved, Deleted, NotFound
 from ....rmsettings import RMSettings
+from ..middleware.datatypes import MTLSorJWTPayloadType
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
+from ..utils.csr_utils import verify_csr
 from .schema import (
     EnrollmentAcceptIn,
+    EnrollmentAcceptResultOut,
     EnrollmentDemoteIn,
     EnrollmentGenVerifiOut,
     EnrollmentHaveIBeenAcceptedOut,
@@ -37,9 +44,15 @@ from .schema import (
     EnrollmentShowVerificationCodeOut,
     EnrollmentStatusIn,
     EnrollmentStatusOut,
+    MdmSettingsIn,
+    MdmSettingsOut,
 )
 
 LOGGER = logging.getLogger(__name__)
+#: The name an MDM gives a device becomes its callsign in every product, so it has to be one they all
+#: take. Hyphens and 32 characters fit the enrollment-specific ID a work-profile phone reports in place
+#: of its serial; no hyphen at either end, so a name never reads as a command-line flag.
+MDM_CALLSIGN = re.compile(r"[A-Za-z0-9][A-Za-z0-9-]{1,30}[A-Za-z0-9]")
 
 ENROLLMENT_ROUTER = APIRouter(dependencies=[Depends(MTLSorJWT(auto_error=True))])
 NO_JWT_ENROLLMENT_ROUTER = APIRouter()
@@ -397,23 +410,107 @@ async def request_enrollment_lock(
     return OperationResultResponse(success=True, extra="Lock task done")
 
 
+# One detail for every MDM refusal. The agent sees only "no", so a caller holding the agent
+# certificate cannot use the reply to learn which callsigns exist. The real reason goes to the
+# audit log.
+MDM_REFUSED = "Not a device enrolment this agent may complete"
+
+
+def mdm_agent_cn(request: Request) -> str | None:
+    """The caller's CN if it is a configured MDM enrolment agent, otherwise None
+
+    The agent authenticates with its own client certificate from the deployment CA -- in a meshed
+    deployment, with its mesh identity, which reaches us through the same header. It is not a
+    Person and holds no role. The single thing this CN may do is enrol a device while an admin has
+    MDM enrolment open.
+    """
+    payload = getattr(request.state, "mtls_or_jwt", None)
+    if not payload or payload.type != MTLSorJWTPayloadType.MTLS or not payload.userid:
+        return None
+    if payload.userid not in RMSettings.singleton().mdm_agent_cn_set:
+        return None
+    return str(payload.userid)
+
+
+def device_csr_overreach(csrpem: str) -> str | None:
+    """Is this request asking for more than a device identity, or None if it is not
+
+    The signer picks its profile from what the request asks for, so a request that asks for server
+    authentication is issued one, and nothing replaces the names it carries. On this path the
+    request arrived from the public SCEP endpoint and its contents are entirely the caller's
+    choice, so the shape of what gets issued cannot be one of the things they choose.
+
+    A genuine device request from an MDM asks for none of this: it carries a subject and a public
+    key and nothing else.
+    """
+    try:
+        csr = x509.load_pem_x509_csr(csrpem.encode("utf-8"))
+    except ValueError as exc:
+        return f"the request does not parse: {exc}"
+    try:
+        usages = csr.extensions.get_extension_for_class(x509.ExtendedKeyUsage).value
+        if [usage for usage in usages if usage != ExtendedKeyUsageOID.CLIENT_AUTH]:
+            return "the request asks for a key usage beyond client authentication"
+    except x509.ExtensionNotFound:
+        pass
+    try:
+        csr.extensions.get_extension_for_class(x509.SubjectAlternativeName)
+        return "the request carries subject alternative names"
+    except x509.ExtensionNotFound:
+        pass
+    try:
+        basic = csr.extensions.get_extension_for_class(x509.BasicConstraints).value
+        if basic.ca:
+            return "the request asks to be a certificate authority"
+    except x509.ExtensionNotFound:
+        pass
+    return None
+
+
+def same_public_key(csrpem: str, certpem: str) -> bool:
+    """Does this CSR carry the key that was certified"""
+    csr = x509.load_pem_x509_csr(csrpem.encode("utf-8"))
+    cert = x509.load_pem_x509_certificate(certpem.encode("utf-8"))
+    encoding, fmt = serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo
+    return csr.public_key().public_bytes(encoding, fmt) == cert.public_key().public_bytes(encoding, fmt)
+
+
 @ENROLLMENT_ROUTER.post(
     "/accept",
-    response_model=OperationResultResponse,
-    dependencies=[Depends(ValidUser(auto_error=True, require_roles=["admin"]))],
+    response_model=EnrollmentAcceptResultOut,
 )
 async def post_enrollment_accept(
     request: Request,
     request_in: EnrollmentAcceptIn = Body(),
-) -> OperationResultResponse:
+) -> EnrollmentAcceptResultOut:
     """
     Accept callsign_hash (callsign/enrollment)
+
+    Two kinds of caller. An admin approving a person by hand, which is unchanged. Or the MDM
+    enrolment agent enrolling a device, supplying the CSR the device generated. Authorisation for
+    the second is the agent's own certificate, checked here rather than inferred from where the
+    request came from.
     """
+    agent_cn = mdm_agent_cn(request)
+    if agent_cn:
+        return await accept_as_mdm_agent(request, request_in, agent_cn)
+    admin_user = await ValidUser(auto_error=True, require_roles=["admin"])(request)
+    if not admin_user:
+        # ValidUser returns None without a Person for product certificates; they have no business
+        # approving enrollments and used to fall through to a confusing 404.
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    return await accept_as_admin(request, request_in, admin_user)
+
+
+async def accept_as_admin(
+    request: Request,
+    request_in: EnrollmentAcceptIn,
+    admin_user: Person,
+) -> EnrollmentAcceptResultOut:
+    """An admin approves an enrollment by hand, with the code the enrollee gave them"""
     target_callsign = request_in.callsign
-    actor = request.state.mtls_or_jwt.userid
 
     try:
-        admin_user = await Person.by_callsign(callsign=actor)
         pending_enrollment = await Enrollment.by_callsign(callsign=target_callsign)
     except NotFound as exc:
         LOGGER.audit(  # type: ignore[attr-defined]
@@ -453,7 +550,169 @@ async def post_enrollment_accept(
         ),
     )
 
-    return OperationResultResponse(success=True, extra=f"Approved {new_approved_user.callsign}")
+    return EnrollmentAcceptResultOut(success=True, extra=f"Approved {new_approved_user.callsign}")
+
+
+async def accept_as_mdm_agent(
+    request: Request,
+    request_in: EnrollmentAcceptIn,
+    agent_cn: str,
+) -> EnrollmentAcceptResultOut:
+    """The MDM agent enrols a device under the name its MDM gave it
+
+    The MDM decides who a device is: the common name of the device's own request becomes its
+    callsign. What stands between the public SCEP endpoint and a new identity is the window an
+    admin opened and the challenge, so keep the window short. A name already in use is never handed
+    to a second key, and everything is checked before anything is written.
+    """
+    target_callsign = request_in.callsign
+
+    def refuse(status_code: int, error_code: str, detail: str = MDM_REFUSED) -> HTTPException:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "MDM enrollment refused",
+            extra=build_audit_extra(
+                action="enrollment_mdm_accept",
+                outcome="failure",
+                actor=agent_cn,
+                target=target_callsign,
+                request=request,
+                error_code=error_code,
+            ),
+        )
+        return HTTPException(status_code=status_code, detail=detail)
+
+    # First, so that while enrolment is closed nothing behind it can be probed.
+    enrolment = await MdmEnrolment.current()
+    if not enrolment.is_open:
+        raise refuse(403, "MDM_CLOSED")
+    if not enrolment.accepts(request_in.challenge):
+        raise refuse(403, "WRONG_CHALLENGE")
+
+    csrpem = request_in.csr
+    if not csrpem:
+        raise refuse(400, "CSR_MISSING", "The device CSR is required")
+    if not MDM_CALLSIGN.fullmatch(target_callsign):
+        raise refuse(403, "CALLSIGN_FORMAT")
+    if not verify_csr(csrpem, target_callsign):
+        raise refuse(403, "CSR_SUBJECT")
+    if device_csr_overreach(csrpem):
+        raise refuse(403, "CSR_OVERREACH")
+
+    try:
+        existing = await Person.by_callsign(target_callsign, allow_deleted=True)
+    except NotFound:
+        existing = None
+    if existing:
+        return await mdm_repeat(csrpem, existing, refuse)
+    try:
+        await Enrollment.by_callsign(target_callsign)
+    except (NotFound, Deleted):
+        pass
+    else:
+        # A person enrolled, or is waiting for an admin, under this name; taking it would strand them.
+        raise refuse(403, "CALLSIGN_PENDING")
+
+    try:
+        person = await Person.create_with_cert(target_callsign, extra={"mdm": True}, csrpem=csrpem)
+    except CallsignReserved as exc:
+        raise refuse(403, "CALLSIGN_RESERVED") from exc
+
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Device enrolled by MDM agent",
+        extra=build_audit_extra(
+            action="enrollment_mdm_accept",
+            outcome="success",
+            actor=agent_cn,
+            target=target_callsign,
+            request=request,
+        ),
+    )
+    return EnrollmentAcceptResultOut(
+        success=True,
+        extra=f"Approved {person.callsign}",
+        certificate=person.certfile.read_text(encoding="utf-8"),
+    )
+
+
+async def mdm_repeat(csrpem: str, person: Person, refuse: Any) -> EnrollmentAcceptResultOut:
+    """The agent asked for a name that is already somebody's
+
+    Almost always the reply was lost on the way back and the MDM repeated the identical request,
+    so hand the same certificate over again -- it is public, and the alternative is a device
+    stranded behind "callsign already taken". Any other key is somebody else.
+    """
+    if person.deleted:
+        raise refuse(403, "CALLSIGN_REVOKED")
+    if not person.certfile.exists():
+        # The Person row is committed before the CA is called and that commit cannot be rolled
+        # back, so a CA failure at just the wrong moment leaves the name unusable for good.
+        raise refuse(409, "CALLSIGN_SPENT", "That name was spent by a failed issue, give the device another")
+    certpem = person.certfile.read_text(encoding="utf-8")
+    if not same_public_key(csrpem, certpem):
+        raise refuse(403, "CALLSIGN_TAKEN")
+    return EnrollmentAcceptResultOut(
+        success=True,
+        extra=f"Approved {person.callsign}",
+        certificate=certpem,
+    )
+
+
+async def human_admin(request: Request) -> Person:
+    """An admin who is a person
+
+    ValidUser lets a product certificate through without a Person or a role check. Products have
+    no business switching device enrolment: that is the operator's decision.
+    """
+    admin = await ValidUser(auto_error=True, require_roles=["admin"])(request)
+    if not admin:
+        raise HTTPException(status_code=403, detail="Not authenticated")
+    return admin
+
+
+def _mdm_settings(request: Request, enrolment: MdmEnrolment) -> MdmSettingsOut:
+    host = (request.url.hostname or "").removeprefix("mtls.")
+    return MdmSettingsOut(
+        scep_url=f"https://{host}/scep" if host else "",
+        challenge=enrolment.challenge,
+        open_until=enrolment.open_until if enrolment.is_open else None,
+    )
+
+
+@ENROLLMENT_ROUTER.get(
+    "/mdm-settings",
+    response_model=MdmSettingsOut,
+    dependencies=[Depends(human_admin)],
+)
+async def request_mdm_settings(request: Request) -> MdmSettingsOut:
+    """What to configure the MDM with, and until when devices may enrol through it
+
+    Admin only, though the challenge is no secret: there is no reason for anybody else to read it.
+    """
+    return _mdm_settings(request, await MdmEnrolment.current())
+
+
+@ENROLLMENT_ROUTER.put("/mdm-settings", response_model=MdmSettingsOut)
+async def put_mdm_settings(
+    request: Request,
+    request_in: MdmSettingsIn = Body(),
+    admin: Person = Depends(human_admin),
+) -> MdmSettingsOut:
+    """Open MDM enrolment for some hours, or close it with 0
+
+    It closes itself when the time runs out, so a forgotten window does not stay open.
+    """
+    enrolment = await (await MdmEnrolment.current()).open_for(request_in.hours)
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "MDM enrolment opened" if request_in.hours else "MDM enrolment closed",
+        extra=build_audit_extra(
+            action="mdm_enrolment_window",
+            outcome="success",
+            actor=admin.callsign,
+            request=request,
+            hours=request_in.hours,
+        ),
+    )
+    return _mdm_settings(request, enrolment)
 
 
 @ENROLLMENT_ROUTER.post(
