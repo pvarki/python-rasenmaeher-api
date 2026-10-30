@@ -595,6 +595,14 @@ async def test_enroll_with_invite_code(
     assert resp.status_code == 400
     assert "taken" in resp_dict["detail"]
 
+    # ENROLL WITH INVITE CODE - SERVICE CN AS CALLSIGN
+    json_dict = {"invite_code": _inv_code, "callsign": "RasenMaeher"}
+    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    resp_dict = resp.json()
+    LOGGER.debug(resp_dict)
+    assert resp.status_code == 400
+    assert resp_dict["detail"] == "Callsign reserved"
+
     # ENROLL WITH INVITE CODE - CODE IS LOCKED
     json_dict = {"invite_code": _inv_code}
     resp = await tilauspalvelu_jwt_admin_client.put("/api/v1/enrollment/invitecode/deactivate", json=json_dict)

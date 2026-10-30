@@ -503,3 +503,9 @@ async def test_record_issued_cert(dbinit_func) -> None:
     assert row is not None
     assert row.cn == common_name
     await record_issued_cert("not a pem at all")  # must not raise
+
+
+def test_callsignreserved_detail_is_explicit() -> None:
+    """Only the detail keyword reaches the client, positional messages stay internal"""
+    assert CallsignReserved("internal: db said no").detail == "Forbidden"
+    assert CallsignReserved("Service CN used as callsign", detail="Callsign reserved").detail == "Callsign reserved"
