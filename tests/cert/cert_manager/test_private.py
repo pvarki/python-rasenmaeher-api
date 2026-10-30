@@ -269,7 +269,7 @@ async def test_sign_csr_rejects_disallowed_usages(
     """Usages outside the caller's allowed set are refused before any CR is created"""
     _ = cm_settings
     csr = mint_csr(cn, key_usage(**key_usage_flags) if key_usage_flags else None, ext_key_usage)
-    with pytest.raises(CertManagerError, match="not allowed"):
+    with pytest.raises(ValueError, match="not allowed"):
         await private.sign_csr(csr, bundle=False)
     assert not fake_k8s.created
 

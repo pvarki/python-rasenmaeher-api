@@ -118,7 +118,7 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     settings = RMSettings.singleton()
     cn = _csr_common_name(csr)
     if extra := disallowed_usages(csr, cn):
-        raise CertManagerError(f"CSR for {cn} requests usages not allowed for it: {sorted(extra)}")
+        raise ValueError(f"CSR for {cn} requests usages not allowed for it: {sorted(extra)}")
     name = cr_name(csr, cn)
     namespace = settings.cert_manager_namespace
     csr_b64 = _csr_pem_to_b64(csr)
