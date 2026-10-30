@@ -282,9 +282,9 @@ class Enrollment(ORMBaseModel, table=True):
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
         if RMSettings.singleton().is_reserved_cn(callsign):
-            raise CallsignReserved("Using service CNs as callsigns is forbidden")
+            raise CallsignReserved("Service CN used as callsign", detail="Callsign reserved")
         if csr and not verify_csr(csr, callsign):
-            raise CallsignReserved("CSR subject or key usages not allowed for callsign")
+            raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
         with EngineWrapper.get_session() as session:
             try:
                 await Enrollment.by_callsign(callsign)

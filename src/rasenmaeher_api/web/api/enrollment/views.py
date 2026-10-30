@@ -10,7 +10,7 @@ from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
 from ....db import Enrollment, EnrollmentPool, Person
-from ....db.errors import NotFound
+from ....db.errors import CallsignReserved, NotFound
 from ....rmsettings import RMSettings
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
@@ -717,7 +717,22 @@ async def post_enroll_invite_code(
     except NotFound:
         pass
 
-    enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr)
+    try:
+        enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr)
+    except CallsignReserved as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment via invitecode failed - callsign not allowed",
+            extra=build_audit_extra(
+                action="enrollment_invitecode",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="CALLSIGN_RESERVED",
+                invitecode_id=str(obj.pk),
+            ),
+        )
+        LOGGER.error(f"{request.url} : {exc.detail}")
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
 
     # Create JWT token for user
     claims = {"sub": callsign}
