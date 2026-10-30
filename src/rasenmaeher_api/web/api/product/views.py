@@ -33,7 +33,10 @@ LOGGER = logging.getLogger(__name__)
 async def csr_common(certs: CertificatesRequest) -> CertificatesResponse:
     """Common parts of CSR handling"""
     cachain = await get_ca()
-    certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
+    try:
+        certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     bundlepem = await get_bundle(certpem)
 
     await record_issued_cert(certpem)
@@ -112,16 +115,7 @@ async def renew_csr(
     if ensure_str(req_cn) != ensure_str(peer_dn["CN"]):
         raise HTTPException(403, "Renewal must be for same name")
 
-    cachain = await get_ca()
-    certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
-    bundlepem = await get_bundle(certpem)
-
-    await record_issued_cert(certpem)
-
-    return CertificatesResponse(
-        ca=cachain,
-        certificate=bundlepem,
-    )
+    return await csr_common(certs)
 
 
 @router.post("/ready", dependencies=[Depends(MTLSHeader(auto_error=True))])
