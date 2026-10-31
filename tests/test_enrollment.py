@@ -1004,9 +1004,9 @@ async def test_the_service_cn_cannot_be_taken_in_any_case(service_cn: str) -> No
         await Person.create_with_cert(callsign=service_cn)
 
 
-def _csr_asking_for(callsign: str, **extensions: Any) -> str:
+def _csr_asking_for(callsign: str, key_size: int = 2048, **extensions: Any) -> str:
     """A device request that asks for more than a device identity"""
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    key = rsa.generate_private_key(public_exponent=65537, key_size=key_size)
     builder = x509.CertificateSigningRequestBuilder().subject_name(
         x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, callsign)])
     )
@@ -1043,3 +1043,14 @@ async def test_a_device_request_may_not_choose_what_it_is_issued(
         resp = await _mdm_enrol(mdm_agent_client, callsign, _csr_asking_for(callsign, **kwargs), mdm_challenge)
         assert resp.status_code == 403, f"{label} must be refused"
         assert await _no_person(callsign), f"{label} must not spend the name"
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_a_device_key_anybody_could_recover_is_refused(
+    mdm_agent_client: TestClient, mdm_challenge: str
+) -> None:
+    """RSA-1024 is within reach of factoring, and whoever factors it is the device"""
+    callsign = f"mdmweak{secrets.token_hex(4)}"
+    resp = await _mdm_enrol(mdm_agent_client, callsign, _csr_asking_for(callsign, key_size=1024), mdm_challenge)
+    assert resp.status_code == 403
+    assert await _no_person(callsign)

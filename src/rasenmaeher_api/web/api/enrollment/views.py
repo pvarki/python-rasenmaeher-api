@@ -7,6 +7,7 @@ from typing import Any
 
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec, ed448, ed25519, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from libpvarki.schemas.generic import OperationResultResponse
@@ -467,6 +468,19 @@ def device_csr_overreach(csrpem: str) -> str | None:
     return None
 
 
+def weak_device_key(csrpem: str) -> bool:
+    """Is this a key whose private half anybody could recover: RSA under 2048 bits, a curve under 256
+
+    Whoever recovers it is the device, for as long as the certificate lasts.
+    """
+    key = x509.load_pem_x509_csr(csrpem.encode("utf-8")).public_key()
+    if isinstance(key, rsa.RSAPublicKey):
+        return key.key_size < 2048
+    if isinstance(key, ec.EllipticCurvePublicKey):
+        return key.curve.key_size < 256
+    return not isinstance(key, (ed25519.Ed25519PublicKey, ed448.Ed448PublicKey))
+
+
 def same_public_key(csrpem: str, certpem: str) -> bool:
     """Does this CSR carry the key that was certified"""
     csr = x509.load_pem_x509_csr(csrpem.encode("utf-8"))
@@ -597,6 +611,8 @@ async def accept_as_mdm_agent(
         raise refuse(403, "CSR_SUBJECT")
     if device_csr_overreach(csrpem):
         raise refuse(403, "CSR_OVERREACH")
+    if weak_device_key(csrpem):
+        raise refuse(403, "CSR_WEAK_KEY")
 
     try:
         existing = await Person.by_callsign(target_callsign, allow_deleted=True)
