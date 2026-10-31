@@ -702,7 +702,7 @@ def _mdm_settings(request: Request, enrolment: MdmEnrolment) -> MdmSettingsOut:
 async def request_mdm_settings(request: Request) -> MdmSettingsOut:
     """What to configure the MDM with, and until when devices may enrol through it
 
-    Admin only, though the challenge is no secret: there is no reason for anybody else to read it.
+    Admin only: while the window is open, the challenge is what lets a device join.
     """
     return _mdm_settings(request, await MdmEnrolment.current())
 

@@ -922,8 +922,13 @@ async def test_the_enrolment_window_and_challenge_gate_the_agent(
     assert resp.status_code == 403, "a closed window must refuse even a correct request"
     assert await _no_person(callsign)
 
-    await (await MdmEnrolment.current()).open_for(1)
+    # Reopening makes a new challenge, so one that leaked from an earlier window is worth nothing
+    reopened = await (await MdmEnrolment.current()).open_for(1)
+    assert reopened.challenge != mdm_challenge
     resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
+    assert resp.status_code == 403, "the previous window's challenge must be refused"
+    assert await _no_person(callsign)
+    resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, reopened.challenge)
     assert resp.status_code == 200, resp.text
 
 
@@ -954,8 +959,11 @@ async def test_an_admin_opens_and_closes_mdm_enrolment(
     assert datetime.timedelta(hours=23, minutes=59) < left <= datetime.timedelta(hours=24)
 
     opened = (await tilauspalvelu_jwt_admin_client.get(url)).json()
-    assert opened["challenge"] == closed["challenge"], "reopening must not mean reconfiguring the MDM"
+    assert opened["challenge"] != closed["challenge"], "every window gets a new challenge"
+    assert re.fullmatch(r"[0-9a-f]{32}", opened["challenge"])
     assert opened["open_until"]
+    extended = (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 2})).json()
+    assert extended["challenge"] == opened["challenge"], "devices enrolling right now hold this one"
 
     assert (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 169})).status_code == 422
     assert (await tilauspalvelu_jwt_user_client.get(url)).status_code == 403

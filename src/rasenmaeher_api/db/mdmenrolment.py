@@ -16,13 +16,20 @@ from .errors import ForbiddenOperation
 LOGGER = logging.getLogger(__name__)
 
 
+def new_challenge() -> str:
+    """Hex, because the challenge travels as an X.509 attribute and some clients encode it as a
+    PrintableString, which has no room for "_"."""
+    return secrets.token_hex(16)
+
+
 class MdmEnrolment(ORMBaseModel, table=True):
     """The one row saying when the MDM enrolment window closes
 
     Closed until an admin opens it, and it closes itself when the window runs out, so a deployment
-    nobody is watching does not go on taking enrolments. The challenge is made here once and kept
-    across windows, so reopening does not mean reconfiguring the MDM. It is not a secret: the MDM
-    hands it to every device.
+    nobody is watching does not go on taking enrolments. Every window gets a new challenge: while
+    it is open the challenge is all that stands between the public SCEP endpoint and a new
+    identity, and every device enrolled so far holds the old one. So opening means putting the new
+    challenge in the MDM.
     """
 
     __tablename__ = "mdmenrolment"
@@ -42,9 +49,7 @@ class MdmEnrolment(ORMBaseModel, table=True):
             obj = session.exec(select(cls)).first()
             if obj:
                 return obj
-            # Hex, because the challenge travels as an X.509 attribute and some clients encode it
-            # as a PrintableString, which has no room for "_".
-            obj = cls(challenge=secrets.token_hex(16))
+            obj = cls(challenge=new_challenge())
             session.add(obj)
             try:
                 session.commit()
@@ -66,9 +71,15 @@ class MdmEnrolment(ORMBaseModel, table=True):
         return hmac.compare_digest(challenge.encode("utf-8"), self.challenge.encode("utf-8"))
 
     async def open_for(self, hours: int) -> "MdmEnrolment":
-        """Open the window for this many hours from now, or close it with 0"""
+        """Open the window for this many hours from now, or close it with 0
+
+        Opening a closed window makes a new challenge. Extending an open one keeps it, because the
+        devices the MDM is enrolling at that moment were handed it.
+        """
         until = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=hours) if hours else None
         with EngineWrapper.get_session() as session:
+            if until and not self.is_open:
+                self.challenge = new_challenge()
             self.open_until = until
             session.add(self)
             session.commit()

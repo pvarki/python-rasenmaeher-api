@@ -469,7 +469,7 @@ class MdmSettingsOut(BaseModel):
 
     #: Where the MDM sends each device's certificate request
     scep_url: str
-    #: The SCEP challenge. Not a secret: the MDM hands it to every device
+    #: The SCEP challenge, new for every window. Keep it to the MDM
     challenge: str
     #: When the enrolment window closes, or None while it is closed
     open_until: datetime.datetime | None
