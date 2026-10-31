@@ -990,6 +990,20 @@ async def test_agent_cn_cannot_be_taken_as_a_callsign(monkeypatch: pytest.Monkey
             await Person.create_with_cert(callsign=taken)
 
 
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize("service_cn", ["rasenmaeher", "RASENMAEHER", "Rasenmaeher"])
+async def test_the_service_cn_cannot_be_taken_in_any_case(service_cn: str) -> None:
+    """Keycloak and Matrix lowercase the name, so RASENMAEHER downstream is rasenmaeher
+
+    No database here on purpose -- the guard is meant to fire before anything is written.
+    """
+    assert RMSettings.singleton().mtls_client_cert_cn == "rasenmaeher"
+    with pytest.raises(CallsignReserved):
+        await Enrollment.create_for_callsign(callsign=service_cn)
+    with pytest.raises(CallsignReserved):
+        await Person.create_with_cert(callsign=service_cn)
+
+
 def _csr_asking_for(callsign: str, **extensions: Any) -> str:
     """A device request that asks for more than a device identity"""
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)

@@ -33,6 +33,25 @@ from .errors import BackendError, CallsignReserved, Deleted, NotFound
 LOGGER = logging.getLogger(__name__)
 
 
+def reserved_callsign(callsign: str) -> str | None:
+    """Why this callsign belongs to a service rather than a person, or None if it does not
+
+    Compared without case: lookups fold it, and Keycloak and Matrix lowercase the name, so
+    RASENMAEHER is the same account as rasenmaeher everywhere downstream.
+    """
+    cnf = RMSettings.singleton()
+    folded = callsign.lower()
+    if folded in {cnname.lower() for cnname in cnf.valid_product_cns}:
+        return "Using product CNs as callsigns is forbidden"
+    if folded == cnf.mtls_client_cert_cn.lower():
+        return "Using the rasenmaeher service CN as a callsign is forbidden"
+    if folded in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
+        # A certificate with this CN is accepted as the MDM enrolment agent on sight, so issuing
+        # one to a person would let them enrol devices.
+        return "Using MDM agent CNs as callsigns is forbidden"
+    return None
+
+
 class Person(ORMBaseModel, table=True):
     """People, pk is UUID and comes from basemodel
 
@@ -99,14 +118,9 @@ class Person(ORMBaseModel, table=True):
         if csrpem and not verify_csr(csrpem, callsign):
             raise CallsignReserved("CSR CN must match callsign")
         cnf = RMSettings.singleton()
-        if callsign in cnf.valid_product_cns:
-            raise CallsignReserved("Using product CNs as callsigns is forbidden")
-        if callsign == cnf.mtls_client_cert_cn:
-            raise CallsignReserved("Using the rasenmaeher service CN as a callsign is forbidden")
-        if callsign.lower() in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
-            # A certificate with this CN is accepted as the MDM enrolment agent on sight, so
-            # issuing one to a person would hand them every planned device's identity.
-            raise CallsignReserved("Using MDM agent CNs as callsigns is forbidden")
+        reason = reserved_callsign(callsign)
+        if reason:
+            raise CallsignReserved(reason)
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()
