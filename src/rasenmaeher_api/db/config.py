@@ -24,7 +24,9 @@ class DBConfig:
     """DB config dataclass, functools etc used to avoid import-time side-effects"""
 
     driver: str = field(
-        default_factory=cast(Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql"))
+        default_factory=cast(
+            Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql+psycopg2")
+        )
     )
     host: str | None = field(default_factory=functools.partial(config, "RM_DATABASE_HOST", default=None))
     port: int = field(
