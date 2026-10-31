@@ -1046,9 +1046,7 @@ async def test_a_device_request_may_not_choose_what_it_is_issued(
 
 
 @pytest.mark.asyncio(loop_scope="session")
-async def test_a_device_key_anybody_could_recover_is_refused(
-    mdm_agent_client: TestClient, mdm_challenge: str
-) -> None:
+async def test_a_device_key_anybody_could_recover_is_refused(mdm_agent_client: TestClient, mdm_challenge: str) -> None:
     """RSA-1024 is within reach of factoring, and whoever factors it is the device"""
     callsign = f"mdmweak{secrets.token_hex(4)}"
     resp = await _mdm_enrol(mdm_agent_client, callsign, _csr_asking_for(callsign, key_size=1024), mdm_challenge)
