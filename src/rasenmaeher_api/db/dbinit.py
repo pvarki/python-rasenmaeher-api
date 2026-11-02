@@ -30,7 +30,8 @@ async def init_db() -> None:
     lockpath = Path(tempfile.gettempdir()) / "dbinit.lock"
     lock = filelock.FileLock(lockpath)
     wrapper = EngineWrapper.singleton()
-    assert wrapper.engine  # nosec B101
+    if not wrapper.engine:
+        raise RuntimeError("Database engine is not initialized")
     engine = wrapper.engine
     try:
         await asyncio.sleep(random.random() * 2)  # nosec B311

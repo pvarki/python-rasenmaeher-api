@@ -24,7 +24,9 @@ class DBConfig:
     """DB config dataclass, functools etc used to avoid import-time side-effects"""
 
     driver: str = field(
-        default_factory=cast(Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql"))
+        default_factory=cast(
+            Callable[..., str], functools.partial(config, "RM_DATABASE_DRIVER", default="postgresql+psycopg2")
+        )
     )
     host: str | None = field(default_factory=functools.partial(config, "RM_DATABASE_HOST", default=None))
     port: int = field(
@@ -84,7 +86,8 @@ class DBConfig:
         """Get a singleton"""
         if DBConfig._singleton is None:
             DBConfig._singleton = DBConfig(**kwargs)
-        assert DBConfig._singleton is not None  # nosec B101
+        if DBConfig._singleton is None:
+            raise RuntimeError("DBConfig singleton is not initialized")
         return DBConfig._singleton
 
     def __post_init__(self) -> None:

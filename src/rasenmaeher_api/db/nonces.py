@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Field, select
 
 from .base import ORMBaseModel
@@ -19,7 +20,9 @@ class SeenToken(ORMBaseModel, table=True):
     __tablename__ = "seentokens"
 
     token: str = Field(nullable=False, index=True, unique=True)
-    auditmeta: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    auditmeta: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
 
     @classmethod
     async def use_token(cls, token: str, auditmeta: dict[str, Any] | None = None) -> None:
@@ -33,10 +36,18 @@ class SeenToken(ORMBaseModel, table=True):
             pass
         if not auditmeta:
             auditmeta = {}
-        with EngineWrapper.get_session() as session:
-            dbtoken = SeenToken(token=token, auditmeta=auditmeta)
-            session.add(dbtoken)
-            session.commit()
+        try:
+            with EngineWrapper.get_session() as session:
+                dbtoken = SeenToken(token=token, auditmeta=auditmeta)
+                session.add(dbtoken)
+                session.commit()
+        except IntegrityError as exc:
+            # Another worker can insert the nonce after the initial read.
+            try:
+                await SeenToken.by_token(token)
+            except NotFound:
+                raise exc
+            raise TokenReuse() from exc
 
     @classmethod
     async def by_token(cls, token: str) -> "SeenToken":

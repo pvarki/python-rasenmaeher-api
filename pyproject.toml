@@ -1,6 +1,6 @@
 [project]
 name = "rasenmaeher_api"
-version = "1.19.5+261028"
+version = "1.20.0+261027"
 description = "python-rasenmaeher-api"
 authors = [
     { name = "Aciid", email = "703382+Aciid@users.noreply.github.com" },
@@ -17,7 +17,7 @@ dependencies = [
     "pydantic>=2.0,<3.0",
     "pydantic-settings>=2.0,<3.0",
     "requests>=2.31,<3.0",
-    "multikeyjwt>=1.7,<2.0",
+    "multikeyjwt>=1.8,<2.0",
     "uvicorn[standard]>=0.47,<1.0",
     "gunicorn>=26.0",
     "libpvarki>=2.4,<3.0",
@@ -95,7 +95,6 @@ extend-immutable-calls = [
 ]
 
 [tool.mypy]
-python_version="3.12"
 strict=true
 
 [[tool.mypy.overrides]]

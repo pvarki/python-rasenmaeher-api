@@ -69,7 +69,7 @@ async def get_check_code(
         LOGGER.error(f"{request.url} : {_reason}")
         raise HTTPException(status_code=403, detail=_reason)
 
-    LOGGER.audit(
+    LOGGER.audit(  # type: ignore[attr-defined]
         "First user code check successful",
         extra=build_audit_extra(
             action="firstuser_code_check",

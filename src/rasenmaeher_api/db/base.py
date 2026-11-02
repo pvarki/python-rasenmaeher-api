@@ -23,9 +23,11 @@ class ORMBaseModel(SQLModel, table=False):
     __table_args__ = {"schema": "raesenmaeher"}
 
     pk: uuid.UUID = Field(primary_key=True, default_factory=uuid.uuid4)
-    created: datetime.datetime = Field(sa_column_kwargs={"default": utcnow}, nullable=False)
-    updated: datetime.datetime = Field(sa_column_kwargs={"default": utcnow, "onupdate": utcnow}, nullable=False)
-    deleted: datetime.datetime = Field(nullable=True)
+    created: datetime.datetime | None = Field(default=None, sa_column_kwargs={"default": utcnow}, nullable=False)
+    updated: datetime.datetime | None = Field(
+        default=None, sa_column_kwargs={"default": utcnow, "onupdate": utcnow}, nullable=False
+    )
+    deleted: datetime.datetime | None = Field(default=None, nullable=True)
 
     @classmethod
     async def by_pk(cls, pkin: str | uuid.UUID, allow_deleted: bool = False) -> Self:

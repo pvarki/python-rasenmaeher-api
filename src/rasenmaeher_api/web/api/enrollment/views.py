@@ -60,6 +60,8 @@ async def list_pools(owner_cs: str | None = None) -> EnrollmentPoolListOut:
     async for pool in EnrollmentPool.list(owner):
         if pool.owner not in owner_cache:
             owner_cache[pool.owner] = await Person.by_pk(pool.owner, allow_deleted=True)
+        if pool.created is None:
+            raise RuntimeError("EnrollmentPool found without created timestamp")
         pools.append(
             EnrollmentPoolListItem(
                 invitecode=pool.invitecode,

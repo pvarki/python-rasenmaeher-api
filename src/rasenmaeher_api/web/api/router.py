@@ -17,9 +17,11 @@ from rasenmaeher_api.web.api import (
     tokens,
     utils,
 )
+from rasenmaeher_api.web.api.federation.views import router as federation_router
 
 api_router = APIRouter()
 api_router.include_router(healthcheck.router, prefix="/healthcheck", tags=["healthcheck"])
+api_router.include_router(federation_router, prefix="/federation", tags=["federation"])
 api_router.include_router(product.router, prefix="/product", tags=["product"])
 api_router.include_router(checkauth.router, prefix="/check-auth", tags=["info"])
 api_router.include_router(enduserpfx.router, prefix="/enduserpfx", tags=["enduserpfx"])

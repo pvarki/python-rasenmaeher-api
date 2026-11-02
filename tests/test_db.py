@@ -39,11 +39,91 @@ from rasenmaeher_api.db.errors import (
     TokenReuse,
 )
 from rasenmaeher_api.db.issuedcerts import IssuedCert, record_issued_cert
+from rasenmaeher_api.db.people import Role
 from rasenmaeher_api.jwtinit import jwt_init
 from rasenmaeher_api.mtlsinit import mtls_init
 from rasenmaeher_api.rmsettings import RMSettings, switchme_to_singleton_call
 
 LOGGER = logging.getLogger(__name__)
+
+
+def test_model_constructor_defaults() -> None:
+    """Database-generated and nullable fields may be omitted before insertion."""
+    person = Person(callsign="defaults", certspath="defaults")
+    pool = EnrollmentPool(owner=person.pk, invitecode="defaults")
+    enrollment = Enrollment(approvecode="defaults", callsign="defaults")
+    login = LoginCode(code="defaults")
+    nonce = SeenToken(token="defaults")
+    cert = IssuedCert(serial="1", cn="defaults")
+    role = Role(user=person.pk, role="defaults")
+    for row in (person, pool, enrollment, login, nonce, cert, role):
+        assert isinstance(row.pk, uuid.UUID)
+        assert row.created is None
+        assert row.updated is None
+    for row in (person, pool, enrollment, login, nonce, cert):
+        assert row.deleted is None
+    assert person.revoke_reason is None
+    assert login.used_on is None
+    assert enrollment.decided_on is None
+    assert enrollment.decided_by is None
+    assert enrollment.person is None
+    assert enrollment.pool is None
+
+
+def test_json_defaults_are_independent() -> None:
+    """Each model instance and JSON field gets its own empty dictionary."""
+    for first, second in (
+        (Person(callsign="first", certspath="first"), Person(callsign="second", certspath="second")),
+        (
+            EnrollmentPool(owner=uuid.uuid4(), invitecode="first"),
+            EnrollmentPool(owner=uuid.uuid4(), invitecode="second"),
+        ),
+        (Enrollment(approvecode="first", callsign="first"), Enrollment(approvecode="second", callsign="second")),
+    ):
+        assert first.extra == second.extra == {}
+        first.extra["changed"] = True
+        assert second.extra == {}
+    first_login, second_login = LoginCode(code="first"), LoginCode(code="second")
+    first_nonce, second_nonce = SeenToken(token="first"), SeenToken(token="second")
+    for first_dict, second_dict in (
+        (first_login.claims, second_login.claims),
+        (first_login.auditmeta, second_login.auditmeta),
+        (first_nonce.auditmeta, second_nonce.auditmeta),
+    ):
+        assert first_dict == second_dict == {}
+        first_dict["changed"] = True
+        assert second_dict == {}
+    assert first_login.claims is not first_login.auditmeta
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_database_timestamp_defaults(dbinit_func) -> None:
+    """SQL generates timestamps on insert and refreshes updated on changes."""
+    _ = dbinit_func
+    name = f"defaults_{secrets.token_hex(4)}"
+    with EngineWrapper.get_session() as session:
+        person = Person(callsign=name, certspath=name)
+        session.add(person)
+        session.flush()
+        role = Role(user=person.pk, role="defaults")
+        session.add(role)
+        session.commit()
+        for row in (person, role):
+            session.refresh(row)
+            assert isinstance(row.created, datetime)
+            assert isinstance(row.updated, datetime)
+            assert row.created.utcoffset() == timedelta(0)
+            assert row.updated.utcoffset() == timedelta(0)
+            row.updated = datetime(2000, 1, 1, tzinfo=UTC)
+        session.commit()
+        person.extra = {"changed": True}
+        role.role = "changed"
+        session.commit()
+        for row in (person, role):
+            session.refresh(row)
+            assert row.updated is not None
+            assert row.updated > datetime(2000, 1, 1, tzinfo=UTC)
+        assert person.deleted is None
 
 
 def test_dbconfig_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -80,6 +160,7 @@ async def test_person_crud(dbinit_func) -> None:
         session.add(obj)
         session.commit()
         session.refresh(obj)
+        assert obj.extra == {}
     obj2 = await Person.by_callsign(DOGGO01a)
     assert obj2.callsign == DOGGO01a
     assert not await obj2.has_role("admin")
@@ -155,6 +236,8 @@ async def test_enrollments_crud(dbinit_func) -> None:
 
     PORA22b = f"PORA22b_{secrets.token_hex(4)}"
     obj = await Enrollment.create_for_callsign(PORA22b)
+    assert obj.extra == {}
+    assert obj.pool is None
     assert obj.approvecode
     assert obj.callsign == PORA22b
     assert obj.state == EnrollmentState.PENDING
@@ -236,6 +319,7 @@ async def test_enrollmentpools_crud(dbinit_func) -> None:
     # refresh the person again (needed for some reason)
     person = await Person.by_callsign(POOLBOYa)
     pool2 = await EnrollmentPool.create_for_owner(person)
+    assert pool2.extra == {}
     assert pool2.invitecode
     old_code = str(pool2.invitecode)
     new_code = await pool2.reset_invitecode()
