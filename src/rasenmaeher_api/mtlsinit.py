@@ -53,8 +53,10 @@ def check_mtls_init() -> bool:
     """Check if we have the cert and key"""
     check_settings_clientpaths()
     config = RMSettings.singleton()
-    assert config.mtls_client_cert_path is not None  # nosec B101
-    assert config.mtls_client_key_path is not None  # nosec B101
+    if config.mtls_client_cert_path is None:
+        raise RuntimeError("mTLS client certificate path is not configured")
+    if config.mtls_client_key_path is None:
+        raise RuntimeError("mTLS client key path is not configured")
     cert_path = Path(config.mtls_client_cert_path)
     key_path = Path(config.mtls_client_key_path)
     LOGGER.debug(f"cert_path={cert_path}  exits={cert_path.exists()}")
@@ -71,8 +73,10 @@ async def mtls_init() -> None:
     )
     check_settings_clientpaths()
     config = RMSettings.singleton()
-    assert config.mtls_client_key_path is not None  # nosec B101
-    assert config.mtls_client_cert_path is not None  # nosec B101
+    if config.mtls_client_key_path is None:
+        raise RuntimeError("mTLS client key path is not configured")
+    if config.mtls_client_cert_path is None:
+        raise RuntimeError("mTLS client certificate path is not configured")
     if (pth := Path(config.mtls_client_key_path)) != privkeypath:
         privkeypath = pth
     certpath = pubkeypath.parent / f"{CERT_NAME_PREFIX}.pem"
@@ -120,8 +124,10 @@ async def get_session_winit() -> aiohttp.ClientSession:
     await mtls_init()
     check_settings_clientpaths()
     config = RMSettings.singleton()
-    assert config.mtls_client_cert_path is not None  # nosec B101
-    assert config.mtls_client_key_path is not None  # nosec B101
+    if config.mtls_client_cert_path is None:
+        raise RuntimeError("mTLS client certificate path is not configured")
+    if config.mtls_client_key_path is None:
+        raise RuntimeError("mTLS client key path is not configured")
     cert_path = Path(config.mtls_client_cert_path)
     key_path = Path(config.mtls_client_key_path)
     return libsession((cert_path, key_path))

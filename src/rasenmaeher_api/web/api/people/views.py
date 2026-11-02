@@ -67,7 +67,8 @@ async def request_people_list_onlydeleted() -> PeopleListOut:
         if dbperson.callsign == "anon_admin":
             # Skip the "dummy" user for anon_admin, this should never be revoked though...
             continue
-        assert dbperson.deleted is not None  # nosec B101
+        if dbperson.deleted is None:
+            raise RuntimeError("Deleted user found without deleted timestamp")
         listitem = CallSignPerson(
             callsign=dbperson.callsign, roles=[], extra=dbperson.extra, revoked=dbperson.deleted.isoformat()
         )

@@ -26,12 +26,14 @@ class EngineWrapper:
         """Get a singleton"""
         if EngineWrapper._singleton is None:
             EngineWrapper._singleton = EngineWrapper(**kwargs)
-        assert EngineWrapper._singleton is not None  # nosec B101
+        if EngineWrapper._singleton is None:
+            raise RuntimeError("EngineWrapper singleton is not initialized")
         return EngineWrapper._singleton
 
     def __post_init__(self) -> None:
         """create one engine"""
-        assert self.config.dsn  # nosec B101
+        if not self.config.dsn:
+            raise RuntimeError("Database DSN is not configured")
         if self.config.pool_min_size and self.config.pool_max_size:
             self.engine = create_engine(
                 self.config.dsn,

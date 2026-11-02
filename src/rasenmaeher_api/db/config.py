@@ -86,7 +86,8 @@ class DBConfig:
         """Get a singleton"""
         if DBConfig._singleton is None:
             DBConfig._singleton = DBConfig(**kwargs)
-        assert DBConfig._singleton is not None  # nosec B101
+        if DBConfig._singleton is None:
+            raise RuntimeError("DBConfig singleton is not initialized")
         return DBConfig._singleton
 
     def __post_init__(self) -> None:
