@@ -183,7 +183,38 @@ def test_missing_product(public: TestClient, product: MagicMock, issuer_cl: Issu
         123,
     ],
 )
-def test_bad_product_config(public: TestClient, product: MagicMock, issuer_cl: Issuer, api: Any) -> None:
+def test_bad_product_config(
+    public: TestClient, product: MagicMock, issuer_cl: Issuer, monkeypatch: pytest.MonkeyPatch, api: Any
+) -> None:
+    monkeypatch.delenv("MTLS_TRUST_L5D", raising=False)
+    RMSettings.singleton().kraftwerk_manifest_dict["products"]["tak"]["api"] = api
+    assert post(public, issuer_cl).status_code == 503
+    product.post.assert_not_called()
+
+
+def test_meshed_http_dispatch(
+    public: TestClient, product: MagicMock, issuer_cl: Issuer, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MTLS_TRUST_L5D", "true")
+    RMSettings.singleton().kraftwerk_manifest_dict["products"]["tak"]["api"] = (
+        "http://tak-server.app-tak.svc.cluster.local:8003/"
+    )
+    assert post(public, issuer_cl).status_code == 200
+    assert product.post.call_args.args == ("http://tak-server.app-tak.svc.cluster.local:8003/api/v1/federation/trust",)
+    product.post.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "api",
+    [
+        "https://user:pass@tak.local.example/",  # pragma: allowlist secret
+        123,
+    ],
+)
+def test_meshed_bad_product_config(
+    public: TestClient, product: MagicMock, issuer_cl: Issuer, monkeypatch: pytest.MonkeyPatch, api: Any
+) -> None:
+    monkeypatch.setenv("MTLS_TRUST_L5D", "true")
     RMSettings.singleton().kraftwerk_manifest_dict["products"]["tak"]["api"] = api
     assert post(public, issuer_cl).status_code == 503
     product.post.assert_not_called()

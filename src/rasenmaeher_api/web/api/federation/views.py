@@ -9,6 +9,7 @@ import aiohttp
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
+from libpvarki.middleware.mtlsheader import CONFIG
 from starlette.responses import Response
 
 from rasenmaeher_api.mtlsinit import get_session_winit
@@ -53,8 +54,10 @@ async def dispatch[Response: (FederationTrustResponse, FederationOutgoingRespons
         if not isinstance(base, str):
             raise TypeError("Invalid product API")
         parsed = urlsplit(base)
+        # Meshed (Linkerd) product APIs are internal http, authenticated by l5d identity.
+        schemes = ("https", "http") if CONFIG("MTLS_TRUST_L5D", cast=bool, default=False) else ("https",)
         if (
-            parsed.scheme != "https"
+            parsed.scheme not in schemes
             or not parsed.hostname
             or parsed.username
             or parsed.password
