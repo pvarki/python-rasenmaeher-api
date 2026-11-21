@@ -903,6 +903,22 @@ async def test_mdm_agent_takes_a_work_profile_enrollment_id(
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_a_device_cannot_be_promoted(
+    tilauspalvelu_jwt_admin_client: TestClient, mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
+) -> None:
+    """A phone enrolled through the MDM is not a person, so it never becomes an admin"""
+    callsign = f"mdmpromote{secrets.token_hex(4)}"
+    resp = await _mdm_enrol(
+        mdm_agent_client, callsign, await _device_csr(Path(nice_tmpdir), callsign, name="promote"), mdm_challenge
+    )
+    assert resp.status_code == 200, resp.text
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/promote", json={"callsign": callsign})
+    assert resp.status_code == 400
+    assert "MDM" in resp.json()["detail"]
+    assert not await (await Person.by_callsign(callsign)).has_role("admin")
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_the_enrolment_window_and_challenge_gate_the_agent(
     mdm_agent_client: TestClient, mdm_challenge: str, nice_tmpdir: str
 ) -> None:

@@ -280,6 +280,20 @@ async def request_enrollment_promote(
         )
         raise HTTPException(status_code=404, detail="User not found") from exc
 
+    if (obj.extra or {}).get("mdm"):
+        # A device's key lives on a phone its MDM manages, and its name is whatever the MDM chose.
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "User promotion failed - MDM enrolled device",
+            extra=build_audit_extra(
+                action="user_promote",
+                outcome="failure",
+                target=target_callsign,
+                request=request,
+                error_code="MDM_DEVICE",
+            ),
+        )
+        raise HTTPException(status_code=400, detail="A device enrolled through an MDM cannot be an admin")
+
     role_added = await obj.assign_role(role="admin")
     if role_added:
         LOGGER.audit(  # type: ignore[attr-defined]
