@@ -3,7 +3,9 @@
 import ipaddress
 import logging
 from collections.abc import Callable
+from typing import Any, Self
 
+import aiohttp
 import pytest
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from cryptography import x509
@@ -11,6 +13,8 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
+from rasenmaeher_api.cert.cfssl import private as cfssl_private
+from rasenmaeher_api.cert.cfssl.base import CFSSLError
 from rasenmaeher_api.web.api.product import views
 from tests.cert.helpers import invalidate_signature, make_key_usage, make_name
 
@@ -207,3 +211,44 @@ async def test_renewal_refused_by_signer(
     records = renew_records(caplog)
     assert len(records) == 1
     assert records[0].__dict__["error_code"] == "SIGNING_REFUSED"
+
+
+@pytest.mark.asyncio
+async def test_signer_receives_the_checked_request(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The signer is sent the canonical PEM of the parsed request, not the text around it"""
+    checked = product_csr()
+    posted: list[dict[str, Any]] = []
+
+    class Session:
+        """Records the payload and fails the call"""
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args: object) -> None:
+            return None
+
+        def post(self, url: str, json: dict[str, Any], timeout: object) -> None:
+            _ = url, timeout
+            posted.append(json)
+            raise aiohttp.ClientError("recorded")
+
+    async def session() -> Session:
+        return Session()
+
+    monkeypatch.setattr(cfssl_private, "mtls_session", session)
+    with pytest.raises(CFSSLError):
+        await cfssl_private.sign_csr("x" + checked + product_csr(OTHER_PRODUCT))
+    canonical = x509.load_pem_x509_csr(checked.encode("utf-8")).public_bytes(serialization.Encoding.PEM).decode("utf-8")
+    assert [payload["certificate_request"] for payload in posted] == [canonical]
+
+
+@pytest.mark.asyncio
+async def test_renewal_signs_the_checked_request(dbinit_func: None, unauth_client: TestClient) -> None:
+    """The issued certificate carries only the checked request's subject and names"""
+    _ = dbinit_func
+    cert = await renew(unauth_client, "x" + product_csr() + product_csr(OTHER_PRODUCT))
+    assert cert is not None
+    assert cert.subject.rfc4514_string() == f"CN={PRODUCT}"
+    names = cert.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+    assert list(names) == [x509.DNSName(PRODUCT)]

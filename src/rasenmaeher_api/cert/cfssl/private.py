@@ -8,6 +8,7 @@ from typing import Any
 
 import aiohttp
 import cryptography.x509
+from cryptography.hazmat.primitives import serialization
 from libadvian.tasks import TaskMaster
 
 from ...rmsettings import RMSettings
@@ -53,9 +54,11 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
     params: csr, whether to return cert of full bundle
     returns: certificate as PEM
     """
+    parsed = cryptography.x509.load_pem_x509_csr(csr.encode("utf-8"))
+    normalized = parsed.public_bytes(encoding=serialization.Encoding.PEM).decode("utf-8")
     async with await mtls_session() as session:
         url = f"{ocsprest_base()}/api/v1/csr/sign"
-        payload = {"certificate_request": csr, "profile": signing_profile(csr), "bundle": bundle}
+        payload = {"certificate_request": normalized, "profile": signing_profile(normalized), "bundle": bundle}
         try:
             LOGGER.debug(f"Calling {url}")
             async with session.post(url, json=payload, timeout=default_timeout()) as response:
