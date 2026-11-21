@@ -1,9 +1,9 @@
 """Private APIs for cert-manager backend.
 
 The signing flow creates a cert-manager ``CertificateRequest`` CR carrying the
-caller-provided CSR, waits until cert-manager issues the certificate, and returns
-the issued certificate as PEM. Revocation is DB-driven (served to clients by
-the OCSP responder), so the revoke functions only best-effort clean up the CR.
+caller-provided CSR, waits until cert-manager issues the certificate, deletes the
+CR, and returns the issued certificate as PEM. Revocation is DB-driven (served to
+clients by the OCSP responder), so the revoke functions only best-effort clean up the CR.
 """
 
 import base64
@@ -155,7 +155,6 @@ async def _create_cr(name: str, namespace: str, csr_pem: str, csr_b64: str, sett
         ).build()
 
         LOGGER.info("Creating CertificateRequest %s/%s", namespace, name)
-        LOGGER.debug("CertificateRequest: %s", certificate_request.model_dump_json())
 
         return await certificate_request.async_create()
     except ResourceConflict:
@@ -187,20 +186,19 @@ async def _delete_cr(name: str, namespace: str) -> bool:
         return False
 
 
-async def sign_csr(csr: str, bundle: bool = True) -> str:
-    """
-    Sign CSR via cert-manager by submitting a CertificateRequest CR.
-    params: csr, whether to return cert or full bundle
-    returns: certificate as PEM (with bundle appended if requested)
-    """
-    settings = RMSettings.singleton()
-    cn = _csr_common_name(csr)
-    name = cr_name(csr, cn)
-    namespace = settings.cert_manager_namespace
-    csr_b64 = _csr_pem_to_b64(csr)
+async def _discard_cr(name: str, namespace: str) -> None:
+    """Delete a CertificateRequest that has served its purpose, without failing the caller"""
+    try:
+        await _delete_cr(name, namespace)
+    except Exception:  # pylint: disable=broad-except
+        # Cleaning up must not replace the outcome of the signing itself.
+        LOGGER.warning("Could not delete CertificateRequest %s/%s", namespace, name, exc_info=True)
 
-    certificate_request = await _upsert_cr(name, namespace, csr, csr_b64, settings)
 
+async def _issued_certificate(
+    certificate_request: CertificateRequest, name: str, namespace: str, settings: RMSettings
+) -> str:
+    """Wait for cert-manager to issue the certificate and return it as PEM"""
     try:
         await certificate_request.async_wait_for(
             lambda _, cr: (
@@ -218,8 +216,28 @@ async def sign_csr(csr: str, bundle: bool = True) -> str:
         raise RuntimeError("certificate request has no status")
     if certificate_request.status.certificate is None:
         raise RuntimeError("certificate request status has no certificate")
+    return base64.b64decode(certificate_request.status.certificate).decode("utf-8")
 
-    cert_pem = base64.b64decode(certificate_request.status.certificate).decode("utf-8")
+
+async def sign_csr(csr: str, bundle: bool = True) -> str:
+    """
+    Sign CSR via cert-manager by submitting a CertificateRequest CR.
+    params: csr, whether to return cert or full bundle
+    returns: certificate as PEM (with bundle appended if requested)
+    """
+    settings = RMSettings.singleton()
+    cn = _csr_common_name(csr)
+    name = cr_name(csr, cn)
+    namespace = settings.cert_manager_namespace
+    csr_b64 = _csr_pem_to_b64(csr)
+
+    certificate_request = await _upsert_cr(name, namespace, csr, csr_b64, settings)
+    try:
+        cert_pem = await _issued_certificate(certificate_request, name, namespace, settings)
+    finally:
+        # The request is the client's own, an enrolment challenge included, and nothing reads it
+        # once the certificate has been read or the wait has failed.
+        await _discard_cr(name, namespace)
 
     if bundle:
         cert_pem = lean_chain(cert_pem, await get_ca())
