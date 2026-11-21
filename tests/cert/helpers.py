@@ -130,3 +130,72 @@ def make_csr(
     if ext_key_usage is not None:
         builder = builder.add_extension(cryptography.x509.ExtendedKeyUsage(ext_key_usage), critical=False)
     return builder.sign(key, hashes.SHA256()).public_bytes(serialization.Encoding.PEM).decode("utf-8")
+
+
+EXTENSION_REQUEST_OID = b"\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x09\x0e"  # 1.2.840.113549.1.9.14
+MS_EXTENSION_REQUEST_OID = b"\x06\x0a\x2b\x06\x01\x04\x01\x82\x37\x02\x01\x0e"  # 1.3.6.1.4.1.311.2.1.14
+EC_PUBLIC_KEY_OID = b"\x06\x07\x2a\x86\x48\xce\x3d\x02\x01"  # 1.2.840.10045.2.1
+UNKNOWN_KEY_OID = b"\x06\x07\x2a\x86\x48\xce\x3d\x02\x7f"  # 1.2.840.10045.2.127
+
+
+def _der(tag: int, body: bytes) -> bytes:
+    """One DER TLV"""
+    if len(body) < 0x80:
+        return bytes([tag, len(body)]) + body
+    size = len(body).to_bytes((len(body).bit_length() + 7) // 8, "big")
+    return bytes([tag, 0x80 | len(size)]) + size + body
+
+
+def _der_header(data: bytes) -> tuple[int, int]:
+    """Header and content lengths of the TLV at the start of data"""
+    if data[1] & 0x80:
+        header = 2 + (data[1] & 0x7F)
+        return header, int.from_bytes(data[2:header], "big")
+    return 2, data[1]
+
+
+def _der_items(body: bytes) -> list[bytes]:
+    """Split concatenated DER TLVs, each returned whole"""
+    items = []
+    while body:
+        header, size = _der_header(body)
+        items.append(body[: header + size])
+        body = body[header + size :]
+    return items
+
+
+def _der_body(item: bytes) -> bytes:
+    """The contents of one DER TLV"""
+    return item[_der_header(item)[0] :]
+
+
+def _csr_der(csr_pem: str) -> bytes:
+    return cryptography.x509.load_pem_x509_csr(csr_pem.encode("utf-8")).public_bytes(serialization.Encoding.DER)
+
+
+def csr_attributes(csr_pem: str) -> list[bytes]:
+    """The DER attributes of a CSR"""
+    info = _der_items(_der_body(_csr_der(csr_pem)))[0]
+    return _der_items(_der_body(_der_items(_der_body(info))[3]))
+
+
+def with_ms_extension_request_oid(attribute: bytes) -> bytes:
+    """The same extension-request attribute under the Microsoft OID"""
+    return _der(0x30, MS_EXTENSION_REQUEST_OID + _der_body(attribute)[len(EXTENSION_REQUEST_OID) :])
+
+
+def with_attributes(csr_pem: str, key: ec.EllipticCurvePrivateKey, extra: list[bytes]) -> str:
+    """The CSR with extra DER attributes, DER-sorted into its attribute set and signed again by key"""
+    info, algorithm, _ = _der_items(_der_body(_csr_der(csr_pem)))
+    version, subject, public_key, attributes = _der_items(_der_body(info))
+    attribute_set = _der(0xA0, b"".join(sorted(_der_items(_der_body(attributes)) + extra)))
+    info = _der(0x30, version + subject + public_key + attribute_set)
+    signature = _der(0x03, b"\x00" + key.sign(info, ec.ECDSA(hashes.SHA256())))
+    der = _der(0x30, info + algorithm + signature)
+    return cryptography.x509.load_der_x509_csr(der).public_bytes(serialization.Encoding.PEM).decode("utf-8")
+
+
+def with_unknown_key_type(csr_pem: str) -> str:
+    """The same EC CSR with its public key algorithm replaced by an unknown one"""
+    der = _csr_der(csr_pem).replace(EC_PUBLIC_KEY_OID, UNKNOWN_KEY_OID, 1)
+    return cryptography.x509.load_der_x509_csr(der).public_bytes(serialization.Encoding.PEM).decode("utf-8")

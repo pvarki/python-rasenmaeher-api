@@ -11,12 +11,20 @@ from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec, rsa
-from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
+from cryptography.x509.oid import AttributeOID, ExtendedKeyUsageOID, NameOID
 
 from rasenmaeher_api.cert.cfssl import private as cfssl_private
 from rasenmaeher_api.cert.cfssl.base import CFSSLError
 from rasenmaeher_api.web.api.product import views
-from tests.cert.helpers import invalidate_signature, make_key_usage, make_name
+from tests.cert.helpers import (
+    csr_attributes,
+    invalidate_signature,
+    make_key_usage,
+    make_name,
+    with_attributes,
+    with_ms_extension_request_oid,
+    with_unknown_key_type,
+)
 
 LOGGER = logging.getLogger(__name__)
 PRODUCT = "fake.localmaeher.dev.pvarki.fi"
@@ -33,6 +41,7 @@ def product_csr(
     key_usage: x509.KeyUsage | None = None,
     ext_key_usage: list[x509.ObjectIdentifier] | None = None,
     extra: x509.ExtensionType | None = None,
+    attribute: tuple[x509.ObjectIdentifier, bytes] | None = None,
 ) -> str:
     """A CSR shaped like the one a product sends when its certificate is first issued"""
     builder = (
@@ -50,6 +59,8 @@ def product_csr(
     )
     if extra is not None:
         builder = builder.add_extension(extra, critical=False)
+    if attribute is not None:
+        builder = builder.add_attribute(*attribute)
     signer = key or ec.generate_private_key(ec.SECP256R1())
     return builder.sign(signer, hashes.SHA256()).public_bytes(serialization.Encoding.PEM).decode("utf-8")
 
@@ -97,6 +108,14 @@ async def test_product_renews_own_certificate(
     assert len(records) == 1
     assert records[0].__dict__["event.outcome"] == "success"
     assert records[0].__dict__["user.name"] == PRODUCT
+
+
+def extra_extension_request(microsoft_oid: bool = False) -> str:
+    """A product CSR with a second extension request naming another product"""
+    key = ec.generate_private_key(ec.SECP256R1())
+    other = csr_attributes(product_csr(OTHER_PRODUCT))
+    extra = [with_ms_extension_request_oid(attribute) for attribute in other] if microsoft_oid else other
+    return with_attributes(product_csr(key=key), key, extra)
 
 
 REFUSALS: list[tuple[str, Callable[[], str], str]] = [
@@ -156,6 +175,14 @@ REFUSALS: list[tuple[str, Callable[[], str], str]] = [
     ),
     (PRODUCT, lambda: invalidate_signature(product_csr()), "CSR_SIGNATURE_INVALID"),
     (PRODUCT, lambda: "not a CSR", "CSR_INVALID"),
+    (PRODUCT, extra_extension_request, "CSR_EXTENSION_NOT_ALLOWED"),
+    (PRODUCT, lambda: extra_extension_request(microsoft_oid=True), "CSR_EXTENSION_NOT_ALLOWED"),
+    (
+        PRODUCT,
+        lambda: product_csr(attribute=(AttributeOID.CHALLENGE_PASSWORD, b"secret")),
+        "CSR_EXTENSION_NOT_ALLOWED",
+    ),
+    (PRODUCT, lambda: with_unknown_key_type(product_csr()), "CSR_INVALID"),
 ]
 
 
@@ -177,6 +204,10 @@ REFUSALS: list[tuple[str, Callable[[], str], str]] = [
         "unknown-extended-usage",
         "invalid-signature",
         "not-a-csr",
+        "two-extension-requests",
+        "other-extension-request-oid",
+        "other-attribute",
+        "unsupported-key-type",
     ],
 )
 async def test_renewal_refused(

@@ -5,6 +5,7 @@ from typing import cast
 
 import aiohttp
 from cryptography import x509
+from cryptography.exceptions import UnsupportedAlgorithm
 from cryptography.x509.oid import ExtensionOID, NameOID
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from libadvian.binpackers import ensure_utf8
@@ -135,6 +136,8 @@ def renewal_error(csrpem: str, peer_cn: str | None) -> str | None:
         cns = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
         if len(csr.subject) != 1 or len(cns) != 1 or cns[0].value != peer_cn:
             return "CSR_SUBJECT_MISMATCH"
+        if [attribute.oid.dotted_string for attribute in csr.attributes] not in ([], ["1.2.840.113549.1.9.14"]):
+            return "CSR_EXTENSION_NOT_ALLOWED"
         for ext in csr.extensions:
             if ext.oid not in RENEW_EXTENSIONS:
                 return "CSR_EXTENSION_NOT_ALLOWED"
@@ -144,7 +147,7 @@ def renewal_error(csrpem: str, peer_cn: str | None) -> str | None:
                 return "CSR_SUBJECT_MISMATCH"
         if not set(csr_usages(csrpem)) <= RENEW_USAGES:
             return "CSR_USAGE_NOT_ALLOWED"
-    except (ValueError, x509.DuplicateExtension, x509.UnsupportedGeneralNameType):
+    except (ValueError, x509.DuplicateExtension, x509.UnsupportedGeneralNameType, UnsupportedAlgorithm):
         return "CSR_INVALID"
     return None
 
