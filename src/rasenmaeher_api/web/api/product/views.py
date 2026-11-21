@@ -5,9 +5,9 @@ from typing import cast
 
 import aiohttp
 from cryptography import x509
-from cryptography.x509.oid import NameOID
+from cryptography.x509.oid import ExtensionOID, NameOID
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from libadvian.binpackers import ensure_str, ensure_utf8
+from libadvian.binpackers import ensure_utf8
 from libpvarki.middleware.mtlsheader import MTLSHeader
 from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.schemas.product import ReadyRequest, UserCRUDRequest
@@ -16,6 +16,7 @@ from multikeyjwt.middleware import JWTBearer
 from rasenmaeher_api.db.issuedcerts import record_issued_cert
 
 from ....cert.backend import CertError, get_bundle, get_ca, revoke_pem, sign_csr
+from ....cert.usages import KeyUsages, csr_usages
 from ....db import Person
 from ....db.errors import NotFound
 from ....db.nonces import SeenToken
@@ -24,10 +25,25 @@ from ....mtlsinit import get_session_winit
 from ....productapihelpers import post_to_product
 from ....rmsettings import RMSettings
 from ..middleware.user import ValidUser
+from ..utils.auditcontext import build_audit_extra
 from .schema import CertificatesRequest, CertificatesResponse, KCClientToken, ProductAddRequest, RevokeRequest
 
 router = APIRouter()
 LOGGER = logging.getLogger(__name__)
+
+# What a product's own CSR carries when its certificate is first issued: client and server auth, its name as DNS SAN
+RENEW_USAGES: frozenset[KeyUsages] = frozenset(
+    {"digital signature", "key encipherment", "data encipherment", "client auth", "server auth"}
+)
+RENEW_EXTENSIONS = frozenset(
+    {
+        ExtensionOID.BASIC_CONSTRAINTS,
+        ExtensionOID.KEY_USAGE,
+        ExtensionOID.EXTENDED_KEY_USAGE,
+        ExtensionOID.SUBJECT_ALTERNATIVE_NAME,
+    }
+)
+RENEW_REFUSED = "Renewal not allowed"
 
 
 async def csr_common(certs: CertificatesRequest) -> CertificatesResponse:
@@ -102,20 +118,60 @@ async def revoke_cert(
         return OperationResultResponse(success=False, error=str(exc))
 
 
+def renewal_error(csrpem: str, peer_cn: str | None) -> str | None:
+    """Why the CSR is not a renewal of the calling product's own certificate, None when it is"""
+    if peer_cn is None or peer_cn not in RMSettings.singleton().valid_product_cns:
+        return "NOT_A_PRODUCT"
+    try:
+        csr = x509.load_pem_x509_csr(ensure_utf8(csrpem))
+        if not csr.is_signature_valid:
+            return "CSR_SIGNATURE_INVALID"
+        cns = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+        if len(csr.subject) != 1 or len(cns) != 1 or cns[0].value != peer_cn:
+            return "CSR_SUBJECT_MISMATCH"
+        for ext in csr.extensions:
+            if ext.oid not in RENEW_EXTENSIONS:
+                return "CSR_EXTENSION_NOT_ALLOWED"
+            if isinstance(ext.value, x509.BasicConstraints) and ext.value.ca:
+                return "CSR_EXTENSION_NOT_ALLOWED"
+            if isinstance(ext.value, x509.SubjectAlternativeName) and list(ext.value) != [x509.DNSName(peer_cn)]:
+                return "CSR_SUBJECT_MISMATCH"
+        if not set(csr_usages(csrpem)) <= RENEW_USAGES:
+            return "CSR_USAGE_NOT_ALLOWED"
+    except (ValueError, x509.DuplicateExtension, x509.UnsupportedGeneralNameType):
+        return "CSR_INVALID"
+    return None
+
+
 @router.post("/renew_csr", dependencies=[Depends(MTLSHeader(auto_error=True))])
 async def renew_csr(
     request: Request,
     certs: CertificatesRequest,
 ) -> CertificatesResponse:
     """Used by product integration API to request renew of their mTLS client cert"""
-    req = x509.load_pem_x509_csr(ensure_utf8(certs.csr))
-    req_cn = req.subject.get_attributes_for_oid(NameOID.COMMON_NAME)[0].value
-    peer_dn = request.state.mtlsdn
-    # Make sure the renew is for same name
-    if ensure_str(req_cn) != ensure_str(peer_dn["CN"]):
-        raise HTTPException(403, "Renewal must be for same name")
-
-    return await csr_common(certs)
+    peer_cn = request.state.mtlsdn.get("CN")
+    error_code = renewal_error(certs.csr, peer_cn)
+    if error_code is None:
+        try:
+            resp = await csr_common(certs)
+            LOGGER.audit(  # type: ignore[attr-defined]
+                "Product certificate renewed",
+                extra=build_audit_extra(action="product_cert_renew", outcome="success", actor=peer_cn, request=request),
+            )
+            return resp
+        except HTTPException:
+            error_code = "SIGNING_REFUSED"
+    LOGGER.audit(  # type: ignore[attr-defined]
+        "Product certificate renewal refused",
+        extra=build_audit_extra(
+            action="product_cert_renew",
+            outcome="failure",
+            actor=peer_cn,
+            request=request,
+            error_code=error_code,
+        ),
+    )
+    raise HTTPException(403, RENEW_REFUSED)
 
 
 @router.post("/ready", dependencies=[Depends(MTLSHeader(auto_error=True))])
