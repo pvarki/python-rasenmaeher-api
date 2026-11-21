@@ -29,6 +29,7 @@ from rasenmaeher_api.db import (
 )
 from rasenmaeher_api.db.errors import CallsignReserved, NotFound
 from rasenmaeher_api.rmsettings import RMSettings
+from tests.cert.helpers import CsrFactory, invalidate_signature
 
 LOGGER = logging.getLogger(__name__)
 
@@ -724,6 +725,22 @@ async def test_enroll_with_csr(
     LOGGER.debug(f"DN={dn} callsign={callsign}")
     assert f"CN={callsign}" in dn
     # TODO: check extensions
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_enroll_requires_csr_signed_by_its_key(
+    tilauspalvelu_jwt_admin_client: TestClient, unauth_client_session: TestClient, mint_csr: CsrFactory
+) -> None:
+    """Enrolment refuses a CSR whose signature does not verify with its own key"""
+    resp = await tilauspalvelu_jwt_admin_client.post("/api/v1/enrollment/invitecode/create")
+    assert resp.status_code == 200
+    callsign = f"csr_signature_{secrets.token_hex(4)}"
+    csrpem = invalidate_signature(mint_csr(callsign))
+    json_dict = {"invite_code": resp.json()["invite_code"], "callsign": callsign, "csr": csrpem}
+    unauth_client_session.headers.clear()
+    resp = await unauth_client_session.post("/api/v1/enrollment/invitecode/enroll", json=json_dict)
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "CSR subject or key usages not allowed for callsign"
 
 
 @pytest.mark.asyncio(loop_scope="session")
