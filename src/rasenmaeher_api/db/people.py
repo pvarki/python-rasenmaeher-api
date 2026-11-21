@@ -137,7 +137,10 @@ class Person(ORMBaseModel, table=True):
                 session.add(newperson)
                 session.commit()
                 if csrpem:
-                    newperson.csrfile.write_text(csrpem, encoding="utf-8")
+                    # A device's request carries the MDM enrolment challenge, and nothing reads it
+                    # back: a repeated enrolment is matched on the certificate's key.
+                    if not (extra or {}).get("mdm"):
+                        newperson.csrfile.write_text(csrpem, encoding="utf-8")
                 else:
                     ckp = await async_create_keypair(
                         newperson.privkeyfile, newperson.pubkeyfile, ktype=cnf.cert_key_type

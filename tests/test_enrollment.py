@@ -823,6 +823,7 @@ async def test_mdm_agent_enrols_a_device_under_its_mdm_name(
     assert [attr.value for attr in issued.subject.get_attributes_for_oid(NameOID.COMMON_NAME)] == [callsign]
     person = await Person.by_callsign(callsign)
     assert person.extra == {"mdm": True}, "the admin UI lists devices by this mark"
+    assert not person.csrfile.exists(), "the request carries the enrolment challenge"
 
     # The reply can be lost on the way back to the MDM, which then repeats the request verbatim
     resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
