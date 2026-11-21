@@ -48,6 +48,12 @@ RENEW_REFUSED = "Renewal not allowed"
 
 async def csr_common(certs: CertificatesRequest) -> CertificatesResponse:
     """Common parts of CSR handling"""
+    try:
+        signed_by_own_key = x509.load_pem_x509_csr(ensure_utf8(certs.csr)).is_signature_valid
+    except ValueError:
+        signed_by_own_key = False
+    if not signed_by_own_key:
+        raise HTTPException(status_code=400, detail="CSR is not signed by its own key")
     cachain = await get_ca()
     try:
         certpem = (await sign_csr(certs.csr)).replace("\\n", "\n")
