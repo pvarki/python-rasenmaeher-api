@@ -90,8 +90,9 @@ You can read more about BaseSettings class here: https://pydantic-docs.helpmanua
 Apple ACME enrollment
 ---------------------
 
-Set ``RM_ACME_DIRECTORY_URL`` to the deployment's publicly trusted HTTPS ACME
-directory when the issuer is ready. Invite enrollment accepts ``"acme": true``
+Set ``RM_ACME_DIRECTORY_URL`` in the RMAPI process environment before startup
+to enable Apple ACME enrollment. Use the deployment's publicly trusted HTTPS
+ACME directory when the issuer is ready. Invite enrollment accepts ``"acme": true``
 with an OpenDefence callsign and no CSR. After operator approval,
 ``GET /api/v1/enrollment/status`` reports state ``3`` (awaiting ACME issuance).
 Use the enrollment JWT to download the Apple configuration profile at

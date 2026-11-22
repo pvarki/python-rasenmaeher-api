@@ -14,7 +14,6 @@ from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from cryptography import x509
 from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair
 from multikeyjwt import Issuer
-from pydantic import AnyUrl
 
 from rasenmaeher_api.db import (
     EngineWrapper,
@@ -679,7 +678,8 @@ async def test_acme_invite_enrollment(
 
     monkeypatch.setattr(settings, "acme_directory_url", None)
     assert (await unauth_client.post(enroll_url, json=enrollment_request)).status_code == 404
-    monkeypatch.setattr(settings, "acme_directory_url", AnyUrl(directory_url))
+    monkeypatch.setenv("RM_ACME_DIRECTORY_URL", directory_url)
+    monkeypatch.setattr(settings, "acme_directory_url", RMSettings().acme_directory_url)
     assert (await unauth_client.get(profile_url)).status_code == 403
     assert (await unauth_client.post(enroll_url, json={**enrollment_request, "csr": "device-csr"})).status_code == 422
     enrollment = await unauth_client.post(enroll_url, json=enrollment_request)
