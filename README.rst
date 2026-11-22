@@ -87,6 +87,26 @@ RM_ENVIRONMENT="dev"
 You can read more about BaseSettings class here: https://pydantic-docs.helpmanual.io/usage/settings/
 
 
+Apple ACME enrollment
+---------------------
+
+The Apple profile uses ``https://<deployment-dns>/api/v1/acme/directory``,
+with the hostname from the existing deployment manifest. Serve the directory
+with a publicly trusted HTTPS certificate. Invite enrollment accepts ``"acme": true``
+with an OpenDefence callsign and no CSR. After operator approval,
+``GET /api/v1/enrollment/status`` reports state ``3`` (awaiting ACME issuance).
+Use the enrollment JWT to download the Apple configuration profile at
+``GET /api/v1/enrollment/acme-profile``. The profile can be downloaded again
+within 15 minutes of approval.
+
+The directory supports the Apple enrollment flow with ``device-attest-01``.
+This pilot authorizes the order using the single-use enrollment identifier and
+the ACME account key. The profile requests a hardware-bound key with Apple
+attestation disabled. RMAPI validates the device CSR, signs it with the
+configured client CA, and returns the certificate and chain. Revocation uses
+the existing RMAPI user revocation flow.
+
+
 Backend services manifest
 -------------------------
 Integration APIs are always https in port 4625.

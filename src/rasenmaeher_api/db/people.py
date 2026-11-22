@@ -5,7 +5,8 @@ import datetime
 import logging
 import shutil
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Optional, Self
 
@@ -18,7 +19,7 @@ from libpvarki.schemas.generic import OperationResultResponse
 from libpvarki.schemas.product import UserCRUDRequest
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
-from sqlmodel import Field, SQLModel, select
+from sqlmodel import Field, Session, SQLModel, select
 
 from ..cert.backend import ReasonTypes, refresh_ocsp, revoke_pem, sign_csr, validate_reason
 from ..kchelpers import KCClient, KCUserData
@@ -98,52 +99,59 @@ class Person(ORMBaseModel, table=True):
         cls, callsign: str, extra: dict[str, Any] | None = None, csrpem: str | None = None
     ) -> "Person":
         """Create the cert etc and save the person"""
+        with EngineWrapper.get_session() as session:
+            async with cls.issue_cert(session, callsign, extra, csrpem) as person:
+                session.commit()
+            session.refresh(person)
+        return await person.complete_provisioning()
+
+    @classmethod
+    @asynccontextmanager
+    async def issue_cert(
+        cls, session: Session, callsign: str, extra: dict[str, Any] | None, csrpem: str | None
+    ) -> AsyncIterator["Person"]:
+        """Sign a certificate and let the caller commit it with related database changes."""
         cnf = RMSettings.singleton()
         if cnf.is_reserved_cn(callsign):
             raise CallsignReserved("Service CN used as callsign", detail="Callsign reserved")
         if csrpem and not verify_csr(csrpem, callsign):
             raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
-        try:
-            await Person.by_callsign(callsign)
+        locked = session.exec(
+            select(sa.func.pg_try_advisory_xact_lock(1, sa.func.hashtext(sa.func.lower(callsign))))
+        ).one()
+        existing = select(cls.pk).where(sa.func.lower(cls.callsign) == sa.func.lower(callsign), cls.deleted == None)
+        if not locked or session.exec(existing).first() is not None:
             raise CallsignReserved()
-        except NotFound:
-            pass
 
-        with EngineWrapper.get_session() as session:
-            puuid = uuid.uuid4()
-            certspath = Path(cnf.persistent_data_dir) / "private" / "people" / str(puuid)
-            certspath.mkdir(parents=True)
-            certspath.chmod(PRIVDIR_MODE)
-            try:
-                newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra or {})
-                session.add(newperson)
-                session.commit()
-                if csrpem:
-                    newperson.csrfile.write_text(csrpem, encoding="utf-8")
-                else:
-                    ckp = await async_create_keypair(
-                        newperson.privkeyfile, newperson.pubkeyfile, ktype=cnf.cert_key_type
-                    )
-                    csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
-                certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
-                newperson.certfile.write_text(certpem)
-                leaf = cryptography.x509.load_pem_x509_certificate(certpem.encode())
-                newperson.cert_serial = str(leaf.serial_number)
-                session.add(newperson)
-                session.commit()
-            except Exception as exc:
-                LOGGER.exception("Something went wrong, doing cleanup")
-                shutil.rmtree(certspath)
-                remaining = list(certspath.rglob("*"))
-                LOGGER.debug(f"Remaining files: {remaining}")
-                session.rollback()
-                raise BackendError(str(exc)) from exc
-            # refresh object if everything went ok
-            session.refresh(newperson)
-        # Drop the DB transaction for rest of the actions
-        return await newperson._post_create()
+        puuid = uuid.uuid4()
+        certspath = Path(cnf.persistent_data_dir) / "private" / "people" / str(puuid)
+        certspath.mkdir(parents=True, mode=PRIVDIR_MODE)
+        try:
+            newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra or {})
+            session.add(newperson)
+            session.flush()
+            if csrpem:
+                newperson.csrfile.write_text(csrpem, encoding="utf-8")
+            else:
+                ckp = await async_create_keypair(newperson.privkeyfile, newperson.pubkeyfile, ktype=cnf.cert_key_type)
+                csrpem = await async_create_client_csr(ckp, newperson.csrfile, newperson.certsubject)
+            certpem = (await sign_csr(csrpem)).replace("\\n", "\n")
+            newperson.certfile.write_text(certpem)
+            leaf = cryptography.x509.load_pem_x509_certificate(certpem.encode())
+            newperson.cert_serial = str(leaf.serial_number)
+        except (Exception, asyncio.CancelledError) as exc:
+            shutil.rmtree(certspath)
+            if isinstance(exc, asyncio.CancelledError):
+                raise
+            LOGGER.exception("Certificate creation failed for %s", callsign)
+            raise BackendError(str(exc)) from exc
+        try:
+            yield newperson
+        except BaseException:
+            shutil.rmtree(certspath)
+            raise
 
-    async def _post_create(self) -> "Person":
+    async def complete_provisioning(self) -> "Person":
         """Post creation actions, in separate method for readability"""
         refresh = self
         kclient = KCClient.singleton()

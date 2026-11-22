@@ -1,8 +1,9 @@
 """Schema for enrollment."""
 
-from typing import Any
+import re
+from typing import Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class EnrollmentGenVerifiOut(BaseModel):
@@ -418,6 +419,14 @@ class EnrollmentInviteCodeEnrollIn(BaseModel):
     invite_code: str
     callsign: str
     csr: str | None = Field(description="CSR for mTLS key in PEM format", default=None)
+    acme: bool = Field(description="Use an Apple ACME profile to request the certificate after approval", default=False)
+
+    @model_validator(mode="after")
+    def validate_acme(self) -> Self:
+        """Apple ACME enrollment starts with an OpenDefence callsign and no CSR."""
+        if self.acme and (self.csr is not None or not re.fullmatch(r"[a-z0-9]{3,30}", self.callsign)):
+            raise ValueError("ACME enrollment requires a lowercase alphanumeric callsign of 3–30 characters and no CSR")
+        return self
 
 
 class EnrollmentInviteCodeDeleteIn(BaseModel):

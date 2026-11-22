@@ -11,8 +11,10 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import func
-from sqlmodel import Field, select
+from sqlmodel import Field, Session, select
+from starlette.exceptions import HTTPException
 
 from ..rmsettings import RMSettings
 from ..web.api.utils.csr_utils import verify_csr
@@ -24,6 +26,9 @@ from .people import Person
 LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
+ACME_CLIENT_IDENTIFIER_KEY = "rmapi_acme_client_identifier"
+ACME_ORDER_KEY = "rmapi_acme_order"
+ACME_AUTHORIZATION_LIFETIME = datetime.timedelta(minutes=15)
 
 
 def generate_code() -> str:
@@ -55,13 +60,13 @@ class EnrollmentPool(ORMBaseModel, table=True):
         except ValueError:
             return await cls.by_invitecode(str(inval), allow_deleted)
 
-    async def create_enrollment(self, callsign: str, csr: str | None = None) -> "Enrollment":
+    async def create_enrollment(self, callsign: str, csr: str | None = None, *, acme: bool = False) -> "Enrollment":
         """Create enrollment from this pool"""
         if not self.active:
             raise PoolInactive()
         if self.deleted:
             raise Deleted("Can't create enrollments on deleted pools")
-        return await Enrollment.create_for_callsign(callsign, self, self.extra, csr)
+        return await Enrollment.create_for_callsign(callsign, self, self.extra, csr, acme=acme)
 
     async def set_active(self, state: bool) -> "EnrollmentPool":
         """Set active and return refreshed object"""
@@ -149,6 +154,7 @@ class EnrollmentState(enum.IntEnum):
     PENDING = 0
     APPROVED = 1
     REJECTED = 2
+    AWAITING_ACME = 3
 
 
 class Enrollment(ORMBaseModel, table=True):
@@ -174,6 +180,19 @@ class Enrollment(ORMBaseModel, table=True):
     )
     csr: str | None = Field(default=None, nullable=True)
 
+    @property
+    def acme_client_identifier(self) -> str | None:
+        """Get the opaque identifier reserved for this device enrollment."""
+        value = self.extra.get(ACME_CLIENT_IDENTIFIER_KEY)
+        return value if isinstance(value, str) else None
+
+    @property
+    def acme_authorization_expires_at(self) -> datetime.datetime | None:
+        """Get the deadline for an approved ACME enrollment."""
+        if self.state != EnrollmentState.AWAITING_ACME or self.decided_on is None:
+            return None
+        return self.decided_on + ACME_AUTHORIZATION_LIFETIME
+
     @classmethod
     async def by_pk_or_callsign(cls, inval: str | uuid.UUID) -> "Enrollment":
         """Get enrollment by pk or by callsign"""
@@ -184,6 +203,8 @@ class Enrollment(ORMBaseModel, table=True):
 
     async def approve(self, approver: Person) -> Person:
         """Creates the person record, their certs etc"""
+        if self.acme_client_identifier is not None:
+            raise ForbiddenOperation("ACME enrollment requires approval for a device CSR")
         with EngineWrapper.get_session() as session:
             person = await Person.create_with_cert(self.callsign, extra=self.extra, csrpem=self.csr)
             self.state = EnrollmentState.APPROVED
@@ -195,13 +216,43 @@ class Enrollment(ORMBaseModel, table=True):
             session.refresh(self)
             return person
 
+    async def approve_for_acme(self, approver: Person, approvecode: str) -> bool:
+        """Reserve approval for ACME and start its expiry window without signing a certificate."""
+        with EngineWrapper.get_session() as session:
+            session.add(self)
+            self._lock_acme(session)
+            if (
+                self.deleted is not None
+                or self.state != EnrollmentState.PENDING
+                or self.acme_client_identifier is None
+                or self.approvecode != approvecode
+            ):
+                return False
+            self.state = EnrollmentState.AWAITING_ACME
+            self.decided_by = approver.pk
+            self.decided_on = datetime.datetime.now(datetime.UTC)
+            session.commit()
+            session.refresh(self)
+        return True
+
+    def _lock_acme(self, session: Session) -> None:
+        # Finalization awaits the signer while holding this row. An operator request must not block the event loop.
+        try:
+            session.refresh(self, with_for_update={"nowait": True})
+        except OperationalError as exc:
+            if getattr(exc.orig, "pgcode", None) != "55P03":  # lock_not_available
+                raise
+            raise HTTPException(status_code=409, detail="ACME enrollment is being finalized. Retry shortly.") from exc
+
     async def reject(self, decider: Person) -> None:
         """Reject"""
         with EngineWrapper.get_session() as session:
+            session.add(self)
+            if self.acme_client_identifier is not None:
+                self._lock_acme(session)
             self.state = EnrollmentState.REJECTED
             self.decided_by = decider.pk
             self.decided_on = datetime.datetime.now(datetime.UTC)
-            session.add(self)
             session.commit()
             session.refresh(self)
 
@@ -254,9 +305,11 @@ class Enrollment(ORMBaseModel, table=True):
     async def reset_approvecode(self) -> str:
         """Reset approvecode"""
         with EngineWrapper.get_session() as session:
+            session.add(self)
+            if self.acme_client_identifier is not None:
+                self._lock_acme(session)
             code = await Enrollment._generate_unused_code()
             self.approvecode = code
-            session.add(self)
             session.commit()
             return code
 
@@ -283,18 +336,33 @@ class Enrollment(ORMBaseModel, table=True):
         pool: EnrollmentPool | None = None,
         extra: dict[str, Any] | None = None,
         csr: str | None = None,
+        *,
+        acme: bool = False,
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
         if RMSettings.singleton().is_reserved_cn(callsign):
             raise CallsignReserved("Service CN used as callsign", detail="Callsign reserved")
+        if acme and csr is not None:
+            raise ForbiddenOperation("ACME enrollment receives its CSR from the device")
         if csr and not verify_csr(csr, callsign):
             raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
-        with EngineWrapper.get_session() as session:
+        if acme:
             try:
-                await Enrollment.by_callsign(callsign)
-                raise CallsignReserved()
+                await Person.by_callsign(callsign, allow_deleted=True)
+                raise CallsignReserved(detail="Callsign already taken")
             except NotFound:
                 pass
+        enrollment_extra = (extra or {}).copy()
+        enrollment_extra.pop(ACME_CLIENT_IDENTIFIER_KEY, None)
+        enrollment_extra.pop(ACME_ORDER_KEY, None)
+        if acme:
+            enrollment_extra[ACME_CLIENT_IDENTIFIER_KEY] = secrets.token_urlsafe(32)
+        with EngineWrapper.get_session() as session:
+            # The database's unique constraint compares exact strings. Serialize case variants too.
+            session.exec(select(func.pg_advisory_xact_lock(func.hashtext(func.lower(callsign))))).one()
+            existing = select(cls.pk).where(func.lower(cls.callsign) == func.lower(callsign))
+            if session.exec(existing).first() is not None:
+                raise CallsignReserved(detail="Callsign already taken")
             code = await cls._generate_unused_code()
             poolpk = None
             if pool:
@@ -303,7 +371,7 @@ class Enrollment(ORMBaseModel, table=True):
                 approvecode=code,
                 callsign=callsign,
                 state=EnrollmentState.PENDING,
-                extra=extra or {},
+                extra=enrollment_extra,
                 pool=poolpk,
                 csr=csr,
             )

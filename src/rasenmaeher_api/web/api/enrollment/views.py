@@ -1,17 +1,23 @@
 """Enrollment API views."""
 
+import datetime
 import logging
+import plistlib
 import uuid
 from typing import Any
 
+from cryptography.x509.oid import ExtendedKeyUsageOID
 from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
+from ....cert.acme import ACMEError
 from ....db import Enrollment, EnrollmentPool, Person
 from ....db.errors import CallsignReserved, NotFound
 from ....rmsettings import RMSettings
+from ..acme.protocol import acme_url
+from ..middleware.datatypes import MTLSorJWTPayload, MTLSorJWTPayloadType
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
 from ..utils.auditcontext import build_audit_extra
@@ -159,6 +165,71 @@ async def request_enrolment_status(
         return EnrollmentStatusOut(callsign=obj.callsign, status=obj.state)
     except NotFound:
         return EnrollmentStatusOut(callsign="", status=-1)
+
+
+@ENROLLMENT_ROUTER.get(
+    "/acme-profile",
+    response_class=Response,
+    responses={
+        200: {"content": {"application/x-apple-aspen-config": {"schema": {"type": "string", "format": "binary"}}}}
+    },
+)
+async def get_acme_profile(request: Request) -> Response:
+    """Download the Apple configuration profile for an approved ACME enrollment."""
+    settings = RMSettings.singleton()
+
+    auth: MTLSorJWTPayload = request.state.mtls_or_jwt
+    enrollment_id = auth.payload.get("enrollment_id")
+    if auth.type != MTLSorJWTPayloadType.JWT or not auth.userid or not enrollment_id:
+        raise HTTPException(status_code=403, detail="Enrollment JWT required")
+    enrollment = await Enrollment.by_callsign(auth.userid)
+    if enrollment_id != str(enrollment.pk):
+        raise HTTPException(status_code=403, detail="Enrollment JWT does not match")
+
+    client_identifier = enrollment.acme_client_identifier
+    expires_at = enrollment.acme_authorization_expires_at
+    if client_identifier is None or expires_at is None:
+        raise HTTPException(status_code=409, detail="Enrollment is not awaiting ACME issuance")
+    if datetime.datetime.now(datetime.UTC) >= expires_at:
+        raise HTTPException(status_code=410, detail="ACME enrollment authorization expired")
+
+    try:
+        directory_url = acme_url("directory")
+    except ACMEError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+    profile_id = f"fi.pvarki.rasenmaeher.acme.{enrollment.pk}"
+    profile = {
+        "PayloadType": "Configuration",
+        "PayloadVersion": 1,
+        "PayloadIdentifier": profile_id,
+        "PayloadUUID": str(enrollment.pk),
+        "PayloadDisplayName": f"{settings.deployment_name} client certificate",
+        "PayloadContent": [
+            {
+                "PayloadType": "com.apple.security.acme",
+                "PayloadVersion": 1,
+                "PayloadIdentifier": f"{profile_id}.identity",
+                "PayloadUUID": str(uuid.uuid5(enrollment.pk, "acme-identity")),
+                "DirectoryURL": directory_url,
+                "ClientIdentifier": client_identifier,
+                "Subject": [[["CN", enrollment.callsign]]],
+                "KeyType": "ECSECPrimeRandom",
+                "KeySize": 256,
+                "HardwareBound": True,
+                "Attest": False,
+                "UsageFlags": 1,
+                "ExtendedKeyUsage": [ExtendedKeyUsageOID.CLIENT_AUTH.dotted_string],
+            }
+        ],
+    }
+    return Response(
+        content=plistlib.dumps(profile),
+        media_type="application/x-apple-aspen-config",
+        headers={
+            "Cache-Control": "no-store",
+            "Content-Disposition": 'attachment; filename="client-certificate.mobileconfig"',
+        },
+    )
 
 
 @ENROLLMENT_ROUTER.get(
@@ -443,7 +514,11 @@ async def post_enrollment_accept(
         )
         raise HTTPException(status_code=403, detail="Invalid approval code for this enrollment")
 
-    new_approved_user = await pending_enrollment.approve(approver=admin_user)
+    if pending_enrollment.acme_client_identifier is not None:
+        if not await pending_enrollment.approve_for_acme(approver=admin_user, approvecode=request_in.approvecode):
+            raise HTTPException(status_code=409, detail="ACME enrollment is no longer pending approval")
+    else:
+        await pending_enrollment.approve(approver=admin_user)
 
     LOGGER.audit(  # type: ignore[attr-defined]
         "Enrollment approved",
@@ -455,7 +530,7 @@ async def post_enrollment_accept(
         ),
     )
 
-    return OperationResultResponse(success=True, extra=f"Approved {new_approved_user.callsign}")
+    return OperationResultResponse(success=True, extra=f"Approved {pending_enrollment.callsign}")
 
 
 @ENROLLMENT_ROUTER.post(
@@ -720,7 +795,7 @@ async def post_enroll_invite_code(
         pass
 
     try:
-        enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr)
+        enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr, acme=request_in.acme)
     except CallsignReserved as exc:
         LOGGER.audit(  # type: ignore[attr-defined]
             "Enrollment via invitecode failed - callsign not allowed",
@@ -738,6 +813,8 @@ async def post_enroll_invite_code(
 
     # Create JWT token for user
     claims = {"sub": callsign}
+    if request_in.acme:
+        claims["enrollment_id"] = str(enrollment.pk)
     new_jwt = issue_enrollment_jwt(response, claims)
 
     LOGGER.audit(  # type: ignore[attr-defined]
