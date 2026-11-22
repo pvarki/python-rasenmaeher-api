@@ -958,6 +958,14 @@ def test_the_enrolment_window_closes_itself() -> None:
 
 
 @pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.parametrize("hours", [3, 24, -1])
+async def test_the_window_never_opens_for_longer_than_its_limit(hours: int) -> None:
+    """Held where the window is kept, so that no caller can open it for a day"""
+    with pytest.raises(ValueError, match="0 to 2 hours"):
+        await MdmEnrolment(challenge="c").open_for(hours)
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_an_admin_opens_and_closes_mdm_enrolment(
     tilauspalvelu_jwt_admin_client: TestClient, tilauspalvelu_jwt_user_client: TestClient, app_instance: FastAPI
 ) -> None:
@@ -970,25 +978,30 @@ async def test_an_admin_opens_and_closes_mdm_enrolment(
     assert re.fullmatch(r"[0-9a-f]{32}", closed["challenge"])
     assert closed["scep_url"].endswith("/scep")
 
-    resp = await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 24})
+    resp = await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 2})
     assert resp.status_code == 200
     left = datetime.datetime.fromisoformat(resp.json()["open_until"]) - datetime.datetime.now(datetime.UTC)
-    assert datetime.timedelta(hours=23, minutes=59) < left <= datetime.timedelta(hours=24)
+    assert datetime.timedelta(hours=1, minutes=59) < left <= datetime.timedelta(hours=2)
 
     opened = (await tilauspalvelu_jwt_admin_client.get(url)).json()
     assert opened["challenge"] != closed["challenge"], "every window gets a new challenge"
     assert re.fullmatch(r"[0-9a-f]{32}", opened["challenge"])
     assert opened["open_until"]
-    extended = (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 2})).json()
+    extended = (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 1})).json()
     assert extended["challenge"] == opened["challenge"], "devices enrolling right now hold this one"
 
-    assert (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 169})).status_code == 422
+    # The server holds the two hours: a page that asks for more, or a caller that is no page, is refused
+    for too_long in (3, 24, 169):
+        assert (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": too_long})).status_code == 422
+    assert (await tilauspalvelu_jwt_admin_client.get(url)).json()["open_until"] == extended["open_until"], (
+        "left as it was"
+    )
     assert (await tilauspalvelu_jwt_user_client.get(url)).status_code == 403
-    assert (await tilauspalvelu_jwt_user_client.put(url, json={"hours": 24})).status_code == 403
+    assert (await tilauspalvelu_jwt_user_client.put(url, json={"hours": 2})).status_code == 403
     # A product passes the admin check without being a person; switching enrolment is not its call
     async with TestClient(app_instance) as product:
         product.headers.update({"X-ClientCert-DN": "CN=fake.localmaeher.dev.pvarki.fi,O=N/A"})
-        assert (await product.put(url, json={"hours": 24})).status_code == 403
+        assert (await product.put(url, json={"hours": 2})).status_code == 403
         assert (await product.get(url)).status_code == 403
 
     assert (await tilauspalvelu_jwt_admin_client.put(url, json={"hours": 0})).json()["open_until"] is None

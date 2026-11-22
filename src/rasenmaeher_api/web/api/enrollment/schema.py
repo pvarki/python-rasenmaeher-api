@@ -6,6 +6,8 @@ from typing import Any
 from libpvarki.schemas.generic import OperationResultResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from ....db.mdmenrolment import MAX_OPEN_HOURS
+
 
 class EnrollmentGenVerifiOut(BaseModel):
     """Enrollment gen verification code out"""
@@ -480,4 +482,8 @@ class MdmSettingsIn(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    hours: int = Field(description="Hours to keep enrolment open from now, 0 closes it", ge=0, le=168)
+    hours: int = Field(
+        description=f"Hours to keep enrolment open from now, at most {MAX_OPEN_HOURS}; 0 closes it",
+        ge=0,
+        le=MAX_OPEN_HOURS,
+    )

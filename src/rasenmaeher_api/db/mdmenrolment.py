@@ -15,6 +15,10 @@ from .errors import ForbiddenOperation
 
 LOGGER = logging.getLogger(__name__)
 
+#: The longest the window opens for in one go. While it is open the challenge is all that stands
+#: between the public SCEP endpoint and a new identity, so the limit is held here and not by a page.
+MAX_OPEN_HOURS = 2
+
 
 def new_challenge() -> str:
     """Hex, because the challenge travels as an X.509 attribute and some clients encode it as a
@@ -74,8 +78,11 @@ class MdmEnrolment(ORMBaseModel, table=True):
         """Open the window for this many hours from now, or close it with 0
 
         Opening a closed window makes a new challenge. Extending an open one keeps it, because the
-        devices the MDM is enrolling at that moment were handed it.
+        devices the MDM is enrolling at that moment were handed it. More than MAX_OPEN_HOURS from
+        now is refused, whoever asks.
         """
+        if not 0 <= hours <= MAX_OPEN_HOURS:
+            raise ValueError(f"The enrolment window opens for 0 to {MAX_OPEN_HOURS} hours, not {hours}")
         until = datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=hours) if hours else None
         with EngineWrapper.get_session() as session:
             if until and not self.is_open:
