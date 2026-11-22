@@ -11,8 +11,10 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.sql import func
-from sqlmodel import Field, select
+from sqlmodel import Field, Session, select
+from starlette.exceptions import HTTPException
 
 from ..rmsettings import RMSettings
 from ..web.api.utils.csr_utils import verify_csr
@@ -25,6 +27,7 @@ LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = string.ascii_uppercase + string.digits
 CODE_MAX_ATTEMPTS = 100
 ACME_CLIENT_IDENTIFIER_KEY = "rmapi_acme_client_identifier"
+ACME_ORDER_KEY = "rmapi_acme_order"
 ACME_AUTHORIZATION_LIFETIME = datetime.timedelta(minutes=15)
 
 
@@ -216,27 +219,40 @@ class Enrollment(ORMBaseModel, table=True):
     async def approve_for_acme(self, approver: Person, approvecode: str) -> bool:
         """Reserve approval for ACME and start its expiry window without signing a certificate."""
         with EngineWrapper.get_session() as session:
-            current = session.exec(select(Enrollment).where(Enrollment.pk == self.pk).with_for_update()).one()
+            session.add(self)
+            self._lock_acme(session)
             if (
-                current.deleted is not None
-                or current.state != EnrollmentState.PENDING
-                or current.acme_client_identifier is None
-                or current.approvecode != approvecode
+                self.deleted is not None
+                or self.state != EnrollmentState.PENDING
+                or self.acme_client_identifier is None
+                or self.approvecode != approvecode
             ):
                 return False
-            current.state = EnrollmentState.AWAITING_ACME
-            current.decided_by = approver.pk
-            current.decided_on = datetime.datetime.now(datetime.UTC)
+            self.state = EnrollmentState.AWAITING_ACME
+            self.decided_by = approver.pk
+            self.decided_on = datetime.datetime.now(datetime.UTC)
             session.commit()
+            session.refresh(self)
         return True
+
+    def _lock_acme(self, session: Session) -> None:
+        # Finalization awaits the signer while holding this row. An operator request must not block the event loop.
+        try:
+            session.refresh(self, with_for_update={"nowait": True})
+        except OperationalError as exc:
+            if getattr(exc.orig, "pgcode", None) != "55P03":  # lock_not_available
+                raise
+            raise HTTPException(status_code=409, detail="ACME enrollment is being finalized. Retry shortly.") from exc
 
     async def reject(self, decider: Person) -> None:
         """Reject"""
         with EngineWrapper.get_session() as session:
+            session.add(self)
+            if self.acme_client_identifier is not None:
+                self._lock_acme(session)
             self.state = EnrollmentState.REJECTED
             self.decided_by = decider.pk
             self.decided_on = datetime.datetime.now(datetime.UTC)
-            session.add(self)
             session.commit()
             session.refresh(self)
 
@@ -289,9 +305,11 @@ class Enrollment(ORMBaseModel, table=True):
     async def reset_approvecode(self) -> str:
         """Reset approvecode"""
         with EngineWrapper.get_session() as session:
+            session.add(self)
+            if self.acme_client_identifier is not None:
+                self._lock_acme(session)
             code = await Enrollment._generate_unused_code()
             self.approvecode = code
-            session.add(self)
             session.commit()
             return code
 
@@ -336,6 +354,7 @@ class Enrollment(ORMBaseModel, table=True):
                 pass
         enrollment_extra = (extra or {}).copy()
         enrollment_extra.pop(ACME_CLIENT_IDENTIFIER_KEY, None)
+        enrollment_extra.pop(ACME_ORDER_KEY, None)
         if acme:
             enrollment_extra[ACME_CLIENT_IDENTIFIER_KEY] = secrets.token_urlsafe(32)
         with EngineWrapper.get_session() as session:

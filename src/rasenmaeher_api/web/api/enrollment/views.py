@@ -12,9 +12,11 @@ from libpvarki.schemas.generic import OperationResultResponse
 from multikeyjwt import Issuer
 from multikeyjwt import config as jwtconfig
 
+from ....cert.acme import ACMEError
 from ....db import Enrollment, EnrollmentPool, Person
 from ....db.errors import CallsignReserved, NotFound
 from ....rmsettings import RMSettings
+from ..acme.protocol import acme_url
 from ..middleware.datatypes import MTLSorJWTPayload, MTLSorJWTPayloadType
 from ..middleware.mtls import MTLSorJWT
 from ..middleware.user import ValidUser
@@ -191,11 +193,10 @@ async def get_acme_profile(request: Request) -> Response:
     if datetime.datetime.now(datetime.UTC) >= expires_at:
         raise HTTPException(status_code=410, detail="ACME enrollment authorization expired")
 
-    settings.load_manifest()
-    deployment_dns = settings.kraftwerk_manifest_dict.get("dns")
-    if not deployment_dns:
-        raise HTTPException(status_code=503, detail="Deployment DNS is missing from the manifest")
-    directory_url = f"https://{deployment_dns}/api/v1/acme/directory"
+    try:
+        directory_url = acme_url("directory")
+    except ACMEError as exc:
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
     profile_id = f"fi.pvarki.rasenmaeher.acme.{enrollment.pk}"
     profile = {
         "PayloadType": "Configuration",
@@ -215,6 +216,7 @@ async def get_acme_profile(request: Request) -> Response:
                 "KeyType": "ECSECPrimeRandom",
                 "KeySize": 256,
                 "HardwareBound": True,
+                "Attest": False,
                 "UsageFlags": 1,
                 "ExtendedKeyUsage": [ExtendedKeyUsageOID.CLIENT_AUTH.dotted_string],
             }

@@ -99,6 +99,13 @@ Use the enrollment JWT to download the Apple configuration profile at
 ``GET /api/v1/enrollment/acme-profile``. The profile can be downloaded again
 within 15 minutes of approval.
 
+The directory supports the Apple enrollment flow with ``device-attest-01``.
+This pilot authorizes the order using the single-use enrollment identifier and
+the ACME account key. The profile requests a hardware-bound key with Apple
+attestation disabled. RMAPI validates the device CSR, signs it with the
+configured client CA, and returns the certificate and chain. Revocation uses
+the existing RMAPI user revocation flow.
+
 
 Backend services manifest
 -------------------------
