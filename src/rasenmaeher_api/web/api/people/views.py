@@ -28,6 +28,7 @@ async def request_people_list(revoked: bool = False) -> PeopleListOut:
     /list
     Return people/list.
     Returns a list of dicts, callsign_list = [ {  "callsign":'x', "roles": ["str"] 'extra':'x' } ]
+    Each also says when its certificate ends, as cert_ends.
 
     if revoked is given will list *also* revoked users.
     """
@@ -41,8 +42,13 @@ async def request_people_list(revoked: bool = False) -> PeopleListOut:
         revoked_date: str | None = None
         if dbperson.deleted:
             revoked_date = dbperson.deleted.isoformat()
+        ends = dbperson.cert_ends()
         listitem = CallSignPerson(
-            callsign=dbperson.callsign, roles=list(roles), extra=dbperson.extra, revoked=revoked_date
+            callsign=dbperson.callsign,
+            roles=list(roles),
+            extra=dbperson.extra,
+            revoked=revoked_date,
+            cert_ends=ends.isoformat() if ends else None,
         )
         result_list.append(listitem)
 

@@ -257,6 +257,18 @@ class Person(ORMBaseModel, table=True):
         """Path to the public key"""
         return Path(self.certspath) / "mtls.pub"
 
+    def cert_ends(self) -> datetime.datetime | None:
+        """When the certificate stops being valid, from the certificate itself; None without a readable one
+
+        Read from the file on every call: nothing else here records it. A listing of very many people
+        reads as many files, and a column filled in when the certificate is issued would spare that.
+        """
+        try:
+            return cryptography.x509.load_pem_x509_certificate(self.certfile.read_bytes()).not_valid_after_utc
+        except (OSError, ValueError):
+            # ValueError also for a date no calendar has: one certificate must not take the whole list down
+            return None
+
     @classmethod
     async def list(cls, include_deleted: bool = False, *, only_deleted: bool = False) -> AsyncGenerator["Person", None]:
         """List people"""
