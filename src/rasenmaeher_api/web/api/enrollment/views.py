@@ -175,9 +175,6 @@ async def request_enrolment_status(
 async def get_acme_profile(request: Request) -> Response:
     """Download the Apple configuration profile for an approved ACME enrollment."""
     settings = RMSettings.singleton()
-    directory_url = settings.acme_directory_url
-    if directory_url is None:
-        raise HTTPException(status_code=404, detail="ACME enrollment is disabled")
 
     auth: MTLSorJWTPayload = request.state.mtls_or_jwt
     enrollment_id = auth.payload.get("enrollment_id")
@@ -194,6 +191,11 @@ async def get_acme_profile(request: Request) -> Response:
     if datetime.datetime.now(datetime.UTC) >= expires_at:
         raise HTTPException(status_code=410, detail="ACME enrollment authorization expired")
 
+    settings.load_manifest()
+    deployment_dns = settings.kraftwerk_manifest_dict.get("dns")
+    if not deployment_dns:
+        raise HTTPException(status_code=503, detail="Deployment DNS is missing from the manifest")
+    directory_url = f"https://{deployment_dns}/api/v1/acme/directory"
     profile_id = f"fi.pvarki.rasenmaeher.acme.{enrollment.pk}"
     profile = {
         "PayloadType": "Configuration",
@@ -207,7 +209,7 @@ async def get_acme_profile(request: Request) -> Response:
                 "PayloadVersion": 1,
                 "PayloadIdentifier": f"{profile_id}.identity",
                 "PayloadUUID": str(uuid.uuid5(enrollment.pk, "acme-identity")),
-                "DirectoryURL": str(directory_url),
+                "DirectoryURL": directory_url,
                 "ClientIdentifier": client_identifier,
                 "Subject": [[["CN", enrollment.callsign]]],
                 "KeyType": "ECSECPrimeRandom",
@@ -737,8 +739,6 @@ async def post_enroll_invite_code(
     Enroll with an invite code
     """
     callsign = request_in.callsign
-    if request_in.acme and RMSettings.singleton().acme_directory_url is None:
-        raise HTTPException(status_code=404, detail="ACME enrollment is disabled")
 
     # CHECK IF INVITE CODE CAN BE USED
     try:

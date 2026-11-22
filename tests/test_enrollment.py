@@ -662,13 +662,9 @@ async def test_enroll_with_invite_code(
 @pytest.mark.asyncio(loop_scope="session")
 @pytest.mark.usefixtures("dbinit_sess")
 @pytest.mark.parametrize("app_instance", ["RSA"], indirect=True)
-async def test_acme_invite_enrollment(
-    tilauspalvelu_jwt_admin_client: TestClient, unauth_client: TestClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
+async def test_acme_invite_enrollment(tilauspalvelu_jwt_admin_client: TestClient, unauth_client: TestClient) -> None:
     """Approve a device enrollment and download the same profile until its authorization expires."""
     admin = tilauspalvelu_jwt_admin_client
-    settings = RMSettings.singleton()
-    directory_url = "https://acme.example.test/directory"
     invite = await admin.post("/api/v1/enrollment/invitecode/create")
     invite.raise_for_status()
     callsign = f"acme{secrets.token_hex(4)}"
@@ -676,10 +672,6 @@ async def test_acme_invite_enrollment(
     profile_url = "/api/v1/enrollment/acme-profile"
     enrollment_request = {"invite_code": invite.json()["invite_code"], "callsign": callsign, "acme": True}
 
-    monkeypatch.setattr(settings, "acme_directory_url", None)
-    assert (await unauth_client.post(enroll_url, json=enrollment_request)).status_code == 404
-    monkeypatch.setenv("RM_ACME_DIRECTORY_URL", directory_url)
-    monkeypatch.setattr(settings, "acme_directory_url", RMSettings().acme_directory_url)
     assert (await unauth_client.get(profile_url)).status_code == 403
     assert (await unauth_client.post(enroll_url, json={**enrollment_request, "csr": "device-csr"})).status_code == 422
     enrollment = await unauth_client.post(enroll_url, json=enrollment_request)
@@ -704,13 +696,13 @@ async def test_acme_invite_enrollment(
     assert (await admin.get(profile_url)).status_code == 403
     other_jwt = Issuer().issue({"sub": callsign, "enrollment_id": str(uuid.uuid4())})
     assert (await unauth_client.get(profile_url, headers={"Authorization": f"Bearer {other_jwt}"})).status_code == 403
-    profile = await unauth_client.get(profile_url, headers=auth_header)
+    profile = await unauth_client.get(profile_url, headers={**auth_header, "Host": "other.example.test:8443"})
     profile.raise_for_status()
     assert profile.headers["content-type"] == "application/x-apple-aspen-config"
     assert profile.headers["cache-control"] == "no-store"
     payload = plistlib.loads(profile.content)["PayloadContent"][0]
     assert payload["PayloadType"] == "com.apple.security.acme"
-    assert payload["DirectoryURL"] == directory_url
+    assert payload["DirectoryURL"] == "https://localmaeher.dev.pvarki.fi/api/v1/acme/directory"
     assert payload["Subject"] == [[["CN", callsign]]]
     assert payload["ClientIdentifier"] == record.acme_client_identifier
     assert payload["ClientIdentifier"] != callsign
