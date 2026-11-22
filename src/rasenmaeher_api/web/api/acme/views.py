@@ -66,7 +66,7 @@ async def directory() -> dict[str, str]:
 @router.get("/new-nonce", status_code=204, response_class=Response)
 async def new_nonce(response: Response) -> None:
     """Issue the first replay nonce for an ACME request."""
-    response.headers["Replay-Nonce"] = acme.issue_nonce(prune=True)
+    response.headers["Replay-Nonce"] = acme.issue_nonce()
 
 
 @router.post("/new-account")

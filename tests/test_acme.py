@@ -4,6 +4,7 @@ import datetime
 import json
 import plistlib
 import secrets
+import uuid
 from typing import Any
 from urllib.parse import urlsplit
 
@@ -16,13 +17,14 @@ from cryptography.hazmat.primitives.asymmetric import ec, utils
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from fastapi import FastAPI
 
-from rasenmaeher_api.cert.acme import b64url
+from rasenmaeher_api.cert.acme import ACMEError, b64url, decode_b64url
 from rasenmaeher_api.cert.backend import sign_csr
 from rasenmaeher_api.cert.errors import CertError
-from rasenmaeher_api.db import EngineWrapper, Enrollment, EnrollmentState, Person
+from rasenmaeher_api.db import EngineWrapper, Enrollment, EnrollmentState, Person, acme
 from rasenmaeher_api.db import people as people_db
 from rasenmaeher_api.db.enrollments import ACME_AUTHORIZATION_LIFETIME
 from rasenmaeher_api.db.errors import NotFound
+from rasenmaeher_api.db.nonces import SeenToken
 
 ORIGIN = "https://localmaeher.dev.pvarki.fi"
 
@@ -73,6 +75,7 @@ class ACMEClient:
             headers={"Content-Type": "application/jose+json"},
         )
         self.nonce = response.headers["Replay-Nonce"]
+        assert b64url(decode_b64url(self.nonce)) == self.nonce
         return response
 
     async def register(self) -> httpx.Response:
@@ -93,6 +96,52 @@ def csr(callsign: str, key: ec.EllipticCurvePrivateKey, san: x509.GeneralName | 
     if san is not None:
         builder = builder.add_extension(x509.SubjectAlternativeName([san]), critical=False)
     return {"csr": b64url(builder.sign(key, hashes.SHA256()).public_bytes(serialization.Encoding.DER))}
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.usefixtures("dbinit_sess")
+@pytest.mark.parametrize("app_instance", ["RSA"], indirect=True)
+async def test_acme_nonce_cleanup(app_instance: FastAPI, monkeypatch: pytest.MonkeyPatch) -> None:
+    """POST errors prune expired nonces without deleting accounts or other replay records."""
+    expired = datetime.datetime.now(datetime.UTC) - acme.NONCE_LIFETIME - datetime.timedelta(seconds=1)
+    suffix = str(uuid.uuid4())
+    expired_nonce = f"{acme.NONCE_PREFIX}expired-{suffix}"
+    remaining = (f"{acme.NONCE_PREFIX}live-{suffix}", f"{acme.ACCOUNT_PREFIX}{suffix}", f"other-{suffix}")
+    tokens = [
+        SeenToken(token=expired_nonce, created=expired),
+        SeenToken(token=remaining[0]),
+        SeenToken(token=remaining[1], created=expired),
+        SeenToken(token=remaining[2], created=expired),
+    ]
+    with EngineWrapper.get_session() as session:
+        session.add_all(tokens)
+        session.commit()
+
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app_instance), base_url=ORIGIN) as client:
+        # This suffix exposes the old concatenated nonce's nonzero base64 padding bits.
+        with monkeypatch.context() as patch:
+            patch.setattr(secrets, "token_urlsafe", lambda _: "B" * 32)
+            patch.setattr(secrets, "token_bytes", lambda _: b"\x01" * 32)
+            response = await client.post(
+                "/api/v1/acme/new-account", content=b"invalid", headers={"Content-Type": "application/jose+json"}
+            )
+        assert response.status_code == 400
+        nonce = response.headers["Replay-Nonce"]
+        assert b64url(decode_b64url(nonce)) == nonce
+        assert len(nonce) == 43
+        with pytest.raises(NotFound):
+            await SeenToken.by_token(expired_nonce)
+        for token in remaining:
+            assert (await SeenToken.by_token(token)).token == token
+
+        acme.consume_nonce(nonce)
+        with pytest.raises(ACMEError, match="Unknown, expired, or already used"):
+            acme.consume_nonce(nonce)
+
+        for method in ("GET", "HEAD"):
+            response = await client.request(method, "/api/v1/acme/new-nonce")
+            nonce = response.headers["Replay-Nonce"]
+            assert b64url(decode_b64url(nonce)) == nonce
 
 
 @pytest.mark.asyncio(loop_scope="session")

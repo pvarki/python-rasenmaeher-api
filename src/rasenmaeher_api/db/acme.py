@@ -12,7 +12,7 @@ from sqlalchemy.exc import OperationalError
 from sqlmodel import Session, col, delete, select
 from sqlmodel.sql.expression import SelectOfScalar
 
-from ..cert.acme import ACMEError, validate_device_csr
+from ..cert.acme import ACMEError, b64url, validate_device_csr
 from .engine import EngineWrapper
 from .enrollments import ACME_CLIENT_IDENTIFIER_KEY, ACME_ORDER_KEY, Enrollment, EnrollmentState
 from .errors import BackendError, CallsignReserved
@@ -25,15 +25,14 @@ NONCE_PREFIX = "acme-nonce:"
 ACCOUNT_PREFIX = "acme-account:"
 
 
-def issue_nonce(prune: bool = False) -> str:
-    """Mint a short-lived nonce shared by every API worker."""
-    now = datetime.datetime.now(datetime.UTC)
-    nonce = f"{int(now.timestamp()):010d}-{secrets.token_urlsafe(24)}"
+def issue_nonce() -> str:
+    """Mint a canonical nonce and discard expired ACME nonces, including on POST responses."""
+    nonce = b64url(secrets.token_bytes(32))
+    cutoff = datetime.datetime.now(datetime.UTC) - NONCE_LIFETIME
     with EngineWrapper.get_session() as session:
-        if prune:
-            cutoff = int((now - NONCE_LIFETIME).timestamp())
-            token = col(SeenToken.token)
-            session.exec(delete(SeenToken).where(token >= NONCE_PREFIX, token < f"{NONCE_PREFIX}{cutoff:010d}-"))
+        session.exec(
+            delete(SeenToken).where(col(SeenToken.token).startswith(NONCE_PREFIX), col(SeenToken.created) <= cutoff)
+        )
         session.add(SeenToken(token=f"{NONCE_PREFIX}{nonce}"))
         session.commit()
     return nonce
