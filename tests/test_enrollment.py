@@ -1,6 +1,8 @@
 """Test enrollment endpoint"""
 
+import datetime
 import logging
+import plistlib
 import secrets
 import uuid
 from pathlib import Path
@@ -11,12 +13,17 @@ import pytest
 from async_asgi_testclient import TestClient  # type: ignore[import-untyped]
 from cryptography import x509
 from libpvarki.mtlshelp.csr import async_create_client_csr, async_create_keypair
+from multikeyjwt import Issuer
+from pydantic import AnyUrl
 
 from rasenmaeher_api.db import (
     EngineWrapper,
+    Enrollment,
     EnrollmentPool,
+    EnrollmentState,
     Person,
 )
+from rasenmaeher_api.db.enrollments import ACME_AUTHORIZATION_LIFETIME
 from rasenmaeher_api.rmsettings import RMSettings
 
 LOGGER = logging.getLogger(__name__)
@@ -651,6 +658,78 @@ async def test_enroll_with_invite_code(
     resp.raise_for_status()
 
     del unauth_client_session.headers["Authorization"]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+@pytest.mark.usefixtures("dbinit_sess")
+@pytest.mark.parametrize("app_instance", ["RSA"], indirect=True)
+async def test_acme_invite_enrollment(
+    tilauspalvelu_jwt_admin_client: TestClient, unauth_client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Approve a device enrollment and download the same profile until its authorization expires."""
+    admin = tilauspalvelu_jwt_admin_client
+    settings = RMSettings.singleton()
+    directory_url = "https://acme.example.test/directory"
+    invite = await admin.post("/api/v1/enrollment/invitecode/create")
+    invite.raise_for_status()
+    callsign = f"acme{secrets.token_hex(4)}"
+    enroll_url = "/api/v1/enrollment/invitecode/enroll"
+    profile_url = "/api/v1/enrollment/acme-profile"
+    enrollment_request = {"invite_code": invite.json()["invite_code"], "callsign": callsign, "acme": True}
+
+    monkeypatch.setattr(settings, "acme_directory_url", None)
+    assert (await unauth_client.post(enroll_url, json=enrollment_request)).status_code == 404
+    monkeypatch.setattr(settings, "acme_directory_url", AnyUrl(directory_url))
+    assert (await unauth_client.get(profile_url)).status_code == 403
+    assert (await unauth_client.post(enroll_url, json={**enrollment_request, "csr": "device-csr"})).status_code == 422
+    enrollment = await unauth_client.post(enroll_url, json=enrollment_request)
+    enrollment.raise_for_status()
+    assert (await unauth_client.post(enroll_url, json=enrollment_request)).status_code == 400
+
+    auth_header = {"Authorization": f"Bearer {enrollment.json()['jwt']}"}
+    accept_url = "/api/v1/enrollment/accept"
+    accept_request = {"callsign": callsign, "approvecode": enrollment.json()["approvecode"]}
+    assert (await unauth_client.get(profile_url, headers=auth_header)).status_code == 409
+    assert (await admin.post(accept_url, json={**accept_request, "approvecode": "invalid"})).status_code == 403
+    approved = await admin.post(accept_url, json=accept_request)
+    approved.raise_for_status()
+    assert (await admin.post(accept_url, json=accept_request)).status_code == 409
+
+    status = await unauth_client.get(f"/api/v1/enrollment/status?callsign={callsign}", headers=auth_header)
+    assert status.json() == {"callsign": callsign, "status": EnrollmentState.AWAITING_ACME}
+    record = await Enrollment.by_callsign(callsign)
+    assert record.person is None
+    assert record.csr is None
+
+    assert (await admin.get(profile_url)).status_code == 403
+    other_jwt = Issuer().issue({"sub": callsign, "enrollment_id": str(uuid.uuid4())})
+    assert (await unauth_client.get(profile_url, headers={"Authorization": f"Bearer {other_jwt}"})).status_code == 403
+    profile = await unauth_client.get(profile_url, headers=auth_header)
+    profile.raise_for_status()
+    assert profile.headers["content-type"] == "application/x-apple-aspen-config"
+    assert profile.headers["cache-control"] == "no-store"
+    payload = plistlib.loads(profile.content)["PayloadContent"][0]
+    assert payload["PayloadType"] == "com.apple.security.acme"
+    assert payload["DirectoryURL"] == directory_url
+    assert payload["Subject"] == [[["CN", callsign]]]
+    assert payload["ClientIdentifier"] == record.acme_client_identifier
+    assert payload["ClientIdentifier"] != callsign
+    assert payload["HardwareBound"] is True
+    assert payload["KeySize"] == 256
+    assert payload["UsageFlags"] == 1
+    assert payload["ExtendedKeyUsage"] == ["1.3.6.1.5.5.7.3.2"]
+    assert (await unauth_client.get(profile_url, headers=auth_header)).content == profile.content
+
+    with EngineWrapper.get_session() as session:
+        record.decided_on = datetime.datetime.now(datetime.UTC) - ACME_AUTHORIZATION_LIFETIME
+        session.add(record)
+        session.commit()
+    assert (await unauth_client.get(profile_url, headers=auth_header)).status_code == 410
+
+    locked = await admin.post("/api/v1/enrollment/lock", json={"callsign": callsign, "lock_reason": "Revoked approval"})
+    locked.raise_for_status()
+    assert (await admin.post(accept_url, json=accept_request)).status_code == 409
+    assert (await unauth_client.get(profile_url, headers=auth_header)).status_code == 409
 
 
 # ENROLL WITH CSR (and invite-code

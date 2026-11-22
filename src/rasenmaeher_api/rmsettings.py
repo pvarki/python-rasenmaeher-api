@@ -4,8 +4,9 @@ import enum
 import json
 import logging
 from pathlib import Path
-from typing import Any, ClassVar, Optional
+from typing import Annotated, Any, ClassVar, Optional
 
+from pydantic import AnyUrl, UrlConstraints
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LOGGER = logging.getLogger(__name__)
@@ -142,6 +143,7 @@ class RMSettings(BaseSettings):
     code_size: int = 8
     code_avoid_confusion: bool = True  # Replace 1 and 0 with O and I to avoid confusion
     enrollment_lifetime: int = 60 * 60 * 4  # 4 hours, JWT/cookie lifetime
+    acme_directory_url: Annotated[AnyUrl, UrlConstraints(allowed_schemes=["https"], host_required=True)] | None = None
 
     _singleton: ClassVar[Optional["RMSettings"]] = None
 
