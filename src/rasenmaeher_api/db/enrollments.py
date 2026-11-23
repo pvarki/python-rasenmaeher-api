@@ -19,7 +19,7 @@ from ..web.api.utils.csr_utils import verify_csr
 from .base import ORMBaseModel
 from .engine import EngineWrapper
 from .errors import CallsignReserved, Deleted, ForbiddenOperation, NotFound, PoolInactive
-from .people import Person
+from .people import Person, reserved_callsign
 
 LOGGER = logging.getLogger(__name__)
 CODE_ALPHABET = string.ascii_uppercase + string.digits
@@ -285,8 +285,9 @@ class Enrollment(ORMBaseModel, table=True):
         csr: str | None = None,
     ) -> "Enrollment":
         """Create a new one with random code for the callsign"""
-        if RMSettings.singleton().is_reserved_cn(callsign):
-            raise CallsignReserved("Service CN used as callsign", detail="Callsign reserved")
+        reason = reserved_callsign(callsign)
+        if reason:
+            raise CallsignReserved(reason, detail="Callsign reserved")
         if csr and not verify_csr(csr, callsign):
             raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
         with EngineWrapper.get_session() as session:

@@ -12,6 +12,8 @@ class CallSignPerson(BaseModel):
     roles: list[str]
     extra: dict[str, Any] | None
     revoked: str | None
+    #: When the person's certificate stops being valid, as ISO 8601 in UTC; None when it is not known
+    cert_ends: str | None = None
 
 
 class PeopleListOut(BaseModel, extra="forbid"):

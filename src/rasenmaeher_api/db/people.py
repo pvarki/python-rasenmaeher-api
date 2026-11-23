@@ -33,6 +33,22 @@ from .errors import BackendError, CallsignReserved, Deleted, NotFound
 LOGGER = logging.getLogger(__name__)
 
 
+def reserved_callsign(callsign: str) -> str | None:
+    """Why this callsign belongs to a service rather than a person, or None if it does not
+
+    Compared without case: lookups fold it, and Keycloak and Matrix lowercase the name, so
+    RASENMAEHER is the same account as rasenmaeher everywhere downstream.
+    """
+    cnf = RMSettings.singleton()
+    if cnf.is_reserved_cn(callsign):
+        return "Service CN used as callsign"
+    if callsign.lower() in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
+        # A certificate with this CN is accepted as the MDM enrolment agent on sight, so issuing
+        # one to a person would let them enrol devices.
+        return "Using MDM agent CNs as callsigns is forbidden"
+    return None
+
+
 class Person(ORMBaseModel, table=True):
     """People, pk is UUID and comes from basemodel
 
@@ -99,8 +115,9 @@ class Person(ORMBaseModel, table=True):
     ) -> "Person":
         """Create the cert etc and save the person"""
         cnf = RMSettings.singleton()
-        if cnf.is_reserved_cn(callsign):
-            raise CallsignReserved("Service CN used as callsign", detail="Callsign reserved")
+        reason = reserved_callsign(callsign)
+        if reason:
+            raise CallsignReserved(reason, detail="Callsign reserved")
         if csrpem and not verify_csr(csrpem, callsign):
             raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
         try:
@@ -119,7 +136,10 @@ class Person(ORMBaseModel, table=True):
                 session.add(newperson)
                 session.commit()
                 if csrpem:
-                    newperson.csrfile.write_text(csrpem, encoding="utf-8")
+                    # A device's request carries the MDM enrolment challenge, and nothing reads it
+                    # back: a repeated enrolment is matched on the certificate's key.
+                    if not (extra or {}).get("mdm"):
+                        newperson.csrfile.write_text(csrpem, encoding="utf-8")
                 else:
                     ckp = await async_create_keypair(
                         newperson.privkeyfile, newperson.pubkeyfile, ktype=cnf.cert_key_type
@@ -256,6 +276,18 @@ class Person(ORMBaseModel, table=True):
     def pubkeyfile(self) -> Path:
         """Path to the public key"""
         return Path(self.certspath) / "mtls.pub"
+
+    def cert_ends(self) -> datetime.datetime | None:
+        """When the certificate stops being valid, from the certificate itself; None without a readable one
+
+        Read from the file on every call: nothing else here records it. A listing of very many people
+        reads as many files, and a column filled in when the certificate is issued would spare that.
+        """
+        try:
+            return cryptography.x509.load_pem_x509_certificate(self.certfile.read_bytes()).not_valid_after_utc
+        except (OSError, ValueError):
+            # ValueError also for a date no calendar has: one certificate must not take the whole list down
+            return None
 
     @classmethod
     async def list(cls, include_deleted: bool = False, *, only_deleted: bool = False) -> AsyncGenerator["Person", None]:

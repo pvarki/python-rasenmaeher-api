@@ -17,10 +17,11 @@ from .engine import EngineWrapper
 from .enrollments import Enrollment, EnrollmentPool
 from .issuedcerts import IssuedCert
 from .logincodes import LoginCode
+from .mdmenrolment import MdmEnrolment
 from .nonces import SeenToken
 from .people import Person, Role
 
-_ = (Person, Role, EnrollmentPool, Enrollment, SeenToken, LoginCode, IssuedCert)
+_ = (Person, Role, EnrollmentPool, Enrollment, SeenToken, LoginCode, IssuedCert, MdmEnrolment)
 LOGGER = logging.getLogger(__name__)
 
 

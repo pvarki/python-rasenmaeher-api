@@ -5,6 +5,7 @@ from .dbinit import init_db
 from .engine import EngineWrapper
 from .enrollments import Enrollment, EnrollmentPool, EnrollmentState
 from .logincodes import LoginCode
+from .mdmenrolment import MdmEnrolment
 from .nonces import SeenToken
 from .people import Person, Role
 
@@ -15,6 +16,7 @@ __all__ = [
     "EnrollmentPool",
     "EnrollmentState",
     "LoginCode",
+    "MdmEnrolment",
     "Person",
     "Role",
     "SeenToken",

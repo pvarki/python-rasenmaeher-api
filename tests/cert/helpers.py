@@ -100,6 +100,13 @@ def make_key_usage(**flags: bool) -> cryptography.x509.KeyUsage:
     return cryptography.x509.KeyUsage(**{**off, **flags})
 
 
+def invalidate_signature(csr_pem: str) -> str:
+    """The same CSR with one bit of its signature flipped, so it no longer verifies"""
+    der = cryptography.x509.load_pem_x509_csr(csr_pem.encode("utf-8")).public_bytes(serialization.Encoding.DER)
+    altered = der[:-1] + bytes([der[-1] ^ 0x01])
+    return cryptography.x509.load_der_x509_csr(altered).public_bytes(serialization.Encoding.PEM).decode("utf-8")
+
+
 def make_csr(
     common_name: str | None = "test leaf",
     key_usage: cryptography.x509.KeyUsage | None = None,

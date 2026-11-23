@@ -272,6 +272,7 @@ async def test_sign_csr_rejects_disallowed_usages(
     with pytest.raises(ValueError, match="not allowed"):
         await private.sign_csr(csr, bundle=False)
     assert not fake_k8s.created
+    assert not fake_k8s.deletes
 
 
 @pytest.mark.asyncio(loop_scope="function")
@@ -347,6 +348,45 @@ async def test_sign_csr_incomplete_status_raises(
     monkeypatch.setattr(CertificateRequest, "async_get", AsyncMock(return_value=incomplete))
     with pytest.raises(RuntimeError):
         await private.sign_csr(csr_pem)
+    assert fake_k8s.deletes == [(cr_name(csr_pem, "test leaf"), NAMESPACE)]
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_leaves_no_request_behind(
+    fake_k8s: FakeK8s, cm_settings: RMSettings, csr_pem: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    """The request, with any challenge in it, is deleted once read and never logged"""
+    _ = cm_settings
+    with caplog.at_level(logging.DEBUG):
+        await private.sign_csr(csr_pem)
+    assert fake_k8s.deletes == [(cr_name(csr_pem, "test leaf"), NAMESPACE)]
+    request_b64 = private._csr_pem_to_b64(csr_pem)
+    assert request_b64 not in caplog.text
+    assert "CERTIFICATE REQUEST" not in caplog.text
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_deletes_request_after_timeout(
+    fake_k8s: FakeK8s, cm_settings: RMSettings, csr_pem: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A request that never issued is deleted too"""
+    _ = cm_settings
+    monkeypatch.setattr(CertificateRequest, "async_wait_for", AsyncMock(side_effect=WaitTimeout("did not issue")))
+    with pytest.raises(CertManagerError):
+        await private.sign_csr(csr_pem)
+    assert fake_k8s.deletes == [(cr_name(csr_pem, "test leaf"), NAMESPACE)]
+
+
+@pytest.mark.parametrize("error", (APIError("forbidden"), OSError("connection reset")))
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_survives_failed_delete(
+    fake_k8s: FakeK8s, cm_settings: RMSettings, csr_pem: str, monkeypatch: pytest.MonkeyPatch, error: Exception
+) -> None:
+    """The certificate is issued, so failing to delete the request does not fail the signing"""
+    _ = cm_settings, fake_k8s
+    monkeypatch.setattr(CertificateRequest, "async_delete", AsyncMock(side_effect=error))
+    out = await private.sign_csr(csr_pem, bundle=False)
+    assert _subjects(out) == ["CN=test leaf"]
 
 
 # _delete_cr

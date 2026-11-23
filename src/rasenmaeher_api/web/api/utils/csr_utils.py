@@ -19,6 +19,9 @@ def verify_csr(csrpem: str, callsign: str) -> bool:
     csr = x509.load_pem_x509_csr(ensure_utf8(csrpem))
     dn = csr.subject.rfc4514_string()
     LOGGER.debug(f"DN={dn} callsign={callsign}")
+    if not csr.is_signature_valid:
+        LOGGER.warning(f"CSR signature does not verify with its own key. DN={dn} callsign={callsign}")
+        return False
     cns = csr.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
     if len(csr.subject) != 1 or len(cns) != 1 or cns[0].value != callsign:
         LOGGER.warning(f"Callsign does not match CSR subject. DN={dn} callsign={callsign}")
