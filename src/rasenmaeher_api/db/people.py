@@ -40,12 +40,9 @@ def reserved_callsign(callsign: str) -> str | None:
     RASENMAEHER is the same account as rasenmaeher everywhere downstream.
     """
     cnf = RMSettings.singleton()
-    folded = callsign.lower()
-    if folded in {cnname.lower() for cnname in cnf.valid_product_cns}:
-        return "Using product CNs as callsigns is forbidden"
-    if folded == cnf.mtls_client_cert_cn.lower():
-        return "Using the rasenmaeher service CN as a callsign is forbidden"
-    if folded in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
+    if cnf.is_reserved_cn(callsign):
+        return "Service CN used as callsign"
+    if callsign.lower() in {cnname.lower() for cnname in cnf.mdm_agent_cn_set}:
         # A certificate with this CN is accepted as the MDM enrolment agent on sight, so issuing
         # one to a person would let them enrol devices.
         return "Using MDM agent CNs as callsigns is forbidden"
@@ -65,8 +62,10 @@ class Person(ORMBaseModel, table=True):
     callsign: str = Field(nullable=False, index=True, unique=True)
     # Directory with the key, cert and pfx
     certspath: str = Field(nullable=False, index=False, unique=True)
-    extra: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
-    revoke_reason: str = Field(nullable=True, index=False)
+    extra: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
+    revoke_reason: str | None = Field(default=None, nullable=True, index=False)
     cert_serial: str | None = Field(default=None, nullable=True, index=True, unique=True)
 
     @classmethod
@@ -115,12 +114,12 @@ class Person(ORMBaseModel, table=True):
         cls, callsign: str, extra: dict[str, Any] | None = None, csrpem: str | None = None
     ) -> "Person":
         """Create the cert etc and save the person"""
-        if csrpem and not verify_csr(csrpem, callsign):
-            raise CallsignReserved("CSR CN must match callsign")
         cnf = RMSettings.singleton()
         reason = reserved_callsign(callsign)
         if reason:
-            raise CallsignReserved(reason)
+            raise CallsignReserved(reason, detail="Callsign reserved")
+        if csrpem and not verify_csr(csrpem, callsign):
+            raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
         try:
             await Person.by_callsign(callsign)
             raise CallsignReserved()
@@ -133,7 +132,7 @@ class Person(ORMBaseModel, table=True):
             certspath.mkdir(parents=True)
             certspath.chmod(PRIVDIR_MODE)
             try:
-                newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra)
+                newperson = Person(pk=puuid, callsign=callsign, certspath=str(certspath), extra=extra or {})
                 session.add(newperson)
                 session.commit()
                 if csrpem:
@@ -421,8 +420,10 @@ class Role(SQLModel, table=True):
     __table_args__ = ORMBaseModel.__table_args__
 
     pk: uuid.UUID = Field(primary_key=True, default_factory=uuid.uuid4)
-    created: datetime.datetime = Field(sa_column_kwargs={"default": utcnow}, nullable=False)
-    updated: datetime.datetime = Field(sa_column_kwargs={"default": utcnow, "onupdate": utcnow}, nullable=False)
+    created: datetime.datetime | None = Field(default=None, sa_column_kwargs={"default": utcnow}, nullable=False)
+    updated: datetime.datetime | None = Field(
+        default=None, sa_column_kwargs={"default": utcnow, "onupdate": utcnow}, nullable=False
+    )
     #    user: uuid.UUID = Field(foreign_key="users.pk")
     user: uuid.UUID = Field(foreign_key=f"{ORMBaseModel.__table_args__['schema']}.users.pk")
     role: str = Field(nullable=False, index=True)

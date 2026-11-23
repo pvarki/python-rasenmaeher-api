@@ -74,6 +74,8 @@ async def list_pools(owner_cs: str | None = None) -> EnrollmentPoolListOut:
     async for pool in EnrollmentPool.list(owner):
         if pool.owner not in owner_cache:
             owner_cache[pool.owner] = await Person.by_pk(pool.owner, allow_deleted=True)
+        if pool.created is None:
+            raise RuntimeError("EnrollmentPool found without created timestamp")
         pools.append(
             EnrollmentPoolListItem(
                 invitecode=pool.invitecode,
@@ -1006,7 +1008,22 @@ async def post_enroll_invite_code(
     except NotFound:
         pass
 
-    enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr)
+    try:
+        enrollment = await obj.create_enrollment(callsign=callsign, csr=request_in.csr)
+    except CallsignReserved as exc:
+        LOGGER.audit(  # type: ignore[attr-defined]
+            "Enrollment via invitecode failed - callsign not allowed",
+            extra=build_audit_extra(
+                action="enrollment_invitecode",
+                outcome="failure",
+                target=callsign,
+                request=request,
+                error_code="CALLSIGN_RESERVED",
+                invitecode_id=str(obj.pk),
+            ),
+        )
+        LOGGER.error(f"{request.url} : {exc.detail}")
+        raise HTTPException(status_code=400, detail=exc.detail) from exc
 
     # Create JWT token for user
     claims = {"sub": callsign}

@@ -61,6 +61,8 @@ prek run --all-files
 - Router modules go in `src/rasenmaeher_api/routers/` named by domain (e.g., `enroll.py`).
 - SQLModel models in `src/rasenmaeher_api/models/`.
 - Lint/format with ruff (config in `pyproject.toml`); prek enforces this.
+- Do not use `assert` for runtime checks outside of tests
+- Do not add `#nosec` comments without user approval
 
 ## Architecture Notes
 

@@ -26,6 +26,7 @@ from rasenmaeher_api.mtlsinit import CERT_NAME_PREFIX, check_settings_clientpath
 from rasenmaeher_api.productapihelpers import check_kraftwerk_manifest
 from rasenmaeher_api.rmsettings import switchme_to_singleton_call
 from rasenmaeher_api.testhelpers import create_test_users
+from tests.cert.helpers import CsrFactory, make_csr
 
 # Register libadvian fixtures (nice_tmpdir, monkeysession, ...) as a pytest plugin
 # so they're available by name in tests without needing explicit imports.
@@ -284,6 +285,12 @@ async def unauth_client_session(app_instance: FastAPI) -> AsyncGenerator[TestCli
     """Client with no auth headers"""
     async with TestClient(app_instance) as instance:
         yield instance
+
+
+@pytest.fixture(scope="session")
+def mint_csr() -> CsrFactory:
+    """Factory for CSRs with whatever subject and usage extensions a test needs"""
+    return make_csr
 
 
 @pytest.fixture(scope="session")

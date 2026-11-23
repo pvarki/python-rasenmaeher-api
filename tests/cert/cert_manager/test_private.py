@@ -150,30 +150,6 @@ def test_common_name_absent_is_none(mint_csr: CsrFactory) -> None:
     assert private._csr_common_name(mint_csr(None)) is None
 
 
-# _csr_usages
-def test_usages_empty_without_extensions(csr_pem: str) -> None:
-    """A CSR with no KeyUsage or ExtendedKeyUsage extensions derives no usages"""
-    assert private._csr_usages(csr_pem) == []
-
-
-def test_key_usage_flags_mapped(mint_csr: CsrFactory, key_usage: KeyUsageFactory) -> None:
-    """KeyUsage bits map to their cert-manager names, dependent flags last"""
-    plain = mint_csr("example", key_usage(digital_signature=True, key_encipherment=True))
-    assert private._csr_usages(plain) == ["digital signature", "key encipherment"]
-    agreement_only = mint_csr("example", key_usage(key_agreement=True))
-    assert private._csr_usages(agreement_only) == ["key agreement"]
-    agreement = mint_csr("example", key_usage(key_agreement=True, encipher_only=True, decipher_only=True))
-    assert private._csr_usages(agreement) == ["key agreement", "encipher only", "decipher only"]
-
-
-def test_ext_key_usage_oids_mapped(mint_csr: CsrFactory) -> None:
-    """Known ExtendedKeyUsage OIDs map to their names, unknown ones are dropped"""
-    known = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.SERVER_AUTH])
-    assert private._csr_usages(known) == ["server auth"]
-    unknown = mint_csr("example", ext_key_usage=[ExtendedKeyUsageOID.KERBEROS_PKINIT_KDC])
-    assert private._csr_usages(unknown) == []
-
-
 # sign_csr
 @pytest.mark.asyncio(loop_scope="function")
 async def test_sign_csr_returns_bundle(fake_k8s: FakeK8s, cm_settings: RMSettings, csr_pem: str) -> None:
@@ -226,6 +202,88 @@ async def test_sign_csr_honours_csr_usages(
     created = fake_k8s.created[0]
     assert created.spec is not None
     assert created.spec.usages == ["digital signature", "client auth"]
+
+
+@pytest.mark.parametrize(
+    ("cn", "ext_key_usage"),
+    [
+        ("fake.localmaeher.dev.pvarki.fi", [ExtendedKeyUsageOID.SERVER_AUTH, ExtendedKeyUsageOID.CLIENT_AUTH]),
+        ("FAKE.localmaeher.dev.pvarki.fi", [ExtendedKeyUsageOID.SERVER_AUTH]),
+        ("rasenmaeher", [ExtendedKeyUsageOID.SERVER_AUTH]),
+    ],
+)
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_allows_server_auth_for_service_cns(
+    fake_k8s: FakeK8s,
+    cm_settings: RMSettings,
+    mint_csr: CsrFactory,
+    cn: str,
+    ext_key_usage: list[cryptography.x509.ObjectIdentifier],
+) -> None:
+    """Service CNs may request server auth"""
+    _ = cm_settings
+    await private.sign_csr(mint_csr(cn, ext_key_usage=ext_key_usage), bundle=False)
+    created = fake_k8s.created[0]
+    assert created.spec is not None
+    assert "server auth" in (created.spec.usages or [])
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_allows_libpvarki_client_csr(
+    fake_k8s: FakeK8s, cm_settings: RMSettings, mint_csr: CsrFactory, key_usage: KeyUsageFactory
+) -> None:
+    """A user CN with the usages libpvarki's create_client_csr sets (as TAK sends) is signed"""
+    _ = cm_settings
+    csr = mint_csr(
+        "kissa",
+        key_usage(digital_signature=True, content_commitment=True, key_encipherment=True),
+        [ExtendedKeyUsageOID.CLIENT_AUTH],
+    )
+    await private.sign_csr(csr, bundle=False)
+    created = fake_k8s.created[0]
+    assert created.spec is not None
+    assert created.spec.usages == ["digital signature", "content commitment", "key encipherment", "client auth"]
+
+
+@pytest.mark.parametrize(
+    ("cn", "key_usage_flags", "ext_key_usage"),
+    [
+        ("kissa", {}, [ExtendedKeyUsageOID.SERVER_AUTH]),
+        (None, {}, [ExtendedKeyUsageOID.SERVER_AUTH]),
+        ("fake.localmaeher.dev.pvarki.fi", {}, [ExtendedKeyUsageOID.CODE_SIGNING]),
+        ("fake.localmaeher.dev.pvarki.fi", {}, [ExtendedKeyUsageOID.OCSP_SIGNING]),
+        ("fake.localmaeher.dev.pvarki.fi", {"key_cert_sign": True}, None),
+        ("kissa", {"data_encipherment": True}, [ExtendedKeyUsageOID.CLIENT_AUTH]),
+    ],
+)
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_rejects_disallowed_usages(
+    fake_k8s: FakeK8s,
+    cm_settings: RMSettings,
+    mint_csr: CsrFactory,
+    key_usage: KeyUsageFactory,
+    cn: str | None,
+    key_usage_flags: dict[str, bool],
+    ext_key_usage: list[cryptography.x509.ObjectIdentifier] | None,
+) -> None:
+    """Usages outside the caller's allowed set are refused before any CR is created"""
+    _ = cm_settings
+    csr = mint_csr(cn, key_usage(**key_usage_flags) if key_usage_flags else None, ext_key_usage)
+    with pytest.raises(ValueError, match="not allowed"):
+        await private.sign_csr(csr, bundle=False)
+    assert not fake_k8s.created
+
+
+@pytest.mark.asyncio(loop_scope="function")
+async def test_sign_csr_rejects_unknown_ext_key_usage(
+    fake_k8s: FakeK8s, cm_settings: RMSettings, mint_csr: CsrFactory
+) -> None:
+    """An ExtendedKeyUsage OID without a name is refused before any CR is created"""
+    _ = cm_settings
+    csr = mint_csr("kissa", ext_key_usage=[ExtendedKeyUsageOID.CLIENT_AUTH, ExtendedKeyUsageOID.ANY_EXTENDED_KEY_USAGE])
+    with pytest.raises(ValueError, match="Unsupported extended key usage"):
+        await private.sign_csr(csr, bundle=False)
+    assert not fake_k8s.created
 
 
 @pytest.mark.asyncio(loop_scope="function")

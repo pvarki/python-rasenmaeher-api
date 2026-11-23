@@ -232,7 +232,11 @@ class KCClient:
 
     async def client_access_token(self) -> dict[str, str | int]:
         """Create initial access token for a client to register for OIDC"""
-        return cast(dict[str, str | int], await self.kcadmin.a_create_initial_access_token())
+        # Keycloak reads expiration in seconds; python-keycloak defaults to 1, which expires before use.
+        return cast(
+            dict[str, str | int],
+            await self.kcadmin.a_create_initial_access_token(count=1, expiration=60),
+        )
 
     async def ensure_product_groups(self) -> bool | None:
         """Make sure each product in manifest has a root level group and initial child-group"""

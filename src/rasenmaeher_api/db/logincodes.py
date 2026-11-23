@@ -26,9 +26,13 @@ class LoginCode(ORMBaseModel, table=True):
     __tablename__ = "logincodes"
 
     code: str = Field(nullable=False, index=True, unique=True)
-    auditmeta: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
-    used_on: datetime.datetime = Field(nullable=True)
-    claims: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    auditmeta: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
+    used_on: datetime.datetime | None = Field(default=None, nullable=True)
+    claims: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
 
     @classmethod
     async def use_code(cls, code: str, auditmeta: dict[str, Any] | None = None) -> str:

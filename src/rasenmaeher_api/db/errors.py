@@ -45,10 +45,10 @@ class EnrollmentError(Exception):
 class CallsignReserved(HTTPException, EnrollmentError, ValueError):
     """Callsign is already reserved"""
 
-    def __init__(self, *args: Sequence[Any]) -> None:
-        """make us also 403 HTTP error"""
+    def __init__(self, *args: Sequence[Any], detail: str = "Forbidden") -> None:
+        """make us also 403 HTTP error, only detail is shown to the client"""
         self.status_code = status.HTTP_403_FORBIDDEN
-        self.detail = "Forbidden"
+        self.detail = detail
         new_args = [status.HTTP_403_FORBIDDEN] + list(args)
         super(HTTPException, self).__init__(*new_args)
 

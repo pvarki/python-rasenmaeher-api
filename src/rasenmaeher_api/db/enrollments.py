@@ -42,7 +42,9 @@ class EnrollmentPool(ORMBaseModel, table=True):
 
     owner: uuid.UUID = Field(f"{ORMBaseModel.__table_args__['schema']}.users.pk", nullable=False)
     active: bool = Field(nullable=False, default=True)
-    extra: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    extra: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
     invitecode: str = Field(nullable=False, index=True, unique=True)
 
     @classmethod
@@ -112,7 +114,7 @@ class EnrollmentPool(ORMBaseModel, table=True):
                 invitecode=code,
                 active=True,
                 owner=person.pk,
-                extra=extra,
+                extra=extra or {},
             )
             session.add(obj)
             session.commit()
@@ -156,18 +158,20 @@ class Enrollment(ORMBaseModel, table=True):
 
     approvecode: str = Field(nullable=False, index=True, unique=True)
     callsign: str = Field(nullable=False, index=True, unique=True)
-    decided_on: datetime.datetime = Field(nullable=True, default=None)
-    decided_by: uuid.UUID = Field(
+    decided_on: datetime.datetime | None = Field(nullable=True, default=None)
+    decided_by: uuid.UUID | None = Field(
         foreign_key=f"{ORMBaseModel.__table_args__['schema']}.users.pk", nullable=True, default=None
     )
-    person: uuid.UUID = Field(
+    person: uuid.UUID | None = Field(
         foreign_key=f"{ORMBaseModel.__table_args__['schema']}.users.pk", nullable=True, default=None
     )
-    pool: uuid.UUID = Field(
+    pool: uuid.UUID | None = Field(
         foreign_key=f"{ORMBaseModel.__table_args__['schema']}.enrollmentpools.pk", nullable=True, default=None
     )
     state: int = Field(nullable=False, index=False, unique=False, default=EnrollmentState.PENDING)
-    extra: dict[str, Any] = Field(sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"})
+    extra: dict[str, Any] = Field(
+        default_factory=dict, sa_type=JSONB, nullable=False, sa_column_kwargs={"server_default": "{}"}
+    )
     csr: str | None = Field(default=None, nullable=True)
 
     @classmethod
@@ -283,9 +287,9 @@ class Enrollment(ORMBaseModel, table=True):
         """Create a new one with random code for the callsign"""
         reason = reserved_callsign(callsign)
         if reason:
-            raise CallsignReserved(reason)
+            raise CallsignReserved(reason, detail="Callsign reserved")
         if csr and not verify_csr(csr, callsign):
-            raise CallsignReserved("CSR CN must match callsign")
+            raise CallsignReserved(detail="CSR subject or key usages not allowed for callsign")
         with EngineWrapper.get_session() as session:
             try:
                 await Enrollment.by_callsign(callsign)
@@ -300,7 +304,7 @@ class Enrollment(ORMBaseModel, table=True):
                 approvecode=code,
                 callsign=callsign,
                 state=EnrollmentState.PENDING,
-                extra=extra,
+                extra=extra or {},
                 pool=poolpk,
                 csr=csr,
             )

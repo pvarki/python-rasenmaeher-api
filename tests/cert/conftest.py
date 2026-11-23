@@ -11,7 +11,6 @@ import pytest
 from .helpers import (
     CA_PUBLIC_PATH,
     CertFactory,
-    CsrFactory,
     FakePKI,
     KeyUsageFactory,
     make_cert,
@@ -72,12 +71,6 @@ def csr_pem() -> str:
 def mint_cert() -> CertFactory:
     """Factory for bespoke certs when the standard pki fixture is not enough"""
     return make_cert
-
-
-@pytest.fixture(scope="session")
-def mint_csr() -> CsrFactory:
-    """Factory for CSRs with whatever subject and usage extensions a test needs"""
-    return make_csr
 
 
 @pytest.fixture(scope="session")
