@@ -272,6 +272,7 @@ async def test_sign_csr_rejects_disallowed_usages(
     with pytest.raises(ValueError, match="not allowed"):
         await private.sign_csr(csr, bundle=False)
     assert not fake_k8s.created
+    assert not fake_k8s.deletes
 
 
 @pytest.mark.asyncio(loop_scope="function")

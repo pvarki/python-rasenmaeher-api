@@ -794,13 +794,13 @@ async def mdm_challenge(mdm_agent_client: TestClient) -> str:
     return (await (await MdmEnrolment.current()).open_for(1)).challenge
 
 
-async def _device_csr(tempdir: Path, callsign: str, name: str = "device") -> str:
+async def _device_csr(tempdir: Path, callsign: str, name: str = "device", **subject: str) -> str:
     """A CSR the way a device sends one through its MDM: its own key, the name the MDM gave it as the CN"""
     privkeyfile = Path(tempdir) / f"{name}.key"
     pubkeyfile = Path(tempdir) / f"{name}.pub"
     csrfile = Path(tempdir) / f"{name}.csr"
     ckp = await async_create_keypair(privkeyfile, pubkeyfile)
-    return str(await async_create_client_csr(ckp, csrfile, {"CN": callsign}))
+    return str(await async_create_client_csr(ckp, csrfile, {"CN": callsign, **subject}))
 
 
 def _public_key_der(pem: str) -> bytes:
@@ -862,6 +862,26 @@ async def test_mdm_agent_enrols_a_device_under_its_mdm_name(
 
 
 @pytest.mark.asyncio(loop_scope="session")
+async def test_mdm_agent_enrols_a_request_that_asks_for_nothing(
+    mdm_agent_client: TestClient, mdm_challenge: str
+) -> None:
+    """What an MDM's device really sends: the name as the whole subject, an RSA 2048 key, no extension request"""
+    callsign = f"R58P{secrets.token_hex(4).upper()}"
+    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, callsign)])
+    request = x509.CertificateSigningRequestBuilder().subject_name(subject).sign(key, hashes.SHA256())
+    assert not list(request.extensions), "precondition: the request asks for no usage at all"
+    csrpem = request.public_bytes(serialization.Encoding.PEM).decode("utf-8")
+
+    resp = await _mdm_enrol(mdm_agent_client, callsign, csrpem, mdm_challenge)
+    assert resp.status_code == 200, resp.text
+    certpem = resp.json()["certificate"]
+    assert _public_key_der(certpem) == _public_key_der(csrpem)
+    issued = x509.load_pem_x509_certificate(certpem.encode("utf-8"))
+    assert [attr.value for attr in issued.subject.get_attributes_for_oid(NameOID.COMMON_NAME)] == [callsign]
+
+
+@pytest.mark.asyncio(loop_scope="session")
 async def test_mdm_agent_refusals(
     tilauspalvelu_jwt_admin_client: TestClient,
     mdm_agent_client: TestClient,
@@ -878,6 +898,24 @@ async def test_mdm_agent_refusals(
     resp = await _mdm_enrol(mdm_agent_client, name, wrong_csr, mdm_challenge)
     assert resp.status_code == 403
     assert await _no_person(name)
+
+    # A subject that carries anything beside the name, such as the MDM's own id for the device.
+    # The same name with the name alone is taken, so it was the subject that was refused.
+    with_ou = f"mdmou{secrets.token_hex(4)}"
+    ou_csr = await _device_csr(tempdir, with_ou, name="ou", OU="5f1d2c3b-host-id")
+    resp = await _mdm_enrol(mdm_agent_client, with_ou, ou_csr, mdm_challenge)
+    assert resp.status_code == 403
+    assert await _no_person(with_ou)
+    resp = await _mdm_enrol(mdm_agent_client, with_ou, await _device_csr(tempdir, with_ou, name="plain"), mdm_challenge)
+    assert resp.status_code == 200, resp.text
+
+    # A request that is not signed by the key it carries
+    forged = f"mdmforged{secrets.token_hex(4)}"
+    resp = await _mdm_enrol(
+        mdm_agent_client, forged, invalidate_signature(await _device_csr(tempdir, forged, name="forged")), mdm_challenge
+    )
+    assert resp.status_code == 403
+    assert await _no_person(forged)
 
     # No CSR at all
     resp = await _mdm_enrol(mdm_agent_client, name, None, mdm_challenge)
@@ -1047,10 +1085,12 @@ async def test_agent_cn_cannot_be_taken_as_a_callsign(monkeypatch: pytest.Monkey
     monkeypatch.setattr(settings, "mdm_agent_cns", f"{MDM_AGENT_CN},second-agent")
 
     for taken in (MDM_AGENT_CN, MDM_AGENT_CN.upper(), "second-agent"):
-        with pytest.raises(CallsignReserved):
+        with pytest.raises(CallsignReserved) as refused:
             await Enrollment.create_for_callsign(callsign=taken)
-        with pytest.raises(CallsignReserved):
+        assert refused.value.detail == "Callsign reserved"
+        with pytest.raises(CallsignReserved) as refused:
             await Person.create_with_cert(callsign=taken)
+        assert refused.value.detail == "Callsign reserved"
 
 
 @pytest.mark.asyncio(loop_scope="session")
