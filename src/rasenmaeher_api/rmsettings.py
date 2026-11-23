@@ -113,11 +113,11 @@ class RMSettings(BaseSettings):
     ocsp_ca_secret_namespace: str = "cert-manager"
     ocsp_response_validity: int = 3600  # seconds from now until nextUpdate
 
-    # Service identities allowed to complete device enrolments an admin planned with mdm=true,
-    # comma separated. Empty by default: until a deployment names its MDM agent here, the agent
-    # path in POST /enrollment/accept does not exist. Deliberately NOT the kraftwerk product CNs:
-    # those are exempt from role checks, can have any CSR signed and cannot be revoked at the
-    # edge, which is far more than completing a planned enrolment needs.
+    # Service identities allowed to enrol devices under the names their MDM gave them, while an
+    # admin has enrolment open, comma separated. Empty by default: until a deployment names its
+    # MDM agent here, the agent path in POST /enrollment/accept does not exist. Deliberately NOT
+    # the kraftwerk product CNs: those are exempt from role checks, can have any CSR signed and
+    # cannot be revoked at the edge, which is far more than enrolling a device needs.
     mdm_agent_cns: str = ""
 
     persistent_data_dir: str = "/data/persistent"
